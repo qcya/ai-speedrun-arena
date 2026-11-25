@@ -1,0 +1,5 @@
+{
+  "version": 1, "agent": "步行基线",
+  "goal": {"type": "displacement", "blocks": 8},
+  "steps": [{"label":"沿训练场向东南步行", "ticks": 100, "yaw": -22, "pitch": 0, "keys": ["forward"]}]
+}

@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "agent": "直取床",
+  "goal": {
+    "type": "item",
+    "item": "minecraft:red_bed",
+    "count": 1
+  },
+  "steps": [
+    {
+      "label": "瞄准床脚",
+      "ticks": 2,
+      "yaw": 0,
+      "pitch": 22,
+      "keys": []
+    },
+    {
+      "label": "准星被实体拦截就弃局",
+      "ticks": 1,
+      "require_target": "block",
+      "keys": [
+        "attack"
+      ]
+    },
+    {
+      "label": "继续挖掘床脚",
+      "ticks": 10,
+      "keys": [
+        "attack"
+      ]
+    },
+    {
+      "label": "走到掉落处拾取",
+      "ticks": 32,
+      "keys": [
+        "forward"
+      ]
+    }
+  ]
+}

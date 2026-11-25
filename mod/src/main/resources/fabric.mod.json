@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "ai_speedrun_arena",
+  "version": "0.1.0",
+  "name": "AI Speedrun Arena",
+  "description": "Tick-based local plan playback and observation for Minecraft Java Edition 1.16.1.",
+  "license": "MIT",
+  "environment": "client",
+  "mixins": ["ai-speedrun-arena.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "1.16.1",
+    "java": ">=8"
+  }
+}

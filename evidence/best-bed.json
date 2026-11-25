@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "agent": "ASTRA · 边走边挖",
+  "goal": {
+    "type": "item",
+    "item": "minecraft:red_bed",
+    "count": 1
+  },
+  "steps": [
+    {
+      "label": "准星对床，起步同时开挖",
+      "ticks": 1,
+      "yaw": 0,
+      "pitch": 22,
+      "require_target": "block",
+      "keys": [
+        "attack",
+        "forward",
+        "sprint"
+      ]
+    },
+    {
+      "label": "前进中持续瞄准床面",
+      "ticks": 4,
+      "pitch": 26,
+      "keys": [
+        "attack",
+        "forward",
+        "sprint"
+      ]
+    },
+    {
+      "label": "向下修正准星，继续挖掘",
+      "ticks": 5,
+      "pitch": 29.0,
+      "keys": [
+        "attack",
+        "forward"
+      ]
+    },
+    {
+      "label": "抵达床的位置拾取",
+      "ticks": 26,
+      "keys": [
+        "forward"
+      ]
+    }
+  ]
+}

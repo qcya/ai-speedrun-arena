@@ -1,0 +1,62 @@
+{
+  "step": 3,
+  "field": "pitch",
+  "attempts": [
+    {
+      "id": "3d44bad4a86d43d480a322cd41bca9ae",
+      "status": "success",
+      "ticks": 16,
+      "reason": "goal_reached",
+      "comparison_key": "2eab5e1ffe2c804271f9fa9b0075cdbcb38d1d1494dae132b0fb5b97d623102d",
+      "value": 29.0
+    },
+    {
+      "id": "d2a570b5d2b44c56a3299cda0161ee85",
+      "status": "success",
+      "ticks": 17,
+      "reason": "goal_reached",
+      "comparison_key": "2eab5e1ffe2c804271f9fa9b0075cdbcb38d1d1494dae132b0fb5b97d623102d",
+      "value": 35.0
+    },
+    {
+      "id": "05b5a26caa454d1eab7bb9ca83270a8a",
+      "status": "failed",
+      "ticks": 36,
+      "reason": "plan_exhausted",
+      "comparison_key": "2eab5e1ffe2c804271f9fa9b0075cdbcb38d1d1494dae132b0fb5b97d623102d",
+      "value": 42.0
+    },
+    {
+      "id": "eaf29ae694f24440b30795699907a602",
+      "status": "success",
+      "ticks": 16,
+      "reason": "goal_reached",
+      "comparison_key": "2eab5e1ffe2c804271f9fa9b0075cdbcb38d1d1494dae132b0fb5b97d623102d",
+      "value": 35.0
+    },
+    {
+      "id": "59725c2e7618474aa53dce12fa6d7c78",
+      "status": "success",
+      "ticks": 17,
+      "reason": "goal_reached",
+      "comparison_key": "2eab5e1ffe2c804271f9fa9b0075cdbcb38d1d1494dae132b0fb5b97d623102d",
+      "value": 42.0
+    },
+    {
+      "id": "4609d1eead0d479c8f3b908f0149d70d",
+      "status": "failed",
+      "ticks": 36,
+      "reason": "plan_exhausted",
+      "comparison_key": "2eab5e1ffe2c804271f9fa9b0075cdbcb38d1d1494dae132b0fb5b97d623102d",
+      "value": 29.0
+    }
+  ],
+  "best_observed": {
+    "id": "3d44bad4a86d43d480a322cd41bca9ae",
+    "status": "success",
+    "ticks": 16,
+    "reason": "goal_reached",
+    "comparison_key": "2eab5e1ffe2c804271f9fa9b0075cdbcb38d1d1494dae132b0fb5b97d623102d",
+    "value": 29.0
+  }
+}

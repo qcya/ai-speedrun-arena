@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.gradle/
+build/
+out/
+runs.sqlite3*
+*.log
+.idea/
+.vscode/
+run/
+!evidence/runs.sqlite3

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#111411">
+  <title>AI 速通竞技场 · 本地观赛台</title>
+  <link rel="icon" href="/flag.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/arena.css">
+  <script src="/arena.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand"><img src="/flag.svg" alt="" width="31" height="31"><span>SPEEDRUN <b>ARENA</b></span><span class="brand-divider"></span><span class="edition">观赛台</span></div>
+      <div class="top-actions"><span id="connection" role="status"><i></i><span>连接中</span></span><button id="broadcast" type="button" aria-pressed="false"><span class="view-icon" aria-hidden="true"></span><span id="broadcast-label">转播视图</span></button></div>
+    </div>
+  </header>
+  <main>
+    <div class="hero">
+      <div><p class="kicker">MINECRAFT <i></i> JAVA EDITION</p><h1>AI 速通竞技场</h1></div>
+      <div class="sources" role="group" aria-label="成绩来源">
+        <button type="button" data-source="game" aria-pressed="false">实机记录 <span id="count-game">0</span></button>
+        <button type="button" data-source="demo" aria-pressed="false">演示记录 <span id="count-demo">0</span></button>
+      </div>
+      <span id="obs-source" class="obs-only source-tag"></span>
+    </div>
+    <div id="message" role="alert" hidden></div>
+    <section id="empty" class="card empty-board" hidden>
+      <img src="/flag.svg" alt="" width="42" height="42">
+      <h2 id="empty-title">暂无挑战记录</h2><p id="empty-text"></p>
+      <code id="empty-command" hidden>python -m arena demo</code>
+    </section>
+    <div id="workspace" hidden>
+      <div class="board">
+        <section class="card results" aria-labelledby="result-title">
+          <div class="panel-head"><div class="section-title"><span class="section-mark" aria-hidden="true"></span><h2 id="result-title">同组成绩</h2></div><span id="source-tag" class="source-tag"></span></div>
+          <div class="event-title" id="goal"></div>
+          <div class="score">
+            <div class="minor-title" id="score-label">组内最快</div>
+            <div class="clock" id="best-time">—</div>
+            <div class="score-info" id="best-info"></div>
+          </div>
+          <div class="ranking"><table aria-label="同组挑战成绩"><thead><tr><th>排名</th><th>智能体</th><th>成功 / 场次</th><th>最佳 / 状态</th></tr></thead><tbody id="rank-rows"></tbody></table></div>
+          <p id="comparison" class="panel-note"></p>
+        </section>
+        <section class="card replay" aria-labelledby="trace-title">
+          <div class="panel-head"><div class="section-title"><span class="section-mark" aria-hidden="true"></span><h2 id="trace-title">轨迹回放</h2></div><span class="projection-label">俯视投影 <b>X / Z</b></span></div>
+          <div class="map-heading"><div id="trace-agent"></div><div class="map-actions"><button type="button" id="follow" aria-pressed="true">跟随最新</button><label id="dimension-label" for="dimension"><span class="sr-only">显示维度</span><select id="dimension" aria-label="显示维度"></select></label></div></div>
+          <div class="plot">
+            <canvas id="map" aria-label="根据实测坐标绘制的 X / Z 俯视轨迹图"></canvas>
+            <span id="map-key" hidden aria-hidden="true"><i></i> 起点 <b></b> 当前位置</span>
+            <p id="map-empty">等待坐标记录</p>
+          </div>
+          <div class="trace-readout"><span id="position">—</span><span id="map-dimension"></span></div>
+          <div class="transport">
+            <button id="play" type="button" aria-label="播放轨迹"><span class="play-shape" aria-hidden="true"></span></button>
+            <input type="range" id="scrub" aria-label="回放时间刻" min="0" max="1" value="0" step="1">
+            <span class="tick-readout"><b id="current-tick">0</b><span> / </span><span id="total-tick">0</span><small> tick</small></span>
+          </div>
+        </section>
+      </div>
+      <section class="card details" aria-labelledby="detail-title">
+        <div class="detail-heading"><h2 id="detail-title">挑战详情</h2><span id="detail-status"></span></div>
+        <dl id="detail-list"></dl>
+        <p id="reason" hidden></p>
+      </section>
+      <section class="card history" aria-labelledby="history-title">
+        <div class="panel-head"><div class="section-title"><span class="section-mark" aria-hidden="true"></span><h2 id="history-title">挑战记录</h2><span class="history-count" id="history-count"></span></div><label class="filter" for="agent-filter"><span>智能体</span><select id="agent-filter"></select></label></div>
+        <div class="history-scroll"><table aria-label="历史挑战，选择记录以回放"><thead><tr><th>智能体</th><th>挑战目标</th><th>结果</th><th>游戏用时</th><th>开始时间</th><th><span class="sr-only">回放</span></th></tr></thead><tbody id="history-rows"></tbody></table></div>
+      </section>
+    </div>
+    <footer><span>MINECRAFT JAVA · AI SPEEDRUN ARENA</span><span>游戏计时按 20 tick / 秒换算</span></footer>
+  </main>
+  <noscript>观赛台需要启用 JavaScript 来读取本地挑战记录和回放轨迹。</noscript>
+</body>
+</html>

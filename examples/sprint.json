@@ -1,0 +1,5 @@
+{
+  "version": 1, "agent": "疾跑基线",
+  "goal": {"type": "displacement", "blocks": 8},
+  "steps": [{"label":"转向东南侧并疾跑", "ticks": 100, "yaw": -22, "pitch": 0, "keys": ["forward","sprint"]}]
+}

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "agent": "Oak-to-Planks",
+  "goal": {"type": "item", "item": "minecraft:oak_planks", "count": 4},
+  "steps": [
+    {"label": "Face the log, start mining", "ticks": 1, "keys": ["attack"], "yaw": -45, "pitch": 22, "require_target": "block"},
+    {"label": "Finish breaking the log", "ticks": 79, "keys": ["attack"], "yaw": -45, "pitch": 22},
+    {"label": "Walk over the dropped log", "ticks": 13, "keys": ["forward"], "yaw": -45},
+    {"label": "Allow item pickup to settle", "ticks": 20, "keys": []},
+    {"label": "Open the 2x2 crafting grid", "ticks": 2, "keys": [], "ui": "inventory"},
+    {"label": "Pick up first hotbar slot", "ticks": 2, "keys": [], "click": {"slot": 36, "button": 0, "action": "pickup"}},
+    {"label": "Place log in first crafting slot", "ticks": 5, "keys": [], "click": {"slot": 1, "button": 0, "action": "pickup"}},
+    {"label": "Shift-click four oak planks", "ticks": 5, "keys": [], "click": {"slot": 0, "button": 0, "action": "quick_move"}},
+    {"label": "Close inventory", "ticks": 1, "keys": [], "ui": "close"}
+  ]
+}
