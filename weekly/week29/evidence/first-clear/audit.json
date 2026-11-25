@@ -1,0 +1,199 @@
+{
+  "dimension_visits": [
+    {
+      "dimension": "minecraft:overworld",
+      "first_sample": {
+        "dimension": "minecraft:overworld",
+        "elapsed_ms": 1,
+        "player_hp": 20.0,
+        "position": {
+          "x": -231.5,
+          "y": 69.0,
+          "z": 179.5
+        },
+        "tick": 1,
+        "time_ms": 1795634315949
+      },
+      "last_sample": {
+        "dimension": "minecraft:overworld",
+        "elapsed_ms": 940374,
+        "player_hp": 20.0,
+        "position": {
+          "x": 116.42279265163647,
+          "y": 38.653729617588596,
+          "z": -1694.498782967147
+        },
+        "tick": 18811,
+        "time_ms": 1795635256322
+      }
+    },
+    {
+      "dimension": "minecraft:the_end",
+      "first_sample": {
+        "dimension": "minecraft:the_end",
+        "elapsed_ms": 940909,
+        "player_hp": 20.0,
+        "position": {
+          "x": 99.30513483081083,
+          "y": 49.0,
+          "z": -0.004710875172077467
+        },
+        "tick": 18821,
+        "time_ms": 1795635256857
+      },
+      "last_sample": {
+        "dimension": "minecraft:the_end",
+        "elapsed_ms": 1029410,
+        "player_hp": 18.453342,
+        "position": {
+          "x": 0.6434697849290172,
+          "y": 62.0,
+          "z": -0.5284561377197674
+        },
+        "tick": 20581,
+        "time_ms": 1795635345358
+      }
+    }
+  ],
+  "errors": [],
+  "first_state": {
+    "dimension": "minecraft:overworld",
+    "elapsed_ms": 1,
+    "player_hp": 20.0,
+    "position": {
+      "x": -231.5,
+      "y": 69.0,
+      "z": 179.5
+    },
+    "tick": 1,
+    "time_ms": 1795634315949
+  },
+  "first_zero_hp_samples_by_episode": [],
+  "last_state": {
+    "dimension": "minecraft:the_end",
+    "elapsed_ms": 1029410,
+    "player_hp": 18.453342,
+    "position": {
+      "x": 0.6434697849290172,
+      "y": 62.0,
+      "z": -0.5284561377197674
+    },
+    "tick": 20581,
+    "time_ms": 1795635345358
+  },
+  "local_elapsed_ms": 1029660,
+  "maximum_simultaneous_beds": 9,
+  "minimum_observed_dragon_hp": 0.0,
+  "missing": [],
+  "observed_player_death": false,
+  "observed_span_ms": 1029660,
+  "player_health": {
+    "final_observed": 18.453342,
+    "minimum": 14.0,
+    "minimum_in_end": 16.820002
+  },
+  "reference_world_spawn_block": {
+    "x": -240,
+    "y": 69,
+    "z": 181
+  },
+  "sampling_interval_ticks": 10,
+  "scope": "Local client observations only. The log records main inventory and sampled health. Seed, world generation settings, game mode, inputs and official race timing require separate evidence.",
+  "splits": {
+    "beds": {
+      "count": 1,
+      "dimension": "minecraft:overworld",
+      "elapsed_ms": 47165,
+      "player_hp": 20.0,
+      "position": {
+        "x": -290.4947083414715,
+        "y": 63.0,
+        "z": 230.18172672316274
+      },
+      "tick": 951,
+      "time_ms": 1795634363113
+    },
+    "dragon_zero_hp": {
+      "dimension": "minecraft:the_end",
+      "dragon_hp": 0.0,
+      "dragon_phase": "Dying (#9)",
+      "elapsed_ms": 1019906,
+      "player_hp": 16.820002,
+      "position": {
+        "x": 0.6434697849290172,
+        "y": 62.0,
+        "z": -0.5284561377197674
+      },
+      "tick": 20391,
+      "time_ms": 1795635335854
+    },
+    "dragon_zero_or_dying": {
+      "dimension": "minecraft:the_end",
+      "dragon_hp": 0.0,
+      "dragon_phase": "Dying (#9)",
+      "elapsed_ms": 1019906,
+      "player_hp": 16.820002,
+      "position": {
+        "x": 0.6434697849290172,
+        "y": 62.0,
+        "z": -0.5284561377197674
+      },
+      "tick": 20391,
+      "time_ms": 1795635335854
+    },
+    "end_credits": {
+      "elapsed_ms": 1029660,
+      "tick": 20585,
+      "time_ms": 1795635345608
+    },
+    "enter_end": {
+      "dimension": "minecraft:the_end",
+      "elapsed_ms": 940909,
+      "player_hp": 20.0,
+      "position": {
+        "x": 99.30513483081083,
+        "y": 49.0,
+        "z": -0.004710875172077467
+      },
+      "tick": 18821,
+      "time_ms": 1795635256857
+    },
+    "full_health_dragon": {
+      "dimension": "minecraft:the_end",
+      "dragon_hp": 200.0,
+      "dragon_phase": "HoldingPattern (#0)",
+      "elapsed_ms": 944917,
+      "player_hp": 19.0,
+      "position": {
+        "x": 98.30000001192093,
+        "y": 49.121296840539195,
+        "z": -0.4374534652901597
+      },
+      "tick": 18891,
+      "time_ms": 1795635260865
+    },
+    "pickaxe": {
+      "dimension": "minecraft:overworld",
+      "elapsed_ms": 30195,
+      "items": [
+        "iron_pickaxe"
+      ],
+      "player_hp": 20.0,
+      "position": {
+        "x": -262.53918928889766,
+        "y": 65.9375,
+        "z": 234.5585311626897
+      },
+      "tick": 611,
+      "time_ms": 1795634346143
+    },
+    "spawn": {
+      "elapsed_ms": 0,
+      "tick": 0,
+      "time_ms": 1795634315948
+    }
+  },
+  "state_count": 2059,
+  "status": "verified_local_completion",
+  "verified": true
+}

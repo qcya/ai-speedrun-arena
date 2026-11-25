@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "refmap": "ai-speedrun-week29-refmap.json",
+  "minVersion": "0.8",
+  "package": "dev.aiarena.week29.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "client": [
+    "RunTickMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

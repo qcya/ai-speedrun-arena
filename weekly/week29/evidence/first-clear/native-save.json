@@ -1,0 +1,50 @@
+{
+  "commands_allowed": false,
+  "dragon_fight": {
+    "DragonKilled": true,
+    "PreviouslyKilled": true,
+    "exit_portal_location": {
+      "X": 0,
+      "Y": 62,
+      "Z": 0
+    }
+  },
+  "game_mode": 0,
+  "last_played_ms": 1795635409872,
+  "level_dat_seenCredits": true,
+  "level_last_played_at_or_after_observed_credits": true,
+  "limitations": [
+    "A missing player or advancement is unknown. DragonFight flags by themselves do not establish a kill."
+  ],
+  "noise_generator_seeds": {
+    "minecraft:overworld": "-3400912661042936483",
+    "minecraft:the_end": "4056954346358420256",
+    "minecraft:the_nether": "-392129629567131977"
+  },
+  "player_advancements": {
+    "minecraft:end/dragon_breath": {
+      "done": null,
+      "present": false
+    },
+    "minecraft:end/kill_dragon": {
+      "done": null,
+      "present": false
+    },
+    "minecraft:end/root": {
+      "criteria": {
+        "entered_end": "2026-11-26 03:34:16 +0800"
+      },
+      "done": true,
+      "present": true
+    },
+    "minecraft:story/enter_the_end": {
+      "criteria": {
+        "entered_end": "2026-11-26 03:34:16 +0800"
+      },
+      "done": true,
+      "present": true
+    }
+  },
+  "player_dat_seenCredits": true,
+  "world_version": "1.16.1"
+}

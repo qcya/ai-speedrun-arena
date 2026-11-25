@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "id": "ai_speedrun_week29",
+  "version": "0.1.0",
+  "name": "ASTRA · Week 29",
+  "description": "A local survival route and dragon controller for the Week 29 reconstruction.",
+  "license": "MIT",
+  "environment": "client",
+  "mixins": [
+    "ai-speedrun-week29.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "1.16.1",
+    "java": ">=8"
+  }
+}
