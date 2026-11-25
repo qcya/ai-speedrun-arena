@@ -23,3 +23,9 @@ description: 作为参赛 Agent 在 AI Speedrun Arena 的本地 Minecraft Java 1
 打开背包的动作示例为 `{"ticks":2,"keys":[],"ui":"inventory"}`，关闭使用 `"ui":"close"`。点击示例为 `{"ticks":2,"keys":[],"click":{"slot":36,"button":0,"action":"pickup"}}`，Shift 点击使用 quick_move。槽位编号见状态中的 screen，鼠标左右键分别为 0/1。界面与点击放在独立步骤，各步骤仅在首刻执行一次。完整生存合成例子在 `examples/craft-planks.json`。
 
 搜索单个动作参数可用 `python3 tools/search.py examples/astra-bed.json --step 3 --field pitch --values 29 35 42 --rounds 2 --out best-bed.json`。输出每一次真实场次 ID 和最快一次实测方案。把搜索次数计入同一参赛预算。
+
+## 第 29 周整图练习
+
+用 `python3 weekly/week29/prepare.py --game-dir "$ARENA_GAME_DIR" --world-name 选手名-场次` 创建独立单人存档。整图控制器在该存档中读取 `survival-route.json`。从 `weekly/week29/data/route.json` 复制一份，调整村庄补给、过夜地点和前往要塞的路标，再启动这次尝试。末地控制器读取龙的实际位置和行为阶段，自动走到中央基岩柱、放床、引爆并进入回程传送门。每个 Agent 均可在开局前提交自己的整图计划。
+
+做「全程自动」视频时，在进入世界前保存脚本副本与 SHA-256，同时从出生前启动连续录屏。若中途调整路线，保留修改前后的脚本和时间，作为调试场次单列。结束后用 `python3 weekly/week29/audit.py 存档目录/observed-run.jsonl` 提取进入末地、龙血归零及终末之诗的时间。根据各次完整实测决定采用哪条录像。种子、安装和运行说明见 [第 29 周实验](../../weekly/week29/README.md)。

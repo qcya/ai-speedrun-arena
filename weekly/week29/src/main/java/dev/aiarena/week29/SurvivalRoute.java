@@ -14,8 +14,11 @@ import net.minecraft.screen.CraftingScreenHandler;
 import net.minecraft.screen.ScreenHandler;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.*;
 import net.minecraft.util.registry.Registry;
+import net.minecraft.world.RayTraceContext;
 import net.minecraft.world.World;
 
 import java.io.*;
@@ -37,6 +40,10 @@ public final class SurvivalRoute {
             placedAtTick,
             nextRestUseTick,
             bedMissingSince;
+    private static ItemEntity pickupItem;
+    private static int pickupStillSince, detourUntil, detourIndex;
+    private static double pickupLastX, pickupLastZ;
+    private static BlockPos pickupDetour;
     private static String state = "idle", goalName = "";
     private static boolean finished = false;
 
@@ -153,12 +160,89 @@ public final class SurvivalRoute {
         return nearest;
     }
 
+    private static BlockPos pickupBarrier(Vec3d from, Vec3d to) {
+        BlockHitResult hit =
+                mc.world.rayTrace(
+                        new RayTraceContext(
+                                from,
+                                to,
+                                RayTraceContext.ShapeType.COLLIDER,
+                                RayTraceContext.FluidHandling.NONE,
+                                mc.player));
+        if (hit.getType() != HitResult.Type.BLOCK) return null;
+        BlockPos at = hit.getBlockPos();
+        BlockState block = mc.world.getBlockState(at);
+        if (at.equals(mc.player.getBlockPos().down())
+                || block.getHardness(mc.world, at) < 0
+                || block.getHardness(mc.world, at) > 8
+                || block.getBlock() instanceof BedBlock
+                || block.getBlock() instanceof ChestBlock) return null;
+        return at;
+    }
+
+    private static boolean clearPickupPath(ItemEntity item) {
+        Vec3d eyes = mc.player.getCameraPosVec(1);
+        Vec3d itemCenter = new Vec3d(item.getX(), item.getY() + .15, item.getZ());
+        if (eyes.squaredDistanceTo(itemCenter) > 20.0) return false;
+        BlockPos barrier = pickupBarrier(eyes, itemCenter);
+        if (barrier != null && nav.mine(barrier)) return true;
+        // An unobstructed view of the dropped item can still leave a wall at
+        // shoulder or foot height. Each ray ends at the item, never beyond it.
+        double footHeight = .3;
+        Vec3d feet = new Vec3d(mc.player.getX(), mc.player.getY() + footHeight, mc.player.getZ());
+        barrier =
+                pickupBarrier(feet, new Vec3d(item.getX(), item.getY() + footHeight, item.getZ()));
+        if (barrier != null && nav.mine(barrier)) return true;
+        barrier = pickupBarrier(eyes, new Vec3d(item.getX(), item.getY() + 1.45, item.getZ()));
+        return barrier != null && nav.mine(barrier);
+    }
+
+    private static BlockPos pickupSide(ItemEntity item) {
+        double dx = item.getX() - mc.player.getX(), dz = item.getZ() - mc.player.getZ();
+        Direction side = Math.abs(dx) > Math.abs(dz) ? Direction.NORTH : Direction.WEST;
+        if ((detourIndex++ & 1) != 0) side = side.getOpposite();
+        BlockPos current = mc.player.getBlockPos();
+        for (int pass = 0; pass < 2; pass++, side = side.getOpposite()) {
+            for (int rise : new int[] {0, 1, -1}) {
+                BlockPos step = current.offset(side).up(rise);
+                if (nav.walkable(step)) return step;
+            }
+        }
+        return null;
+    }
+
     private static boolean pickup(String filter) {
         ItemEntity item = drop(filter);
         if (item == null) return false;
         double dy = item.getY() - mc.player.getY();
         double drift = Math.hypot(item.getX() - mc.player.getX(), item.getZ() - mc.player.getZ());
-        if (drift < 1.85 && Math.abs(dy) < 1.55) {
+        double moved = Math.hypot(mc.player.getX() - pickupLastX, mc.player.getZ() - pickupLastZ);
+        if (item != pickupItem || moved > .45) {
+            if (item != pickupItem) pickupDetour = null;
+            pickupItem = item;
+            pickupLastX = mc.player.getX();
+            pickupLastZ = mc.player.getZ();
+            pickupStillSince = ticks;
+        }
+        if (clearPickupPath(item)) {
+            pickupDetour = null;
+            pickupStillSince = ticks;
+            return true;
+        }
+        if (pickupDetour != null && ticks < detourUntil) {
+            if (!nav.travel(pickupDetour, .25, true)) return true;
+            pickupDetour = null;
+        }
+        if (drift < 4.4 && ticks - pickupStillSince >= (mc.player.horizontalCollision ? 6 : 16)) {
+            pickupDetour = pickupSide(item);
+            pickupStillSince = ticks;
+            if (pickupDetour != null) {
+                detourUntil = ticks + 12;
+                nav.travel(pickupDetour, .25, true);
+                return true;
+            }
+        }
+        if (drift < 1.85 && Math.abs(dy) < 1.55 && !mc.player.horizontalCollision) {
             nav.cancelBreak();
             if (drift > .12) {
                 nav.aim(new Vec3d(item.getX(), mc.player.getEyeY(), item.getZ()));
@@ -167,8 +251,7 @@ public final class SurvivalRoute {
             mc.options.keyJump.setPressed(dy > .4 || mc.player.isTouchingWater());
             return true;
         }
-        BlockPos at = item.getBlockPos();
-        nav.travel(at, .1, true);
+        nav.travel(item.getBlockPos(), .1, true);
         return true;
     }
 
@@ -201,6 +284,11 @@ public final class SurvivalRoute {
             gatherGoal = o.has("additional") ? held + num(o, "additional", 0) : num(o, "count", 1);
         }
         if (held >= gatherGoal) return true;
+        int budget = num(o, "max_ticks", 0);
+        if (budget > 0 && age >= budget && flag(o, "optional", true)) {
+            state = "optional gather timed out: " + items + " held " + held + " of " + gatherGoal;
+            return true;
+        }
         if (pickup(items)) {
             state = "picking up " + items;
             return false;
@@ -554,6 +642,8 @@ public final class SurvivalRoute {
         approachPos = null;
         restAt = null;
         pendingRestAt = null;
+        pickupItem = null;
+        pickupDetour = null;
         state = "idle";
         goalName = "";
         finished = false;

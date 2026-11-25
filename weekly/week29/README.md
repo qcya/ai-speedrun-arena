@@ -42,10 +42,14 @@ python3 weekly/week29/prepare.py --game-dir "/path/to/instance/.minecraft"
 python3 weekly/week29/audit.py "/path/to/instance/.minecraft/saves/ASTRA-Week29/observed-run.jsonl"
 ```
 
-采床动作的 `additional` 按到达该处时的实际背包计算，设为 1 即再收一张。只有 `count` 时按指定背包总数执行。夜间露营会先发出一次放床动作，等待世界确认床的位置，再入睡和回收。
+采床动作的 `additional` 按到达该处时的实际背包计算，设为 1 即再收一张。可选补给点的 `max_ticks` 限制尝试时间，360 刻约为 18 秒。超时后继续下一个补给点。实际取得的床数由背包记录。设置 `optional: false` 会保留该处为必做步骤。只有 `count` 时按指定背包总数执行。夜间露营会先发出一次放床动作，等待世界确认床的位置，再入睡和回收。
 
 ### 第一局通关实录
 
 实机从空背包出生到终末之诗共 **17:09.660**。15:40.909 进入末地，16:59.906 首次采样到龙生命归零。玩家带九张床进末地，使用七张后进入回程传送门。中途露营留下了两张床，路线调整了一次后续采集目标。前后使用同一个存档和角色，录像从出生连续录到通关。
 
 [逐刻抽样记录与录像校验值](evidence/first-clear/) · [原版通关画面](evidence/first-clear/credits.png)
+
+### 隔墙拾取
+
+在第二座村庄的一间屋外，旧路线能敲掉床，但掉落物被墙隔在里面。用卡住时保存的存档单独复测，新控制器挖掉一块橡木原木、一块苔石和一块圆石，在 5.551 秒后拾起地上原有的黄床，背包从三张变为四张。[原版统计与复测记录](evidence/pickup-regression.json)

@@ -130,7 +130,8 @@
     "count": 1,
     "radius": 7,
     "vertical": 4,
-    "additional": 1
+    "additional": 1,
+    "max_ticks": 400
   },
   {
     "op": "walk",
@@ -195,7 +196,8 @@
     "count": 2,
     "radius": 7,
     "vertical": 4,
-    "additional": 1
+    "additional": 1,
+    "max_ticks": 400
   },
   {
     "op": "walk",
@@ -232,30 +234,8 @@
     "count": 3,
     "radius": 7,
     "vertical": 4,
-    "additional": 1
-  },
-  {
-    "op": "walk",
-    "x": -301,
-    "y": 71,
-    "z": 242,
-    "radius": 1.8
-  },
-  {
-    "op": "walk",
-    "x": -299,
-    "y": 71,
-    "z": 245,
-    "radius": 1.35
-  },
-  {
-    "op": "gather",
-    "block": "*_bed",
-    "item": "*_bed",
-    "count": 4,
-    "radius": 7,
-    "vertical": 4,
-    "additional": 1
+    "additional": 1,
+    "max_ticks": 400
   },
   {
     "op": "walk",
@@ -826,12 +806,13 @@
   },
   {
     "op": "gather",
-    "block": "*_bed",
-    "item": "*_bed",
-    "count": 5,
+    "block": "yellow_bed",
+    "item": "yellow_bed",
+    "count": 1,
+    "additional": 1,
+    "max_ticks": 360,
     "radius": 7,
-    "vertical": 4,
-    "additional": 1
+    "vertical": 4
   },
   {
     "op": "walk",
@@ -884,12 +865,13 @@
   },
   {
     "op": "gather",
-    "block": "*_bed",
-    "item": "*_bed",
-    "count": 6,
+    "block": "yellow_bed",
+    "item": "yellow_bed",
+    "count": 2,
+    "additional": 1,
+    "max_ticks": 360,
     "radius": 7,
-    "vertical": 4,
-    "additional": 1
+    "vertical": 4
   },
   {
     "op": "walk",
@@ -914,12 +896,13 @@
   },
   {
     "op": "gather",
-    "block": "*_bed",
-    "item": "*_bed",
-    "count": 7,
+    "block": "white_bed",
+    "item": "white_bed",
+    "count": 1,
+    "additional": 1,
+    "max_ticks": 360,
     "radius": 7,
-    "vertical": 4,
-    "additional": 1
+    "vertical": 4
   },
   {
     "op": "walk",
@@ -979,113 +962,123 @@
   },
   {
     "op": "gather",
-    "block": "*_bed",
-    "item": "*_bed",
-    "count": 8,
+    "block": "yellow_bed",
+    "item": "yellow_bed",
+    "count": 3,
+    "additional": 1,
+    "max_ticks": 360,
     "radius": 7,
-    "vertical": 4,
-    "additional": 1
+    "vertical": 4
+  },
+  {
+    "op": "walk",
+    "x": 308,
+    "y": 67,
+    "z": -1533,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 314,
+    "y": 67,
+    "z": -1540,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 315,
+    "y": 67,
+    "z": -1542,
+    "radius": 1.35
+  },
+  {
+    "op": "gather",
+    "block": "white_bed",
+    "item": "white_bed",
+    "count": 2,
+    "additional": 1,
+    "max_ticks": 360,
+    "radius": 7,
+    "vertical": 4
+  },
+  {
+    "op": "walk",
+    "x": 312,
+    "y": 67,
+    "z": -1544,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 308,
+    "y": 67,
+    "z": -1550,
+    "radius": 1.8
   },
   {
     "op": "walk",
     "x": 302,
-    "y": 67,
-    "z": -1537,
-    "radius": 1.8
-  },
-  {
-    "op": "walk",
-    "x": 296,
-    "y": 67,
-    "z": -1541,
-    "radius": 1.8
-  },
-  {
-    "op": "walk",
-    "x": 293,
-    "y": 67,
-    "z": -1547,
-    "radius": 1.8
-  },
-  {
-    "op": "walk",
-    "x": 289,
-    "y": 69,
-    "z": -1552,
-    "radius": 1.8
-  },
-  {
-    "op": "walk",
-    "x": 282,
-    "y": 71,
+    "y": 68,
     "z": -1557,
     "radius": 1.8
   },
   {
     "op": "walk",
-    "x": 276,
-    "y": 71,
+    "x": 295,
+    "y": 69,
     "z": -1561,
     "radius": 1.8
   },
   {
     "op": "walk",
-    "x": 274,
-    "y": 71,
+    "x": 288,
+    "y": 69,
     "z": -1563,
-    "radius": 1.35
-  },
-  {
-    "op": "gather",
-    "block": "*_bed",
-    "item": "*_bed",
-    "count": 9,
-    "radius": 7,
-    "vertical": 4,
-    "additional": 1
+    "radius": 1.8
   },
   {
     "op": "walk",
-    "x": 274,
-    "y": 71,
+    "x": 281,
+    "y": 70,
     "z": -1569,
     "radius": 1.8
   },
   {
     "op": "walk",
-    "x": 271,
+    "x": 274,
     "y": 70,
-    "z": -1576,
+    "z": -1575,
     "radius": 1.8
   },
   {
     "op": "walk",
-    "x": 271,
+    "x": 273,
     "y": 70,
     "z": -1576,
     "radius": 1.35
   },
   {
     "op": "gather",
-    "block": "*_bed",
-    "item": "*_bed",
-    "count": 10,
+    "block": "yellow_bed",
+    "item": "yellow_bed",
+    "count": 4,
+    "additional": 1,
+    "max_ticks": 360,
     "radius": 7,
-    "vertical": 4,
-    "additional": 1
+    "vertical": 4
   },
   {
     "op": "walk",
-    "x": 267,
+    "x": 268,
     "y": 70,
-    "z": -1579,
+    "z": -1577,
     "radius": 1.8
   },
   {
     "op": "walk",
-    "x": 263,
+    "x": 265,
     "y": 70,
-    "z": -1584,
+    "z": -1583,
     "radius": 1.8
   },
   {
@@ -1097,12 +1090,13 @@
   },
   {
     "op": "gather",
-    "block": "*_bed",
-    "item": "*_bed",
-    "count": 11,
+    "block": "white_bed",
+    "item": "white_bed",
+    "count": 3,
+    "additional": 1,
+    "max_ticks": 360,
     "radius": 7,
-    "vertical": 4,
-    "additional": 1
+    "vertical": 4
   },
   {
     "op": "walk",

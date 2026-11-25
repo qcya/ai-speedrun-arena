@@ -1,0 +1,68 @@
+{
+  "initial_pos": [
+    274.30000001192093,
+    72.17675927506424,
+    -1565.3528943018919
+  ],
+  "initial_beds": 3,
+  "initial_bed_drop": [
+    {
+      "item": "minecraft:yellow_bed",
+      "count": 1,
+      "pos": [
+        272.875,
+        72.0,
+        -1565.3528105456626
+      ],
+      "age": 2724,
+      "uuid": [
+        1916040838,
+        1599557117,
+        -1310089712,
+        -896508156
+      ]
+    }
+  ],
+  "final_beds": 4,
+  "final_saved_pos": [
+    274.05548972774375,
+    72.16610926093821,
+    -1565.3528943018919
+  ],
+  "final_drop_entities": [
+    {
+      "item": "minecraft:oak_log",
+      "count": 1,
+      "pos": [
+        273.3886485036046,
+        73.6308,
+        -1565.6924684650276
+      ],
+      "age": 5,
+      "uuid": [
+        -179479577,
+        2001161992,
+        -1412361020,
+        940558867
+      ]
+    }
+  ],
+  "picked_up_delta": {
+    "minecraft:yellow_bed": 1,
+    "minecraft:mossy_cobblestone": 1,
+    "minecraft:cobblestone": 2
+  },
+  "mined_delta": {
+    "minecraft:oak_log": 1,
+    "minecraft:mossy_cobblestone": 1,
+    "minecraft:cobblestone": 1
+  },
+  "controller_tick": 122,
+  "controller_final_beds": 4,
+  "first_observed_four_tick": 121,
+  "first_observed_four_elapsed_ms": 5551,
+  "jar_sha256": "85315f1749777d1e8588197733cb28a0ea4c22b5da31818c9a25e0edaa4c482b",
+  "observations_sha256": "5476c6c1373d9eaa30d23e0b004ecbdfea92219db88636576283867aed850abe",
+  "source_playerdata_sha256": "673b3af53d5401f8f7a02ba0ea745fd231761d2d7c163a1e5e5aedffd628faa3",
+  "source_jar_sha256": "85315f1749777d1e8588197733cb28a0ea4c22b5da31818c9a25e0edaa4c482b"
+}
