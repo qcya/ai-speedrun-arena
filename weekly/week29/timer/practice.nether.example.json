@@ -1,0 +1,21 @@
+{
+  "course": {
+    "version": "1.16.1",
+    "seeds": {
+      "minecraft:overworld": "-3400912661042936483",
+      "minecraft:the_nether": "-392129629567131977",
+      "minecraft:the_end": "4056954346358420256"
+    },
+    "template_sha256": "71e610bc2bd07dbec8513af7918b5756231c391a7f07386eb0afaf4afe1eec20",
+    "rules": "weekly29-local-survival-easy"
+  },
+  "route": "nether",
+  "world_template": "../data/level.dat",
+  "mod": "../strategies/nether/ai-speedrun-week29-0.1.0.jar",
+  "itinerary": "../strategies/nether/route.json",
+  "launch": ["/absolute/path/to/your-foreground-minecraft-launcher", "{game_dir}", "{world_name}"],
+  "max_attempts": 5,
+  "limit_seconds": 600,
+  "gates": ["enter_nether"],
+  "grace_ms": 0
+}

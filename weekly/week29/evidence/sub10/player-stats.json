@@ -1,0 +1,73 @@
+{
+  "stats": {
+    "minecraft:mined": {
+      "minecraft:podzol": 1,
+      "minecraft:purple_bed": 4,
+      "minecraft:magma_block": 1,
+      "minecraft:white_bed": 1,
+      "minecraft:nether_wart_block": 1,
+      "minecraft:fire": 15,
+      "minecraft:crimson_nylium": 3,
+      "minecraft:spruce_door": 1,
+      "minecraft:andesite": 5,
+      "minecraft:end_stone": 30,
+      "minecraft:yellow_bed": 3,
+      "minecraft:grass_block": 1,
+      "minecraft:dirt": 7,
+      "minecraft:cobblestone": 4,
+      "minecraft:stone": 65,
+      "minecraft:stone_bricks": 1,
+      "minecraft:netherrack": 26,
+      "minecraft:oak_leaves": 3
+    },
+    "minecraft:picked_up": {
+      "minecraft:magma_block": 1,
+      "minecraft:end_stone": 30,
+      "minecraft:andesite": 5,
+      "minecraft:yellow_bed": 3,
+      "minecraft:white_bed": 1,
+      "minecraft:nether_wart_block": 1,
+      "minecraft:dirt": 9,
+      "minecraft:purple_bed": 4,
+      "minecraft:netherrack": 27,
+      "minecraft:crimson_nylium": 2,
+      "minecraft:crimson_roots": 1,
+      "minecraft:cobblestone": 68
+    },
+    "minecraft:used": {
+      "minecraft:apple": 3,
+      "minecraft:flint_and_steel": 1,
+      "minecraft:bread": 4,
+      "minecraft:iron_pickaxe": 118,
+      "minecraft:fire_charge": 1,
+      "minecraft:cobblestone": 11,
+      "minecraft:purple_bed": 4,
+      "minecraft:yellow_bed": 3,
+      "minecraft:golden_pickaxe": 32,
+      "minecraft:obsidian": 12
+    },
+    "minecraft:crafted": {
+      "minecraft:flint_and_steel": 1
+    },
+    "minecraft:broken": {
+      "minecraft:golden_pickaxe": 1
+    },
+    "minecraft:custom": {
+      "minecraft:time_since_rest": 10208,
+      "minecraft:sprint_one_cm": 81751,
+      "minecraft:damage_taken": 252,
+      "minecraft:walk_one_cm": 12752,
+      "minecraft:fly_one_cm": 184959,
+      "minecraft:open_chest": 4,
+      "minecraft:crouch_one_cm": 1007,
+      "minecraft:play_one_minute": 10208,
+      "minecraft:sneak_time": 159,
+      "minecraft:jump": 219,
+      "minecraft:leave_game": 1,
+      "minecraft:time_since_death": 10206,
+      "minecraft:climb_one_cm": 3,
+      "minecraft:fall_one_cm": 2618
+    }
+  },
+  "DataVersion": 2567
+}

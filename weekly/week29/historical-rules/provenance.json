@@ -1,0 +1,58 @@
+{
+  "course": "mcsr-weekly-29-historical-local",
+  "minecraft": "1.16.1",
+  "fixture": "Singleplayer, fresh survival world. Calibration-only observer moved into the End, remained on its spawn platform, and never changed the dragon. First observations sampled twice per second.",
+  "sources": {
+    "week": "https://api.mcsrranked.com/weekly-race/29",
+    "historicalRelease": "https://api.modrinth.com/v2/version/u0DJhH1R",
+    "followingRelease": "https://api.modrinth.com/v2/version/q6jghj5F",
+    "releaseUrl": "https://cdn.modrinth.com/data/I9W1u5Ac/versions/u0DJhH1R/mcsrranked-5.0.12.jar"
+  },
+  "weekEndedUtc": "2025-04-21T00:00:00Z",
+  "modReleasedUtc": "2025-03-12T13:46:38.603856Z",
+  "nextVersionPublishedUtc": "2025-04-21T00:00:23.296669Z",
+  "modVersion": "5.0.12",
+  "modSha512": "a9e24b3c7f0a0d75736de0094353e405ce2928e545d7f8b4538f448df8231144bb7b5c460af5a3449c9bc417f3afc554d11f578bb202c7cab0bed392e42be8b6",
+  "flags": 76,
+  "templateSha256": "670932b263903dbecd6af27ef38b8af6b4c70f19d84d34f457a6b5ba69162246",
+  "sourceTemplateSha256": "71e610bc2bd07dbec8513af7918b5756231c391a7f07386eb0afaf4afe1eec20",
+  "nativeCalibration": {
+    "loader": "Fabric 0.16.14",
+    "platform": "Linux",
+    "commandsAllowed": false,
+    "gameType": 0,
+    "difficulty": 1,
+    "worldGenSettings": {
+      "seed": -3400912661042936483,
+      "nether_seed": -392129629567131977,
+      "the_end_seed": 4056954346358420256,
+      "rng_seed": 7470996919763249519
+    },
+    "gameRules": {
+      "removeSpawnBlockEntities": "false",
+      "artificialLavaPool": "false",
+      "noMonsterInBastion": "true",
+      "standardDragonPath": "true",
+      "lowerDragonFirstNode": "false",
+      "modifiedLootTables": "false",
+      "instantDragonPerch": "true"
+    },
+    "rngSaveCreated": true,
+    "allDragonSamplesHP": 200,
+    "endWorldTicks": {
+      "HoldingPattern": 21,
+      "LandingApproach": 577,
+      "Landing": 1096,
+      "SittingScanning": 1347
+    }
+  },
+  "classesInspected": [
+    "com.mcsrranked.client.info.race.RaceFlag$Type",
+    "com.mcsrranked.client.info.race.WeeklyRace",
+    "com.mcsrranked.client.config.RankedGameRules",
+    "com.mcsrranked.client.standardrng.WorldRNGState",
+    "com.mcsrranked.client.standardrng.mixin.dragon.MixinHoldingPatternPhase",
+    "com.mcsrranked.client.standardrng.mixin.dragon.MixinEnderDragonFight",
+    "com.mcsrranked.client.standardrng.mixin.seedseparation.MixinGeneratorOptions"
+  ]
+}

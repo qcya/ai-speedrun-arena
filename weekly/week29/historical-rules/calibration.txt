@@ -1,0 +1,17 @@
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE gameRule instantDragonPerch=true
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE gameRule standardDragonPath=true
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE gameRule lowerDragonFirstNode=false
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE gameRule modifiedLootTables=false
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE gameRule noMonsterInBastion=true
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE gameRule artificialLavaPool=false
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE gameRule removeSpawnBlockEntities=false
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE ss$getRNGSeed=7470996919763249519
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE ss$getNetherSeed=-392129629567131977
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE ss$getTheEndSeed=4056954346358420256
+[05:09:45] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE integrated-test-only moving observer to End; no dragon command.
+[05:09:48] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE phase 21 HoldingPattern (#0) hp=200.0 origin=class_2338{x=0, y=127, z=0}
+[05:10:15] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE phase 577 LandingApproach (#2) hp=200.0 origin=class_2338{x=28, y=92, z=-34}
+[05:10:41] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE phase 1096 Landing (#3) hp=200.0 origin=class_2338{x=-41, y=98, z=1}
+[05:10:54] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE phase 1347 SittingScanning (#6) hp=200.0 origin=class_2338{x=-1, y=66, z=-1}
+[05:10:54] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE native world saved
+[05:10:55] [Server thread/INFO]: [STDOUT]: RULES-CALIBRATE native world saved

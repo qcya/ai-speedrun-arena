@@ -16,6 +16,28 @@ java {
     targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+// The recorded Nether build shares the observer, End fight and mod resources.
+// Merge the route-specific source files before javac so every class is defined once.
+def selectedRoute = providers.gradleProperty('strategy').getOrElse('direct')
+if (!(selectedRoute in ['direct', 'nether'])) {
+    throw new GradleException("Unknown Week 29 strategy: ${selectedRoute}")
+}
+if (selectedRoute == 'nether') {
+    def overrides = file('strategies/nether/src/main/java')
+    def stagedSources = layout.buildDirectory.dir('generated/week29-nether-java')
+    def mergeSources = tasks.register('prepareNetherSources', Sync) {
+        from('src/main/java') {
+            exclude { entry -> new File(overrides, entry.relativePath.pathString).isFile() }
+        }
+        from(overrides)
+        into(stagedSources)
+    }
+    sourceSets.main.java.setSrcDirs([stagedSources])
+    tasks.named('compileJava') { dependsOn(mergeSources) }
+    tasks.named('jar') { archiveClassifier = 'dev-nether' }
+    tasks.named('remapJar') { archiveClassifier = 'nether' }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 8

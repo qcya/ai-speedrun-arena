@@ -1,0 +1,31 @@
+{
+  "entered_nether_ms": 165783,
+  "returned_to_overworld_ms": 259863,
+  "entered_end_ms": 408340,
+  "beds_on_end_entry": 8,
+  "last_observed_beds": 1,
+  "dragon_zero_ms": 497333,
+  "credits_ms": 507009,
+  "deaths": 0,
+  "nether_entry_first_populated_sample": {
+    "elapsed_ms": 166797,
+    "position": [
+      -38.491366118204525,
+      46.0,
+      34.48040076292455
+    ],
+    "beds": 4,
+    "obsidian": 11
+  },
+  "overworld_return_first_populated_sample": {
+    "elapsed_ms": 260379,
+    "position": [
+      81.49568289725437,
+      64.0,
+      -1497.5195998095185
+    ],
+    "beds": 4,
+    "obsidian": 1
+  },
+  "timing_note": "Dimension times record the first native observer sample tagged in the new dimension. Position and inventory use the first populated sample after the dimension switch."
+}

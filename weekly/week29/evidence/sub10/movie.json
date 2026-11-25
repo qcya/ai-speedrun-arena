@@ -1,0 +1,25 @@
+{
+  "take": "take-n11",
+  "rta_ms": 507009,
+  "file_duration": 525.041667,
+  "file_hash": "2fede45216e0566cd3881588d7cbdbff81d1dcc21a11edeeca4884f2568d326a",
+  "music": {
+    "release_url": "https://stmofficial.bandcamp.com/album/sleepwalker",
+    "artist": "akiaura, LONOWN, STM",
+    "version": "Sleepwalker",
+    "duration_s": 212.0,
+    "looped": true
+  },
+  "frames": 12601,
+  "width": 960,
+  "height": 600,
+  "continuous_original_speed": true,
+  "source": "take-n11.mkv",
+  "reference_attempts": [
+    "nether-a1"
+  ],
+  "source_sha256": "898eddb4788297effb49b16420603d2dc84bd6a079fca94af69c4aecd3e931d4",
+  "source_capture_start_ms": 1795640594525,
+  "fps": 24,
+  "post_credits_seconds": 18
+}

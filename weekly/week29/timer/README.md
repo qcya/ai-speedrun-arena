@@ -9,7 +9,7 @@
 ```bash
 python3 weekly/week29/timer/split_timer.py render \
   --raw take.mkv --startms take.startms --log saves/Week29/observed-run.jsonl \
-  --reference weekly/week29/evidence/fixed-route/observed-run.jsonl.gz \
+  --reference weekly/week29/evidence/sub10/previous-nether-attempt.jsonl.gz \
   --limit 600 --music /path/to/Sleepwalker.flac --out week29-practice.mp4
 ```
 
@@ -17,12 +17,12 @@ python3 weekly/week29/timer/split_timer.py render \
 
 ## 自动筛局
 
-将本目录的 `practice.example.json` 复制到同目录，修改 `launch`，填入**本机已有的 Minecraft 启动适配器**的可执行文件和参数。路径中的 `world_template`、`mod` 和 `itinerary` 相对于配置文件，例子按本项目第 29 周客户端布局编写。适配器应将 `{game_dir}` 作为独立游戏目录，加载新世界 `{world_name}` 并在前台持续运行，整个 MC 实例归这个进程组管理。也可自行启动相同分辨率、固定帧率的录屏并将录像、开始时间写入 `{attempt_dir}`。平台不会启动一个已经运行的共享游戏进程。适配器连接现有本地 Java 版客户端所需的运行环境、登录和录屏参数由本机负责。
+要复跑下界路线并在进下界时筛局，复制本目录的 [practice.nether.example.json](practice.nether.example.json) 为同目录的 `my-practice.json`。它使用 8:27.009 实录对应的 JAR 和路线，进下界的容差预设为 0 毫秒，总限时为十分钟。徒步路线对应 [practice.example.json](practice.example.json)。修改配置中的 `launch`，填入**本机已有的 Minecraft 启动适配器**的可执行文件和参数。路径中的 `world_template`、`mod` 和 `itinerary` 相对于配置文件，例子按本项目第 29 周客户端布局编写。适配器应将 `{game_dir}` 作为独立游戏目录，加载新世界 `{world_name}` 并在前台持续运行，整个 MC 实例归这个进程组管理。也可自行启动相同分辨率、固定帧率的录屏并将录像、开始时间写入 `{attempt_dir}`。平台不会启动一个已经运行的共享游戏进程。适配器连接现有本地 Java 版客户端所需的运行环境、登录和录屏参数由本机负责。
 
 ```bash
 python3 weekly/week29/timer/practice_attempts.py \
   --config weekly/week29/timer/my-practice.json --out /tmp/week29-trials \
-  --reference-evidence weekly/week29/evidence/fixed-route
+  --reference-evidence weekly/week29/evidence/sub10
 ```
 
 每局单独建立目录，复制预设世界、模组和路线，再开始计时。首次到达分段后，记录该段成绩供下一局使用。开启某个 `gates` 后，一旦游戏样本确认这一局超出此前该分段最快值和 `grace_ms` 的和，就结束这一局并新开存档；缺少此前成绩时先积累样本。`route: nether` 的路线可使用 `enter_nether`，直达末地的路线可使用 `enter_end`。超时或死亡也会重开。每局保留日志、重开原因和比较基准。最多运行 `max_attempts` 次。启动错误保留诊断并退出。
@@ -31,4 +31,11 @@ python3 weekly/week29/timer/practice_attempts.py \
 
 如需在原版终幕后保存录像，设置可选的 `"finalize": ["/absolute/path/to/save-recording", "{attempt_dir}", "{game_dir}"]`。该指令在游戏结束进程前执行。回调和启动命令均接收独立的参数数组，支持 `{attempt_dir}`、`{attempt_id}`、`{game_dir}`、`{world_dir}`、`{world_name}`、`{log}` 和 `{result}`。每轮只向该轮单独创建的进程组发送退出信号。返回码 0 表示已得到通关，10 表示本批次的尝试用完，2 表示环境或启动故障。
 
-若本机已经有负责重开的外层程序，也可独立运行 `split_timer.py watch --log <新局日志> --route direct --reference <旧局日志> --gate enter_end --limit 600`。程序用 JSON 写出进度，返回 10 时通知外层重开。
+上面的命令使用已完成局的 2:45.783 作为进下界基准。如果需要重现实录录制前已有的 4:18.191 基准，可将以下命令接入本机的重开程序。它读入更早那一局的原始采样，并用返回码 10 通知外层重开。
+
+```bash
+python3 weekly/week29/timer/split_timer.py watch \
+  --log saves/Week29/observed-run.jsonl --route nether \
+  --reference weekly/week29/evidence/sub10/previous-nether-attempt.jsonl.gz \
+  --gate enter_nether --limit 600
+```

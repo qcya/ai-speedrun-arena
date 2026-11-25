@@ -1,0 +1,29 @@
+{
+  "audit_script_sha256": "7b87098b7a02224accb528c754e008aa127485a6b520ea96753635efea557dcf",
+  "input_provenance": {
+    "documented_revision_count": null,
+    "initial_active_jar_hash_matches_current_take_mods": {
+      "mods/ai-speedrun-week29-0.1.0.jar": true
+    },
+    "initial_plan_hash_matches_at_start": true,
+    "last_route_matches_initial": true,
+    "last_route_matches_last_logged_remaining_hash": null,
+    "plan_revision_log_present": false,
+    "recorded_initial_world_matches_kit_template": true,
+    "snapshot_of_initial_controllers_matches_recorded_hash": null
+  },
+  "movies": {
+    "details": "movie.json",
+    "final_video_sha256": "2fede45216e0566cd3881588d7cbdbff81d1dcc21a11edeeca4884f2568d326a"
+  },
+  "original_log": {
+    "gzip_sha256": "896315c8483a06caff34e879e2509a16293ed7ddc180e5076fe8c95e861f31ad",
+    "sha256": "595c392529d35c0f5942c9d606f1b6b42b597e27db3fec1c7fbfb94782278d25",
+    "size_bytes": 441649
+  },
+  "rehearsal_marker_present_at_export": false,
+  "scope": "Local singleplayer observation archive. Source times use the native observer clock. No claim of official race submission.",
+  "take": "take-n11",
+  "verified_frozen_inputs_for_entire_run": true,
+  "frozen_input_verification": "fixed-inputs.json"
+}

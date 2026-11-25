@@ -1,0 +1,1061 @@
+[
+  {
+    "op": "walk",
+    "x": -246,
+    "y": 69,
+    "z": 185,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -247,
+    "y": 69,
+    "z": 192,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -248,
+    "y": 69,
+    "z": 199,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -250,
+    "y": 66,
+    "z": 206,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -255,
+    "y": 66,
+    "z": 213,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -259,
+    "y": 64,
+    "z": 219,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -260,
+    "y": 64,
+    "z": 226,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -263,
+    "y": 66,
+    "z": 233,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -263,
+    "y": 67,
+    "z": 235,
+    "radius": 1.35
+  },
+  {
+    "op": "loot",
+    "x": -261,
+    "y": 66,
+    "z": 237,
+    "all": true,
+    "item": "iron_pickaxe|bread|apple|iron_helmet|iron_leggings|diamond|cobblestone|*_planks"
+  },
+  {
+    "op": "walk",
+    "x": -269,
+    "y": 66,
+    "z": 238,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -276,
+    "y": 67,
+    "z": 240,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -280,
+    "y": 67,
+    "z": 240,
+    "radius": 1.35
+  },
+  {
+    "op": "loot",
+    "x": -281,
+    "y": 67,
+    "z": 237,
+    "all": true,
+    "item": "iron_pickaxe|bread|apple|iron_helmet|iron_leggings|diamond|cobblestone|*_planks"
+  },
+  {
+    "op": "walk",
+    "x": -285,
+    "y": 67,
+    "z": 236,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -288,
+    "y": 64,
+    "z": 231,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -289,
+    "y": 63,
+    "z": 229,
+    "radius": 1.35
+  },
+  {
+    "op": "armor"
+  },
+  {
+    "op": "gather",
+    "block": "*_bed",
+    "item": "*_bed",
+    "count": 1,
+    "radius": 7,
+    "vertical": 4,
+    "additional": 1,
+    "max_ticks": 340,
+    "inside": true
+  },
+  {
+    "op": "walk",
+    "x": -287,
+    "y": 63,
+    "z": 224,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -291,
+    "y": 64,
+    "z": 217,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -291,
+    "y": 64,
+    "z": 210,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -293,
+    "y": 64,
+    "z": 203,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -299,
+    "y": 67,
+    "z": 199,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -299,
+    "y": 71,
+    "z": 206,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -302,
+    "y": 72,
+    "z": 213,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -304,
+    "y": 74,
+    "z": 217,
+    "radius": 1.35
+  },
+  {
+    "op": "gather",
+    "block": "*_bed",
+    "item": "*_bed",
+    "count": 2,
+    "radius": 7,
+    "vertical": 4,
+    "additional": 1,
+    "max_ticks": 340,
+    "inside": true
+  },
+  {
+    "op": "walk",
+    "x": -300,
+    "y": 74,
+    "z": 219,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -298,
+    "y": 73,
+    "z": 226,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -299,
+    "y": 71,
+    "z": 232,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -301,
+    "y": 71,
+    "z": 236,
+    "radius": 1.35
+  },
+  {
+    "op": "gather",
+    "block": "*_bed",
+    "item": "*_bed",
+    "count": 3,
+    "radius": 7,
+    "vertical": 4,
+    "additional": 1,
+    "max_ticks": 340,
+    "inside": true
+  },
+  {
+    "op": "walk",
+    "x": -301,
+    "y": 71,
+    "z": 242,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": -299,
+    "y": 71,
+    "z": 245,
+    "radius": 1.35
+  },
+  {
+    "op": "gather",
+    "block": "*_bed",
+    "item": "*_bed",
+    "count": 4,
+    "radius": 7,
+    "vertical": 4,
+    "additional": 1,
+    "max_ticks": 340,
+    "inside": true
+  },
+  {
+    "op": "walk",
+    "x": -306,
+    "y": 75,
+    "z": 247,
+    "radius": 1.55
+  },
+  {
+    "op": "walk",
+    "x": -314,
+    "y": 78,
+    "z": 246,
+    "radius": 1.55
+  },
+  {
+    "op": "walk",
+    "x": -322,
+    "y": 79,
+    "z": 246,
+    "radius": 1.55
+  },
+  {
+    "op": "walk",
+    "x": -330,
+    "y": 82,
+    "z": 244,
+    "radius": 1.55
+  },
+  {
+    "op": "walk",
+    "x": -333,
+    "y": 86,
+    "z": 249,
+    "radius": 1.55
+  },
+  {
+    "op": "walk",
+    "x": -333,
+    "y": 86,
+    "z": 249,
+    "radius": 1.15
+  },
+  {
+    "op": "loot",
+    "x": -334,
+    "y": 86,
+    "z": 252,
+    "all": true,
+    "item": "obsidian|iron_ingot|apple|iron_helmet|bread"
+  },
+  {
+    "op": "walk",
+    "x": -329,
+    "y": 82,
+    "z": 243,
+    "radius": 1.55
+  },
+  {
+    "op": "walk",
+    "x": -321,
+    "y": 79,
+    "z": 240,
+    "radius": 1.55
+  },
+  {
+    "op": "walk",
+    "x": -316,
+    "y": 75,
+    "z": 234,
+    "radius": 1.55
+  },
+  {
+    "op": "walk",
+    "x": -313,
+    "y": 74,
+    "z": 230,
+    "radius": 1.15
+  },
+  {
+    "op": "descend",
+    "x": -312,
+    "y": 23,
+    "z": 229
+  },
+  {
+    "op": "loot",
+    "x": -312,
+    "y": 23,
+    "z": 230,
+    "all": true,
+    "item": "golden_pickaxe|fire_charge|flint|obsidian|golden_boots"
+  },
+  {
+    "op": "armor"
+  },
+  {
+    "op": "craft",
+    "recipe": "flint_and_steel",
+    "count": 1
+  },
+  {
+    "op": "walk",
+    "x": -311,
+    "y": 24,
+    "z": 228,
+    "radius": 0.5
+  },
+  {
+    "op": "put",
+    "x": -310,
+    "y": 23,
+    "z": 227,
+    "if_fluid": true
+  },
+  {
+    "op": "put",
+    "x": -310,
+    "y": 23,
+    "z": 228,
+    "if_fluid": true
+  },
+  {
+    "op": "put",
+    "x": -310,
+    "y": 23,
+    "z": 229,
+    "if_fluid": true
+  },
+  {
+    "op": "put",
+    "x": -308,
+    "y": 23,
+    "z": 228,
+    "if_fluid": true
+  },
+  {
+    "op": "put",
+    "x": -308,
+    "y": 23,
+    "z": 229,
+    "if_fluid": true
+  },
+  {
+    "op": "put",
+    "x": -309,
+    "y": 23,
+    "z": 229,
+    "if_fluid": true
+  },
+  {
+    "op": "clear_block",
+    "x": -309,
+    "y": 23,
+    "z": 228
+  },
+  {
+    "op": "clear_block",
+    "x": -309,
+    "y": 23,
+    "z": 229
+  },
+  {
+    "op": "clear_block",
+    "x": -309,
+    "y": 26,
+    "z": 229
+  },
+  {
+    "op": "put",
+    "x": -309,
+    "y": 25,
+    "z": 227,
+    "item": "obsidian"
+  },
+  {
+    "op": "put",
+    "x": -309,
+    "y": 26,
+    "z": 229,
+    "item": "obsidian"
+  },
+  {
+    "op": "ignite_portal",
+    "x": -309,
+    "y": 23,
+    "z": 228
+  },
+  {
+    "op": "enter_portal",
+    "x": -309,
+    "y": 23,
+    "z": 228,
+    "destination": "minecraft:the_nether"
+  },
+  {
+    "op": "walk",
+    "x": -38,
+    "y": 48,
+    "z": 31,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -38,
+    "y": 48,
+    "z": 28,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -38,
+    "y": 48,
+    "z": 25,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -38,
+    "y": 48,
+    "z": 22,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -38,
+    "y": 48,
+    "z": 19,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -38,
+    "y": 49,
+    "z": 16,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -38,
+    "y": 44,
+    "z": 6,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -40,
+    "y": 43,
+    "z": -4,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -39,
+    "y": 38,
+    "z": -13,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -36,
+    "y": 35,
+    "z": -22,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -43,
+    "y": 37,
+    "z": -31,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -46,
+    "y": 36,
+    "z": -41,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -50,
+    "y": 35,
+    "z": -47,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -50,
+    "y": 34,
+    "z": -57,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -49,
+    "y": 33,
+    "z": -67,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -52,
+    "y": 33,
+    "z": -77,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -62,
+    "y": 33,
+    "z": -87,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -63,
+    "y": 32,
+    "z": -96,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -53,
+    "y": 32,
+    "z": -106,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -48,
+    "y": 39,
+    "z": -112,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -44,
+    "y": 46,
+    "z": -121,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -42,
+    "y": 47,
+    "z": -123,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -39,
+    "y": 48,
+    "z": -125,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -37,
+    "y": 51,
+    "z": -126,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -37,
+    "y": 54,
+    "z": -127,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -34,
+    "y": 59,
+    "z": -133,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -26,
+    "y": 60,
+    "z": -143,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -16,
+    "y": 60,
+    "z": -153,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -12,
+    "y": 58,
+    "z": -163,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -10,
+    "y": 54,
+    "z": -173,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -8,
+    "y": 53,
+    "z": -183,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": -8,
+    "y": 56,
+    "z": -186,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": -6,
+    "y": 57,
+    "z": -187,
+    "radius": 0.9,
+    "dig": true
+  },
+  {
+    "op": "walk",
+    "x": 4,
+    "y": 57,
+    "z": -187,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "walk",
+    "x": 8,
+    "y": 57,
+    "z": -188,
+    "radius": 1.4,
+    "dig": false
+  },
+  {
+    "op": "nether_exit",
+    "x": 10,
+    "y": 58,
+    "z": -189,
+    "axis": "z"
+  },
+  {
+    "op": "walk",
+    "x": 94,
+    "y": 64,
+    "z": -1505,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 108,
+    "y": 64,
+    "z": -1505,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 122,
+    "y": 63,
+    "z": -1516,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 136,
+    "y": 63,
+    "z": -1518,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 150,
+    "y": 67,
+    "z": -1518,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 164,
+    "y": 71,
+    "z": -1518,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 178,
+    "y": 71,
+    "z": -1518,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 192,
+    "y": 71,
+    "z": -1519,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 206,
+    "y": 71,
+    "z": -1519,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 220,
+    "y": 70,
+    "z": -1518,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 234,
+    "y": 70,
+    "z": -1517,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 240,
+    "y": 68,
+    "z": -1514,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 241,
+    "y": 68,
+    "z": -1514,
+    "radius": 1.35
+  },
+  {
+    "op": "gather",
+    "block": "*_bed",
+    "item": "*_bed",
+    "additional": 1,
+    "inside": true,
+    "max_ticks": 220,
+    "radius": 6,
+    "vertical": 4
+  },
+  {
+    "op": "walk",
+    "x": 242,
+    "y": 69,
+    "z": -1520,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 246,
+    "y": 70,
+    "z": -1527,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 246,
+    "y": 73,
+    "z": -1534,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 251,
+    "y": 73,
+    "z": -1541,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 257,
+    "y": 72,
+    "z": -1548,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 264,
+    "y": 72,
+    "z": -1555,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 270,
+    "y": 71,
+    "z": -1562,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 270,
+    "y": 71,
+    "z": -1562,
+    "radius": 1.35
+  },
+  {
+    "op": "gather",
+    "block": "*_bed",
+    "item": "*_bed",
+    "additional": 1,
+    "inside": true,
+    "max_ticks": 220,
+    "radius": 6,
+    "vertical": 4
+  },
+  {
+    "op": "walk",
+    "x": 267,
+    "y": 71,
+    "z": -1566,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 268,
+    "y": 70,
+    "z": -1573,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 271,
+    "y": 70,
+    "z": -1576,
+    "radius": 1.35
+  },
+  {
+    "op": "gather",
+    "block": "*_bed",
+    "item": "*_bed",
+    "additional": 1,
+    "inside": true,
+    "max_ticks": 220,
+    "radius": 6,
+    "vertical": 4
+  },
+  {
+    "op": "walk",
+    "x": 267,
+    "y": 70,
+    "z": -1579,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 263,
+    "y": 70,
+    "z": -1584,
+    "radius": 1.8
+  },
+  {
+    "op": "walk",
+    "x": 260,
+    "y": 70,
+    "z": -1587,
+    "radius": 1.35
+  },
+  {
+    "op": "gather",
+    "block": "*_bed",
+    "item": "*_bed",
+    "additional": 1,
+    "inside": true,
+    "max_ticks": 220,
+    "radius": 6,
+    "vertical": 4
+  },
+  {
+    "op": "walk",
+    "x": 248,
+    "y": 70,
+    "z": -1601,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 234,
+    "y": 71,
+    "z": -1612,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 220,
+    "y": 78,
+    "z": -1622,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 206,
+    "y": 79,
+    "z": -1633,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 192,
+    "y": 78,
+    "z": -1647,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 178,
+    "y": 78,
+    "z": -1660,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 164,
+    "y": 80,
+    "z": -1662,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 150,
+    "y": 74,
+    "z": -1672,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 136,
+    "y": 74,
+    "z": -1682,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 128,
+    "y": 75,
+    "z": -1694,
+    "radius": 2
+  },
+  {
+    "op": "walk",
+    "x": 116,
+    "y": 76,
+    "z": -1695,
+    "radius": 2
+  },
+  {
+    "op": "descend",
+    "x": 116,
+    "y": 37,
+    "z": -1695
+  }
+]

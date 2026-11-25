@@ -1,0 +1,21 @@
+{
+  "observer_spawn_ms": 1795640633107,
+  "observer_credits_ms": 1795641140116,
+  "read_only_verification": {
+    "survival-route.json": {
+      "sha256_at_launch": "6d8d4468acad43a10f04fae7da1a0b4163dd229f5f2a4abaeb85f741acd66b15",
+      "sha256_after_credits": "6d8d4468acad43a10f04fae7da1a0b4163dd229f5f2a4abaeb85f741acd66b15",
+      "filesystem_change_ms": 1795640593948,
+      "last_write_ms": 1795640593948
+    },
+    "mods/ai-speedrun-week29-0.1.0.jar": {
+      "sha256_at_launch": "bdce143ffa5236f08a2fa8ec5fafba71918bba56175e1f937c7d871049804b85",
+      "sha256_after_credits": "bdce143ffa5236f08a2fa8ec5fafba71918bba56175e1f937c7d871049804b85",
+      "filesystem_change_ms": 1795640593950,
+      "last_write_ms": 1795640593950
+    }
+  },
+  "mode": "standalone local Week 29 mod, prewritten itinerary",
+  "route_revisions_during_recording": 0,
+  "operator_inputs_after_spawn_before_credits": 0
+}
