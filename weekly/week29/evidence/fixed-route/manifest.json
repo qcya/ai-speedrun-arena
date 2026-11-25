@@ -1,0 +1,59 @@
+{
+  "audit_script_sha256": "7b87098b7a02224accb528c754e008aa127485a6b520ea96753635efea557dcf",
+  "input_provenance": {
+    "documented_revision_count": null,
+    "initial_active_jar_hash_matches_current_take_mods": {
+      "mods/ai-speedrun-week29-0.1.0.jar": true
+    },
+    "initial_plan_hash_matches_at_start": true,
+    "last_route_matches_initial": true,
+    "last_route_matches_last_logged_remaining_hash": null,
+    "plan_revision_log_present": false,
+    "recorded_initial_world_matches_kit_template": true,
+    "snapshot_of_initial_controllers_matches_recorded_hash": null
+  },
+  "movies": {
+    "full_run": {
+      "bytes": 274486258,
+      "duration_beyond_spawn_to_credits_seconds": 30.498,
+      "duration_seconds": 1173.25,
+      "filename": "ASTRA-week29-full-run.mp4",
+      "sha256": "a7fa86fb5cb3d064437c53f6d7ddb1825849fe2b92d6bc43e9dbffee0425161d",
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "height": 600,
+          "width": 960
+        }
+      ]
+    },
+    "music": {
+      "bytes": 60579972,
+      "duration_seconds": 132.907007,
+      "filename": "ASTRA-week29-music.mp4",
+      "sha256": "6c576bfe6b58113a735c039138575845f4fa4360528d044b8452df3238a5716f",
+      "streams": [
+        {
+          "codec_name": "h264",
+          "codec_type": "video",
+          "height": 600,
+          "width": 960
+        },
+        {
+          "codec_name": "aac",
+          "codec_type": "audio"
+        }
+      ]
+    }
+  },
+  "original_log": {
+    "gzip_sha256": "60dbd35ec86ac6724c16b2288c7e420ba28aaa534333f6c99e44ce9f26bf53d8",
+    "sha256": "ffd7cfe2cd1baa5ee38d37e744fa00ab3ac4c8598cda49a3b64dfddca0c4ca84",
+    "size_bytes": 835847
+  },
+  "rehearsal_marker_present_at_export": false,
+  "scope": "Local singleplayer observation archive. Source times use the native observer clock. No claim of official race submission.",
+  "take": "take-07",
+  "verified_frozen_inputs_for_entire_run": null
+}
