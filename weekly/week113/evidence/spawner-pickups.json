@@ -560,5 +560,89 @@
     "production_patch": "northwest-shelf.patch",
     "sha256": "9cee6ea1425fe7873497f6313ec2f76ef7ec3c3c68756a3e44456afa1427e7c1",
     "diagnostic_reference": "Physical world time 6000. Diagnostic resumes general fortress dispatcher at reference 3740; the source full-run observer had been waiting at reference 3711. Both dispatch ordinary pickup via Fortress.takeRod."
+  },
+  "e64_elevated_rim_drops": {
+    "kind": "After a fresh E64 run stopped, the pending rim pickups were tested in its saved world. The diagnostic resumed the normal Fortress.tick dispatcher at reference 3920, with default survival input and the training controller. Its time measures a local exercise.",
+    "source_native_world_time": 7561,
+    "initial_world_files_verified_sha256": 48,
+    "original_files_unchanged_after_diagnostic": true,
+    "source_level_sha256": "6aa473c8b17a3a907352a52794cef6a648a810ca4a53646cd13c7f00f6ec44f0",
+    "source_region_sha256": "13b637021c6dcbf7d1e226034acaf4c9ff3adc6d9ea245d77d1d0017f662155c",
+    "source_original_replay_sha256": "e7e8198ca837ff2a8eaf42489e16d1b032062114c54e44c816c1d1c157bdbbab",
+    "source_originals": {
+      "observer_rod_five_spawn_ms": 329526,
+      "observer_six_available_ms": 333444,
+      "last_observed_ms": 376220,
+      "final_inventory_rods": 4,
+      "two_rim_drops_still_present_at_stop": true,
+      "ground_positions_at_stop": [
+        [
+          -3.832950293154899,
+          61,
+          115.93184258634342
+        ],
+        [
+          -8.353462198995006,
+          61,
+          112.125
+        ],
+        [
+          -10.125,
+          57,
+          116.1159312398927
+        ]
+      ]
+    },
+    "diagnostic_pickups_by_held_count": {
+      "4": {
+        "run_tick": 0,
+        "elapsed_ms": 0,
+        "x": -5.967180115982871,
+        "y": 59.0,
+        "z": 114.55025211178388,
+        "hp": 14.613335,
+        "middle_action": "approaching bastion"
+      },
+      "5": {
+        "run_tick": 26,
+        "elapsed_ms": 977,
+        "x": -6.997104687870539,
+        "y": 59.0,
+        "z": 113.54890324119656,
+        "hp": 14.613335,
+        "middle_action": "collecting a dropped blaze rod"
+      },
+      "6": {
+        "run_tick": 88,
+        "elapsed_ms": 3884,
+        "x": -5.148739778008448,
+        "y": 59.0,
+        "z": 115.4586160775066,
+        "hp": 14.613335,
+        "middle_action": "standing within reach of the elevated rod"
+      }
+    },
+    "original_low_drop_persisted_after": [
+      -10.125,
+      57,
+      116.1159312398927
+    ],
+    "upper_brick_opened": [
+      -5,
+      60,
+      115
+    ],
+    "eastern_rod_support_retained": [
+      -4,
+      60,
+      115
+    ],
+    "player_floor_retained": [
+      -6,
+      58,
+      115
+    ],
+    "exercise_observer_sha256": "322322719d7e9bf8cdb8ab2cea6b8b400bbc62771c0bdc045e8d70a58fb7c7bd",
+    "same_helper_in_public_build_sha256": "18c68a134b549b924703163992af81d41890e2d9ef5ab85035f6abd34f7c8850"
   }
 }

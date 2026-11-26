@@ -39,6 +39,7 @@ public final class Fortress {
 
     public static void reset() {
         EastRodPocket.reset();
+        CageRimPickup.reset();
         excavating = guardingBridge = false;
         bridgeSwing = -20;
         previousEnemy = -1;
@@ -429,7 +430,7 @@ public final class Fortress {
     }
 
     /** Check the full width of the player's body and a supported dry floor along each leg. */
-    private static boolean cageFloorLine(MinecraftClient mc, Vec3d from, Vec3d to) {
+    static boolean cageFloorLine(MinecraftClient mc, Vec3d from, Vec3d to) {
         int steps=Math.max(1,(int)Math.ceil(Math.hypot(to.x-from.x,to.z-from.z)/.20));
         for(int i=0;i<=steps;i++){
             double part=(double)i/steps,x=from.x+(to.x-from.x)*part,z=from.z+(to.z-from.z)*part;
@@ -473,7 +474,7 @@ public final class Fortress {
         return best;
     }
 
-    private static Vec3d rodCorner(MinecraftClient mc, Vec3d start,Vec3d target) {
+    static Vec3d rodCorner(MinecraftClient mc, Vec3d start,Vec3d target) {
         if(cageFloorLine(mc,start,target))return null;
         double best=Double.POSITIVE_INFINITY;Vec3d next=null;
         for(int i=0;i<CAGE_CORNERS.length;i++){
@@ -527,6 +528,11 @@ public final class Fortress {
         previousEnemy = -1;
         Vec3d p = rod.getPos();
         Vec3d player=mc.player.getPos();
+        if(onCageFloor(player) && p.y>=60.86 && p.y<=61.18
+                && p.x>=-11.5 && p.x<=-3.1 && p.z>=111.4 && p.z<=119.5) {
+            observedCageRod=rod.getEntityId();
+            if(CageRimPickup.tick(mc,rod)) {status=CageRimPickup.status;return;}
+        }
         Vec3d goal=cagePickupFoot(mc,player,p);
         if(goal!=null && Math.abs(player.x+7.5)<3.4 && Math.abs(player.z-115.5)<4.1) {
             observedCageRod=rod.getEntityId();
