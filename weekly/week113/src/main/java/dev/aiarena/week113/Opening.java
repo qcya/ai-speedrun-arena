@@ -424,8 +424,7 @@ public final class Opening {
                     &&mc.player.getCameraPosVec(1).squaredDistanceTo(Vec3d.ofCenter(gravelPos))>18){
                 walk(mc,Vec3d.ofCenter(gravelPos).add(0,0,.6),true);return true;
             }
-            if(gravelPos!=null && mc.world.getBlockState(gravelPos).getBlock()!=Blocks.GRAVEL
-                  && mc.player.getBoundingBox().intersects(new net.minecraft.util.math.Box(gravelPos)))gravelPos=null;
+            if(gravelPos!=null && mc.world.getBlockState(gravelPos).getBlock()!=Blocks.GRAVEL)gravelPos=null;
             if(gravelPos==null) {
                 double closest=Double.MAX_VALUE;
                 BlockPos feet=mc.player.getBlockPos();
@@ -453,14 +452,17 @@ public final class Opening {
             for(net.minecraft.entity.Entity ent:mc.world.getEntities()){
                 if(ent instanceof net.minecraft.entity.ItemEntity){
                     Item i=((net.minecraft.entity.ItemEntity)ent).getStack().getItem();
-                    if((i==Items.FLINT||i==Items.GRAVEL)&&mc.player.squaredDistanceTo(ent)<40){walk(mc,ent.getPos(),false);return true;}
+                    if((i==Items.FLINT || i==Items.GRAVEL && count(mc,Items.GRAVEL)==0)
+                            && mc.player.squaredDistanceTo(ent)<40 && mc.player.canSee(ent)) {
+                        walk(mc,ent.getPos(),false);return true;
+                    }
                 }
             }
             if(count(mc,Items.GRAVEL)>0){
-                BlockPos p=gravelPos;
-                while(!mc.world.getBlockState(p).getMaterial().isReplaceable())p=p.up();
-                while(mc.world.getBlockState(p.down()).getMaterial().isReplaceable()&&p.getY()>60)p=p.down();
-                gravelPos=p;place(mc,p,Items.GRAVEL);return true;
+                BlockPos support=gravelPos.down();
+                Vec3d top=Vec3d.ofCenter(support).add(0,.499,0);
+                if(select(mc,Items.GRAVEL))hitFace(mc,support,Direction.UP,top);
+                return true;
             }
             return false;
         }
