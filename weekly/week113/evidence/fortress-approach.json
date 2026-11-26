@@ -225,5 +225,133 @@
       ]
     },
     "scope": "independent uninterrupted original games with different piglin positions"
+  },
+  "east51_second_pearl_western_landing": {
+    "classification": "calibration-only",
+    "normal E51 initial and last ref3353": [
+      {
+        "run_tick": 4552,
+        "elapsed_ms": 227200,
+        "reference_tick": 3353,
+        "x": -27.88003184293091,
+        "y": 57.3631320929515,
+        "z": 167.23970230800674,
+        "hp": 11.866667,
+        "on_ground": null,
+        "actual_view_distance": null,
+        "used_pearls": null,
+        "event": "state",
+        "pearls": 11
+      },
+      {
+        "run_tick": 6393,
+        "elapsed_ms": 319212,
+        "reference_tick": 3353,
+        "x": -24.30000001192093,
+        "y": 58.121296840539195,
+        "z": 167.22649655343804,
+        "hp": 20.0,
+        "on_ground": null,
+        "actual_view_distance": null,
+        "used_pearls": null,
+        "event": "state",
+        "pearls": 11
+      }
+    ],
+    "sourceFilesVerified": 41,
+    "calibrationOriginal": {
+      "run_tick": 0,
+      "elapsed_ms": 0,
+      "reference_tick": 0,
+      "x": -24.30000001192093,
+      "y": 58.121296840539195,
+      "z": 167.22608314560233,
+      "hp": 20.0,
+      "on_ground": false,
+      "actual_view_distance": 16,
+      "used_pearls": 2,
+      "event": "spawn",
+      "pearls": 11
+    },
+    "nativeThirdUsed": {
+      "run_tick": 45,
+      "elapsed_ms": 1994,
+      "reference_tick": 3393,
+      "x": -30.391716739677133,
+      "y": 58.00133597911215,
+      "z": 167.42928869019727,
+      "hp": 20.0,
+      "on_ground": false,
+      "actual_view_distance": 13,
+      "used_pearls": 3,
+      "event": "state",
+      "pearls": 10
+    },
+    "firstAndLastShortcut": [
+      {
+        "run_tick": 44,
+        "elapsed_ms": 1761,
+        "reference_tick": 3393,
+        "x": -30.391716739677133,
+        "y": 57.7531999805212,
+        "z": 167.42928869019727,
+        "hp": 20.0,
+        "on_ground": false,
+        "actual_view_distance": 15,
+        "used_pearls": 2,
+        "event": "render_distance_shortcut",
+        "pearls": 10
+      },
+      {
+        "run_tick": 48,
+        "elapsed_ms": 2013,
+        "reference_tick": 3402,
+        "x": -30.28341516250894,
+        "y": 58.25220334025373,
+        "z": 167.4525288819079,
+        "hp": 20.0,
+        "on_ground": false,
+        "actual_view_distance": 2,
+        "used_pearls": 3,
+        "event": "render_distance_shortcut",
+        "pearls": 10
+      }
+    ],
+    "allShortcutDistances": [
+      15,
+      14,
+      13,
+      12,
+      11,
+      10,
+      9,
+      8,
+      7,
+      6,
+      5,
+      4,
+      3,
+      2
+    ],
+    "done": {
+      "run_tick": 49,
+      "elapsed_ms": 2016,
+      "reference_tick": 3402,
+      "x": -30.21653787963268,
+      "y": 58.17675927506424,
+      "z": 167.46460023703443,
+      "hp": 20.0,
+      "on_ground": false,
+      "actual_view_distance": 2,
+      "used_pearls": 3,
+      "event": "native_third_and_distance_two",
+      "pearls": 10
+    },
+    "finalSavedUseStat": 3,
+    "replay": "fortress/second-landing51/native01/replay_recordings/recording/2026_11_26_23_30_22.mcpr",
+    "replaySha256": "2b0759835dd749fad9c61f6d6e4761a68d29652d154d77abb3975b931dd43d6d",
+    "replayCRC": null,
+    "allDimensionsSaved": true,
+    "releaseJarSha256": "6b935f664d776e7086132280cbf1e1ab1bebe7de8de2a2b9c7d17afb7197612b"
   }
 }

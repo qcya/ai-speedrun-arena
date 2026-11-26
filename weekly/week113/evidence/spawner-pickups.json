@@ -180,5 +180,277 @@
         "rods": 6
       }
     ]
+  },
+  "p97_third_wave_trials": {
+    "p97-native01": {
+      "source_files": 40,
+      "all_source_files_verified_again": true,
+      "first_server_air_tick_ms": {
+        "native_inner_8": [
+          1,
+          140
+        ],
+        "native_inner_7": [
+          53,
+          2175
+        ],
+        "wall_9_62_112": [
+          100,
+          4498
+        ],
+        "wall_9_61_112": [
+          116,
+          5320
+        ],
+        "wall_4_62_116": [
+          64,
+          2709
+        ],
+        "wall_4_62_115": [
+          74,
+          3205
+        ],
+        "wall_4_61_116": null,
+        "wall_4_61_115": null
+      },
+      "native_spawns": [
+        {
+          "id": 298,
+          "first": [
+            239,
+            11457
+          ],
+          "pos": [
+            -7.26,
+            61.0,
+            113.38
+          ],
+          "death": [
+            292,
+            14106
+          ]
+        },
+        {
+          "id": 299,
+          "first": [
+            239,
+            11457
+          ],
+          "pos": [
+            -7.3,
+            61.0,
+            116.47
+          ],
+          "death": null
+        },
+        {
+          "id": 300,
+          "first": [
+            239,
+            11457
+          ],
+          "pos": [
+            -8.11,
+            61.0,
+            112.61
+          ],
+          "death": [
+            331,
+            16056
+          ]
+        },
+        {
+          "id": 331,
+          "first": [
+            477,
+            23358
+          ],
+          "pos": [
+            -6.71,
+            60.0,
+            119.06
+          ],
+          "death": null
+        },
+        {
+          "id": 332,
+          "first": [
+            477,
+            23358
+          ],
+          "pos": [
+            -6.15,
+            61.0,
+            114.98
+          ],
+          "death": [
+            507,
+            24857
+          ]
+        },
+        {
+          "id": 333,
+          "first": [
+            477,
+            23358
+          ],
+          "pos": [
+            -7.29,
+            59.0,
+            114.58
+          ],
+          "death": [
+            545,
+            26751
+          ]
+        },
+        {
+          "id": 334,
+          "first": [
+            477,
+            23358
+          ],
+          "pos": [
+            -8.61,
+            60.0,
+            116.35
+          ],
+          "death": null
+        }
+      ],
+      "at_first_six_rods": {
+        "run_tick": 603,
+        "elapsed_ms": 29646,
+        "hp": 18.660002,
+        "x": -6.311582923373768,
+        "y": 59.76636799395752,
+        "z": 113.47496315315803
+      },
+      "normal_all_dimension_exit": true
+    },
+    "p97-native02": {
+      "source_files": 40,
+      "all_source_files_verified_again": true,
+      "first_server_air_tick_ms": {
+        "native_inner_8": [
+          1,
+          4
+        ],
+        "native_inner_7": [
+          53,
+          2284
+        ],
+        "wall_9_62_112": [
+          149,
+          7013
+        ],
+        "wall_9_61_112": [
+          166,
+          7802
+        ],
+        "wall_4_62_116": [
+          95,
+          4548
+        ],
+        "wall_4_62_115": [
+          105,
+          4858
+        ],
+        "wall_4_61_116": [
+          124,
+          5748
+        ],
+        "wall_4_61_115": [
+          113,
+          5322
+        ],
+        "wall_5_61_115": [
+          69,
+          2957
+        ],
+        "wall_5_61_116": [
+          85,
+          3761
+        ]
+      },
+      "native_spawns": [
+        {
+          "id": 301,
+          "first": [
+            252,
+            12104
+          ],
+          "pos": [
+            -7.26,
+            61.0,
+            113.38
+          ],
+          "death": [
+            363,
+            17649
+          ]
+        },
+        {
+          "id": 302,
+          "first": [
+            252,
+            12104
+          ],
+          "pos": [
+            -7.3,
+            61.0,
+            116.47
+          ],
+          "death": [
+            283,
+            13717
+          ]
+        },
+        {
+          "id": 303,
+          "first": [
+            252,
+            12104
+          ],
+          "pos": [
+            -4.01,
+            61.0,
+            116.18
+          ],
+          "death": [
+            321,
+            15560
+          ]
+        },
+        {
+          "id": 304,
+          "first": [
+            252,
+            12104
+          ],
+          "pos": [
+            -8.11,
+            61.0,
+            112.61
+          ],
+          "death": [
+            399,
+            19451
+          ]
+        }
+      ],
+      "at_first_six_rods": {
+        "run_tick": 438,
+        "elapsed_ms": 21407,
+        "hp": 20.0,
+        "x": -5.300000011920929,
+        "y": 59.0,
+        "z": 114.7822113826702
+      },
+      "normal_all_dimension_exit": true
+    },
+    "limits": "Saved natural P97 game-tick 6000; isolated practice. Original full-run observer from exact position/health to six: 55185 ms. Core floor only same original: 30097 ms. Normal tick scheduling and combat can differ on reloads.",
+    "candidate": "third-wave-east-face.patch",
+    "candidate_sha256": "56e5bc206870fe24bedef43ba4992ef05e69bb1f43d2adc8b196c16fe4530862"
   }
 }

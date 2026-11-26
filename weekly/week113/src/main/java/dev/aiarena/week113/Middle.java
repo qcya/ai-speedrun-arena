@@ -1326,6 +1326,23 @@ public final class Middle {
         distance(mc,target);
     }
 
+    private static boolean onWestboundFortressBridge(MinecraftClient mc) {
+        double x=mc.player.getX(), y=mc.player.getY(), z=mc.player.getZ();
+        if(x< -31.4 || x> -23.85 || y<56.94 || y>58.45 || z<167.03 || z>167.97
+                || mc.player.hasVehicle() || mc.player.isInLava() || count(mc,Items.ENDER_PEARL)<11) return false;
+        net.minecraft.server.network.ServerPlayerEntity self=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+        if(self==null || self.getStatHandler().getStat(net.minecraft.stat.Stats.USED,Items.ENDER_PEARL)!=2) return false;
+        // The middle row is the existing top deck and leads west to the original release.
+        for(int xx=-31;xx<=Math.floor(x);xx++) {
+            BlockPos feet=new BlockPos(xx,57,167), below=feet.down();
+            if(!mc.world.getBlockState(below).isSideSolidFullSquare(mc.world,below,Direction.UP)
+                    || !mc.world.getBlockState(feet).getCollisionShape(mc.world,feet).isEmpty()
+                    || !mc.world.getBlockState(feet.up()).getCollisionShape(mc.world,feet.up()).isEmpty()
+                    || !mc.world.getFluidState(feet).isEmpty()) return false;
+        }
+        return true;
+    }
+
     public static boolean tick(MinecraftClient mc,int tick) {
         age++;
         if (mc.player==null || mc.world==null || mc.interactionManager==null) return false;
@@ -1430,6 +1447,14 @@ public final class Middle {
             next++; entered=age; Race.advanceTo(TravelPearls.reachedFortressAfterSwim(mc)?3393:3350);
             if (mc.player.squaredDistanceTo(Race.stance(3388))<12) Race.advanceTo(3388);
             tick=Race.referenceTick();
+        }
+        // Recheck after landing and on every approach tick. A far second pearl can
+        // put the player past the reference's eastward excursion and its solid pier.
+        if (nether && tick>=3350 && tick<3393 && thirdThrow<0
+                && next<steps.size() && steps.get(next).tick==3393 && onWestboundFortressBridge(mc)) {
+            Race.stop(mc);
+            Race.advanceTo(3393);
+            tick=3393;
         }
         if (nether && Fortress.guardBridge(mc,tick)) {
             eating=false;

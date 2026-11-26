@@ -526,6 +526,64 @@ public final class Fortress {
         walk(mc, p.x - mc.player.getX(), p.z - mc.player.getZ(), landing, false);
     }
 
+    // Remove the two north fence posts, the four east-wall blocks and the two
+    // adjoining fence sections while preserving the supported floor.
+    private static final int[][] CAGE_WALLS={{-9,62,112},{-9,61,112},
+            {-4,62,116},{-4,62,115},{-4,61,116},{-4,61,115},
+            {-5,61,115},{-5,61,116}};
+
+    static boolean clearCageWalls(MinecraftClient mc) {
+        if(mc.currentScreen!=null || Race.referenceTick()<3590
+                || mc.player.inventory.count(Items.IRON_PICKAXE)==0
+                || mc.player.getY()<58.8 || mc.player.getY()>61.5
+                || mc.player.squaredDistanceTo(SPAWNER)>38)return false;
+        Vec3d eye=mc.player.getCameraPosVec(1);
+        boolean pending=false;
+        for(int[] a:CAGE_WALLS) {
+            BlockPos p=new BlockPos(a[0],a[1],a[2]);
+            Block block=mc.world.getBlockState(p).getBlock();
+            if(a[0]==-5 && mc.world.getBlockState(new BlockPos(-4,61,a[2])).getBlock()!=Blocks.NETHERRACK)continue;
+            if(a[0]!=-4?block!=Blocks.NETHER_BRICK_FENCE:block!=Blocks.NETHERRACK)continue;
+            BlockPos support=new BlockPos(a[0],60,a[2]);
+            if(!mc.world.getBlockState(support).isFullCube(mc.world,support))continue;
+            pending=true;
+            Vec3d center=Vec3d.ofCenter(p);
+            if(eye.squaredDistanceTo(center)>20.2)continue;
+            // Try the open upper face or the near side through the space between fence rails.
+            for(double dx:new double[]{0,-.34,.34})for(double dy:new double[]{0,.38,-.28})
+                for(double dz:new double[]{0,.34,-.34}) {
+                    Vec3d target=center.add(dx,dy,dz);
+                    BlockHitResult sight=mc.world.rayTrace(new RayTraceContext(eye,target,
+                            RayTraceContext.ShapeType.OUTLINE,RayTraceContext.FluidHandling.NONE,mc.player));
+                    if(sight.getType()!=HitResult.Type.BLOCK || !p.equals(sight.getBlockPos()))continue;
+                    Race.stop(mc);
+                    mc.options.keyAttack.setPressed(false);
+                    if(Middle.select(mc,Items.IRON_PICKAXE)){
+                        Race.aim(mc,target);
+                        mc.gameRenderer.updateTargetedEntity(1);
+                        mc.options.keyAttack.setPressed(mc.crosshairTarget instanceof BlockHitResult
+                                && mc.crosshairTarget.getType()==HitResult.Type.BLOCK
+                                && p.equals(((BlockHitResult)mc.crosshairTarget).getBlockPos()));
+                    }
+                    excavating=true;
+                    status="opening the north fence and east wall above the fortress floor";
+                    return true;
+                }
+        }
+        if(!pending)return false;
+        double x=mc.player.getX(),z=mc.player.getZ();
+        if(z<112.72 || z>120.15 || x< -10.45 || x> -4.58)return false;
+        double toX=-6.34,toZ=114.32;
+        if(z>117.20)toZ=116.62;
+        else if(z>115.80 && x< -7.08)toZ=116.63;
+        if(Math.hypot(x-toX,z-toZ)<.32)return false;
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        walk(mc,toX-x,toZ-z,null,true);
+        status="walking to a clear side of the cage wall";
+        return true;
+    }
+
     static boolean openInnerCageFloor(MinecraftClient mc) {
         if(mc.currentScreen!=null || Race.referenceTick()<3590
                 || mc.player.inventory.count(Items.IRON_PICKAXE)==0
@@ -702,7 +760,7 @@ public final class Fortress {
         }
         if (target == null && rod == null) {
             fighting = false;
-            if (openInnerCageFloor(mc) || openCageFloor(mc)) return true;
+            if (openInnerCageFloor(mc) || clearCageWalls(mc) || openCageFloor(mc)) return true;
             if (excavating) {
                 mc.options.keyAttack.setPressed(false);
                 mc.interactionManager.cancelBlockBreaking();
