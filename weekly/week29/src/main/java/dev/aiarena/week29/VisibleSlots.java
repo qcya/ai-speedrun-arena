@@ -177,10 +177,10 @@ public final class VisibleSlots {
         return true;
     }
 
-    private static int nextArmor(MinecraftClient mc) {
+    private static int nextArmor(MinecraftClient mc, net.minecraft.item.Item wanted) {
         for (int slot = 9; slot < 45; slot++) {
             ItemStack stack = mc.player.playerScreenHandler.getSlot(slot).getStack();
-            if (stack.getItem() instanceof ArmorItem
+            if ((wanted == null || stack.getItem() == wanted) && stack.getItem() instanceof ArmorItem
                     && mc.player
                             .getEquippedStack(((ArmorItem) stack.getItem()).getSlotType())
                             .isEmpty()) return slot;
@@ -193,9 +193,13 @@ public final class VisibleSlots {
     }
 
     public static boolean equip(MinecraftClient mc) {
+        return equip(mc, null);
+    }
+
+    public static boolean equip(MinecraftClient mc, net.minecraft.item.Item wanted) {
         if (mc.player.currentScreenHandler != mc.player.playerScreenHandler) return false;
         if (!equipping(mc)) {
-            if (nextArmor(mc) < 0) return true;
+            if (nextArmor(mc, wanted) < 0) return true;
             if (mc.currentScreen != null) return false;
             armorScreen = new InventoryScreen(mc.player);
             mc.openScreen(armorScreen);
@@ -205,7 +209,7 @@ public final class VisibleSlots {
             return false;
         }
         if (armorDelay-- > 0) return false;
-        int next = nextArmor(mc);
+        int next = nextArmor(mc, wanted);
         if (next < 0) {
             mc.player.closeHandledScreen();
             armorScreen = null;

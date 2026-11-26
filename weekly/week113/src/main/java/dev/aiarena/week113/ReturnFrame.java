@@ -2,6 +2,9 @@ package dev.aiarena.week113;
 
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.mob.EndermiteEntity;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
@@ -23,7 +26,6 @@ public final class ReturnFrame {
     private static final double[][] DRY_BANK = {
         {-84.62,171.38}, {-85.56,170.58}, {-85.55,167.54}, {-85.45,166.63}, {-84.55,165.50}
     };
-
     private static final double[][] RETURN_BANK = {
         {-84.52,174.50},{-84.52,172.48},{-84.52,170.50},{-85.50,170.50},{-85.50,166.58},{-84.55,166.52}
     };
@@ -34,7 +36,7 @@ public final class ReturnFrame {
 
     public static void reset() {
         stage = index = 0;
-        bankStep=dryStep=-1;
+        bankStep=dryStep=-1;EndMeal.reset();
         edgeTicks = 0;
         active = false;
     }
@@ -188,6 +190,42 @@ public final class ReturnFrame {
      * Once the stasis runner reaches the ledge this owns movement through the actual portal
      * transfer.
      */
+    static boolean guardFromEndermite(MinecraftClient m, int reference) {
+        if (reference < 5161 || reference >= 5412 || m.player.getY() < 71
+                || m.player.squaredDistanceTo(-85, 75, 171) > 15 * 15) return false;
+        Entity nearest = null;
+        double distance = 3.4 * 3.4;
+        for (Entity e : m.world.getEntities(m.player, m.player.getBoundingBox().expand(4))) {
+            if (!(e instanceof EndermiteEntity) || !e.isAlive() || !m.player.canSee(e)) continue;
+            double d = m.player.squaredDistanceTo(e);
+            if (d < distance) { nearest = e; distance = d; }
+        }
+        if (nearest == null) return false;
+        Race.stop(m);
+        m.options.keySneak.setPressed(true);
+        if (m.player.isUsingItem() && m.player.getActiveItem().getItem() != Items.SHIELD)
+            m.interactionManager.stopUsingItem(m.player);
+        Race.aim(m, nearest.getBoundingBox().getCenter());
+        m.gameRenderer.updateTargetedEntity(1);
+        if (m.currentScreen == null && m.player.getMainHandStack().getItem() != Items.DIAMOND_SWORD)
+            Hotbar.select(m, Items.DIAMOND_SWORD);
+        boolean aimed = m.crosshairTarget instanceof EntityHitResult
+                && ((EntityHitResult)m.crosshairTarget).getEntity() == nearest;
+        if (aimed && m.player.getMainHandStack().getItem() == Items.DIAMOND_SWORD
+                && m.player.getAttackCooldownProgress(.5f) >= .89f) {
+            if (m.player.isUsingItem()) m.interactionManager.stopUsingItem(m.player);
+            m.options.keyUse.setPressed(false);
+            m.interactionManager.attackEntity(m.player, nearest);
+            m.player.swingHand(Hand.MAIN_HAND);
+        } else if (m.player.getOffHandStack().getItem() == Items.SHIELD) {
+            if (!m.player.isUsingItem())
+                m.interactionManager.interactItem(m.player, m.world, Hand.OFF_HAND);
+            m.options.keyUse.setPressed(true);
+        }
+        status = "guarding the return ledge from an endermite";
+        return true;
+    }
+
     private static boolean onBuiltReturnBank(MinecraftClient m,int reference) {
         if(reference<5208 || reference>=5218 || m.player.getX()<-84.2 || m.player.getX()>-82.9
                 || m.player.getZ()<174.3 || m.player.getZ()>175.8 || m.player.getY()<74.8 || m.player.getY()>77.4)
@@ -221,8 +259,8 @@ public final class ReturnFrame {
                     || m.player.getY() < 68
                     || m.player.getY() > 84
                     || m.player.squaredDistanceTo(-84.5, 75, 168.5) > 15 * 15) return false;
-            if(dry) dryStep=m.player.getZ()<170.50 ? 2 : m.player.getZ()<172.7 ? 1 : 0;
-            else if(onBank) bankStep=0;
+            if(dry)dryStep=m.player.getZ()<170.50 ? 2 : m.player.getZ()<172.7 ? 1 : 0;
+            else if(onBank)bankStep=0;
             active = true;
         }
         Race.stop(m);
@@ -289,11 +327,12 @@ public final class ReturnFrame {
                 int[] c = UPRIGHTS[index];
                 BlockPos next = new BlockPos(c[0], c[1], FRAME_Z);
                 status = "building return frame " + next.toShortString();
-                if (m.world.getBlockState(next).getBlock() == Blocks.OBSIDIAN) {
+                boolean corner = UpperLootRoute.enabled && c[1] == 77 && (c[0] == -88 || c[0] == -85);
+                if (corner ? full(m, next) : m.world.getBlockState(next).getBlock() == Blocks.OBSIDIAN) {
                     index++;
                     break;
                 }
-                if (!select(m, Items.OBSIDIAN, null)) break;
+                if (!(corner ? selectSupport(m) : select(m, Items.OBSIDIAN, null))) break;
                 if (!place(m, next) && c[1] >= 77)
                     m.options.keyJump.setPressed(m.player.isOnGround());
                 break;
@@ -316,6 +355,7 @@ public final class ReturnFrame {
                         move(m, dx, dz, true);
                     }
                     m.options.keySneak.setPressed(true);
+                    if(EndMeal.inReturn(m,edgeTicks))status="eating on the outer edge of the return portal";
                     break;
                 }
                 go(m, -86.7, 164.515625, .11, false);

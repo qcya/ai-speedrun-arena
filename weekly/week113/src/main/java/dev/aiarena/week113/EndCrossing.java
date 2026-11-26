@@ -74,7 +74,7 @@ final class EndCrossing {
             index++;
             return;
         }
-        if (!FinalFight.selectBuildingBlock(m)) return;
+        if (!FinalFight.selectPillarBlock(m, target)) return;
         BlockPos under = target.down();
         m.options.keyJump.setPressed(m.player.isOnGround());
         if (!m.player.getBoundingBox().intersects(new Box(target)))

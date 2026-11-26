@@ -49,9 +49,6 @@ public final class StrongholdEntry {
     };
     private static int door = -1, misses;
     private static boolean guardingCorridor;
-    private static final double[][] FLOODED_TURNS = {
-        {-730.47,1274.52}, {-732.52,1274.52}, {-733.30,1275.55}, {-734.55,1275.55}
-    };
     private static int floodedTurn = -1, floodedHole = -1;
     private static boolean returnToButton;
     private static boolean active, finished, westernPortal;
@@ -67,8 +64,8 @@ public final class StrongholdEntry {
         active = finished = westernPortal = false;
         phase = point = 0;
         door = -1;
-        guardingCorridor = false;
         floodedTurn = floodedHole = -1;
+        guardingCorridor = false;
         misses = 0;
         returnToButton = false;
         waterSpot = null;
@@ -515,7 +512,8 @@ public final class StrongholdEntry {
                     || Math.abs(mc.player.getY() - 39) > 1.8) return false;
             floodedTurn = 0;
         }
-        double[] target = FLOODED_TURNS[floodedTurn];
+        double[][] turns = {{-730.47,1274.52},{-732.52,1274.52},{-733.30,1275.55},{-734.55,1275.55}};
+        double[] target = turns[floodedTurn];
         BlockPos floor = new BlockPos(target[0],38,target[1]);
         if (mc.world.getBlockState(floor).getCollisionShape(mc.world,floor).isEmpty()
                 || !mc.world.getBlockState(floor.up()).getCollisionShape(mc.world,floor.up()).isEmpty()
@@ -524,7 +522,7 @@ public final class StrongholdEntry {
             return false;
         }
         Race.stop(mc);
-        if (walk(mc,target[0],target[1],false) && ++floodedTurn == FLOODED_TURNS.length) {
+        if (walk(mc,target[0],target[1],false) && ++floodedTurn == turns.length) {
             floodedTurn = -1;
             Race.advanceTo(5640);
         }
@@ -534,7 +532,8 @@ public final class StrongholdEntry {
     }
 
     public static boolean tick(MinecraftClient mc, int reference) {
-        if (leaveFloodHole(mc, reference) || clearFloodedTurn(mc, reference) || coolPortalPool(mc, reference) || doorPass(mc, reference)) return true;
+        if (EndMeal.inPortalRoom(mc,reference)){status="eating on the supported portal-room platform";return true;}
+        if (leaveFloodHole(mc,reference) || clearFloodedTurn(mc,reference) || coolPortalPool(mc, reference) || doorPass(mc, reference)) return true;
         if (finished) return false;
         if (!active && reference >= 5412 && reference < 5479
                 && mc.player.getY() >= 32 && mc.player.getY() <= 38

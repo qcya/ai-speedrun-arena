@@ -17,17 +17,25 @@ final class EasternOpening {
     private static final double[][] COAST={{228.6,6.70},{225.3,6.70},{224.2,.4},{223.5,-6.1}};
     private static final double[][] APPROACH={{228,-9.2},{235,-11.7},{242.7,-8.86},{249,-10.1},{253.9,-11.3},{255.7,-11.55}};
     private static final double[][] RAVINE={{262.7,-15.3},{263.4,-20.6},{264.4,-23.5},{266.1,-26.2},{266.62,-29.0}};
+    private static final double[][] APPLE_COAST = {
+        {230.5,6.5},{231.5,5.5},{232.5,4.5},{232.5,3.5},{232.5,2.5},
+        {231.5,5.5},{230.5,6.5},{229.5,7.5},{228.6,6.7},{225.3,6.7},{224.2,.4},{223.5,-6.1}
+    };
+    private static boolean appleCoast, checkedApple;
+    private static int appleWalkTicks;
     private static int phase,point,ticksInPhase,lastUse;
     static String status="";
     private static Entity caveTarget;
     private static boolean landedInBoat;
     private static int dismountTicks;
-    private static boolean eating;
+    private static boolean eating, portalMeal, suppliesStaged;
     private static int lostTargetTicks, caveBoatUse=-10, boatSettle;
     private static boolean pushingCaveBoat;
+    private static Vec3d swordStance, stanceBoat;
+    private static int lastCaveHit = -100, stanceTicks;
     private static BlockPos aimedSource;
     private static int aimTicks;
-    static void reset(){lastBucketAttemptStep=-1;phase=0;point=0;ticksInPhase=0;lastUse=-10;castAge=castIndex=0;usedAt=-10;caveTarget=null;landedInBoat=false;dismountTicks=0;eating=false;lostTargetTicks=boatSettle=0;caveBoatUse=-10;pushingCaveBoat=false;aimedSource=null;aimTicks=0;}
+    static void reset(){guardingCaveFuse=false;swordStance=stanceBoat=null;stanceTicks=0;lastCaveHit=-100;appleCoast=checkedApple=false;appleWalkTicks=0;lastBucketAttemptStep=-1;phase=0;point=0;ticksInPhase=0;lastUse=-10;castAge=castIndex=0;usedAt=-10;caveTarget=null;landedInBoat=false;dismountTicks=0;eating=portalMeal=suppliesStaged=false;lostTargetTicks=boatSettle=0;caveBoatUse=-10;pushingCaveBoat=false;aimedSource=null;aimTicks=0;}
     static void jumpTo(int phaseNumber){phase=phaseNumber;point=0;ticksInPhase=0;}
     private static void advance(){jumpTo(phase+1);}
     private static void face(MinecraftClient m, Vec3d point){Race.aim(m,point);m.gameRenderer.updateTargetedEntity(1);}
@@ -185,6 +193,94 @@ final class EasternOpening {
         }
     }
 
+    // The cave landing consists of two dry floors one block apart. Check the whole
+    // player footprint on the approach so a dismount against the east wall can
+    // walk north to the lower shelf or south to the opposite shelf.
+    private static int caveFloor(MinecraftClient m, double x, double z) {
+        for (int y=45;y>=44;y--) {
+            BlockPos p=new BlockPos(x,y,z);
+            if (m.world.getBlockState(p.down()).isSideSolidFullSquare(m.world,p.down(),Direction.UP)
+                    && m.world.getBlockState(p).isAir() && m.world.getBlockState(p.up()).isAir()) return y;
+        }
+        return -1;
+    }
+
+    private static boolean caveFootprint(MinecraftClient m, double x, double z) {
+        for(double dx:new double[]{-.299,.299}) for(double dz:new double[]{-.299,.299})
+            if(caveFloor(m,x+dx,z+dz)<0) return false;
+        return true;
+    }
+
+    private static Vec3d chooseSwordStance(MinecraftClient m, Entity boat, Entity mob) {
+        Vec3d p=m.player.getPos(), seat=boat.getPos(), best=null;
+        double lowest=Double.POSITIVE_INFINITY;
+        for(int n=0;n<32;n++) {
+            double angle=n*Math.PI/16, x=seat.x+2.65*Math.cos(angle), z=seat.z+2.65*Math.sin(angle);
+            double length=Math.hypot(x-p.x,z-p.z);
+            int y=caveFloor(m,x,z);
+            if(y<0 || length>5 || !caveFootprint(m,x,z)) continue;
+            Vec3d eye=new Vec3d(x,y+1.62,z), aim=mob.getPos().add(0,1.42,0);
+            if(eye.distanceTo(aim)>3.0 || m.world.rayTrace(new RayTraceContext(eye,aim,
+                    RayTraceContext.ShapeType.COLLIDER,RayTraceContext.FluidHandling.NONE,m.player))
+                    .getType()!=HitResult.Type.MISS) continue;
+            boolean open=true;
+            int samples=Math.max(1,(int)Math.ceil(length/.20));
+            double initial=Math.max(Math.abs(p.x-seat.x),Math.abs(p.z-seat.z));
+            for(int j=1;j<=samples && open;j++) {
+                double t=(double)j/samples, sx=p.x+(x-p.x)*t, sz=p.z+(z-p.z)*t;
+                // Boat half-width .6875 plus the player's .30. If the dismount
+                // begins inside this clearance, move away without crossing the boat.
+                double distance=Math.max(Math.abs(sx-seat.x),Math.abs(sz-seat.z));
+                if(distance<Math.min(.995,initial)-.02 || !caveFootprint(m,sx,sz)) open=false;
+            }
+            double cost=length+.12*Math.abs(z+15.30);
+            if(open && cost<lowest){lowest=cost;best=new Vec3d(x,y,z);}
+        }
+        return best;
+    }
+
+    private static void hitCapturedEnderman(MinecraftClient m, EndermanEntity mob) {
+        Entity boat=mob.getVehicle();
+        if(boat==null) return;
+        if(swordStance==null || stanceBoat==null || boat.getPos().squaredDistanceTo(stanceBoat)>.12) {
+            swordStance=chooseSwordStance(m,boat,mob);
+            stanceBoat=boat.getPos();
+        }
+        if(!Hotbar.select(m,Items.DIAMOND_SWORD,7)) return;
+        double distance=Math.hypot(mob.getX()-m.player.getX(),mob.getZ()-m.player.getZ());
+        if (swordStance==null) {
+            // No confirmed stand with a clear sword ray. Keep the existing timed
+            // fallback and never provoke a captive from within its melee reach.
+            if(++stanceTicks>=12) advance();
+            return;
+        }
+        Vec3d stand=swordStance;
+        if (distance<2.35 || distance>2.94
+                || Math.hypot(stand.x-m.player.getX(),stand.z-m.player.getZ())>.43) {
+            status="stepping out of reach of the captured ravine enderman";
+            move(m,stand.x,stand.z,false);
+            return;
+        }
+        status="striking the captured enderman from the cave shelf";
+        face(m,mob.getPos().add(0,1.48,0));
+        float cooldown=m.player.getAttackCooldownProgress(.5f);
+        net.minecraft.server.network.ServerPlayerEntity self=ownServerPlayer(m);
+        if(self==null || self.getMainHandStack().getItem()!=Items.DIAMOND_SWORD) return;
+        if (mob.getHealth()>7 && m.player.isOnGround() && cooldown>=.42f
+                && m.world.getBlockState(m.player.getBlockPos().up(2)).isAir())
+            m.options.keyJump.setPressed(true);
+        boolean falling=m.player.fallDistance>=.12 && self.fallDistance>0 && !m.player.isSprinting();
+        if (++stanceTicks<=20 && !falling && mob.getHealth()>7) return;
+        if (m.player.age-lastCaveHit<11 || cooldown<.98f || self.getAttackCooldownProgress(.5f)<.96f)
+            return;
+        if(m.crosshairTarget instanceof EntityHitResult && ((EntityHitResult)m.crosshairTarget).getEntity()==mob) {
+            m.interactionManager.attackEntity(m.player,mob);
+            m.player.swingHand(Hand.MAIN_HAND);
+            lastCaveHit=m.player.age;
+            stanceTicks=0;
+        }
+    }
+
     private static void fight(MinecraftClient m){
         if(count(m,Items.ENDER_PEARL)>0){advance();return;}
         for(Entity e:m.world.getEntities())if(e instanceof ItemEntity && e.isAlive()
@@ -194,18 +290,12 @@ final class EasternOpening {
         if(caveTarget==null && ticksInPhase<35)caveTarget=target(m,true,8);
         Entity mob=caveTarget;
         if(mob==null || !mob.isAlive() || m.world.getEntityById(mob.getEntityId())!=mob) {
-            if(++lostTargetTicks>26)advance();
+            if(++lostTargetTicks>(mob==null && m.player.isOnGround()?8:26))advance();
             return;
         }
         if(!caveHasPassenger(m,mob)){catchCaveMob(m,mob);return;}
         if(ticksInPhase>205){advance();return;}
-        if(!Hotbar.select(m,Items.DIAMOND_SWORD,7))return;
-        if(m.player.squaredDistanceTo(mob)>7.7){move(m,mob.getX(),mob.getZ(),false);return;}
-        face(m,mob.getPos().add(0,1.48,0));
-        if(m.crosshairTarget instanceof EntityHitResult && ((EntityHitResult)m.crosshairTarget).getEntity()==mob
-                && m.player.getAttackCooldownProgress(.5f)>.97){
-            m.interactionManager.attackEntity(m.player,mob);m.player.swingHand(Hand.MAIN_HAND);
-        }
+        hitCapturedEnderman(m,(EndermanEntity)mob);
     }
     private static boolean eatAfterFall(MinecraftClient m) {
         if(m.player.getHungerManager().getFoodLevel()>=20 || m.player.getHealth()>=14 || count(m,Items.COOKED_SALMON)==0) {
@@ -218,6 +308,51 @@ final class EasternOpening {
         if(!m.player.isUsingItem())m.interactionManager.interactItem(m.player,m.world,Hand.MAIN_HAND);
         eating=true;m.options.keyUse.setPressed(true);return true;
     }
+    private static boolean stagePortalItem(MinecraftClient m,Item item) {
+        for(int i=0;i<9;i++)if(m.player.inventory.getStack(i).getItem()==item)return true;
+        if(count(m,item)==0)return true;
+        for(int i=0;i<9;i++)if(m.player.inventory.getStack(i).isEmpty())return Hotbar.select(m,item,i);
+        for(int i=0;i<9;i++){
+            Item spare=m.player.inventory.getStack(i).getItem();
+            if(spare==Items.OAK_PRESSURE_PLATE || spare==Items.OAK_SAPLING || spare==Items.STICK)
+                return Hotbar.select(m,item,i);
+        }
+        return true;
+    }
+
+    private static boolean stagePortalSupplies(MinecraftClient m) {
+        if(suppliesStaged || count(m,Items.ENDER_PEARL)==0)return true;
+        int hunger=m.player.getHungerManager().getFoodLevel();
+        if(hunger<=14 || (hunger<18 && m.player.getHealth()<14)) {
+            Item food=count(m,Items.COOKED_SALMON)>0?Items.COOKED_SALMON:Items.COOKED_COD;
+            if(!stagePortalItem(m,food))return false;
+        }
+        if(!stagePortalItem(m,Items.ENDER_PEARL))return false;
+        suppliesStaged=true;return true;
+    }
+
+    private static void eatInPortal(MinecraftClient m) {
+        if(portalMeal) {
+            if(m.player.isUsingItem()) {m.options.keyUse.setPressed(true);return;}
+            m.options.keyUse.setPressed(false);portalMeal=false;
+        }
+        if(count(m,Items.ENDER_PEARL)==0 || m.currentScreen!=null)return;
+        int hunger=m.player.getHungerManager().getFoodLevel();
+        if(hunger>14 && (m.player.getHealth()>=14 || hunger>=18))return;
+        // Keep the player inside the portal for the entire meal.
+        for(int slot=0;slot<9;slot++) {
+            Item fish=m.player.inventory.getStack(slot).getItem();
+            if(fish!=Items.COOKED_SALMON && fish!=Items.COOKED_COD)continue;
+            m.player.inventory.selectedSlot=slot;
+            net.minecraft.server.network.ServerPlayerEntity self=ownServerPlayer(m);
+            if(self!=null && self.getMainHandStack().getItem()==fish
+                    && m.interactionManager.interactItem(m.player,m.world,Hand.MAIN_HAND).isAccepted()) {
+                portalMeal=true;m.options.keyUse.setPressed(true);
+            }
+            return;
+        }
+    }
+
     private static void takeBoat(MinecraftClient m){
         if(count(m,Items.OAK_BOAT)>0 || ticksInPhase>45){advance();return;}
         for(Entity e:m.world.getEntities())if(e instanceof ItemEntity && ((ItemEntity)e).getStack().getItem()==Items.OAK_BOAT && e.squaredDistanceTo(m.player)<80){move(m,e.getX(),e.getZ(),false);return;}
@@ -231,6 +366,42 @@ final class EasternOpening {
             m.interactionManager.attackEntity(m.player,b);m.player.swingHand(Hand.MAIN_HAND);
         }
     }
+    private static boolean guardingCaveFuse;
+    private static boolean shieldCaveCreeper(MinecraftClient m) {
+        net.minecraft.entity.mob.CreeperEntity threat=null;
+        double nearest=49;
+        if(phase>=3 && phase<=7 && m.player.getY()>=40 && m.player.getY()<=50
+                && m.player.getOffHandStack().getItem()==Items.SHIELD
+                && (m.currentScreen==null || (m.currentScreen instanceof net.minecraft.client.gui.screen.ingame.InventoryScreen
+                        && m.player.inventory.getCursorStack().isEmpty()))) {
+            for (Entity e:m.world.getEntities(m.player,m.player.getBoundingBox().expand(7))) {
+                if (!(e instanceof net.minecraft.entity.mob.CreeperEntity) || !e.isAlive()) continue;
+                net.minecraft.entity.mob.CreeperEntity c=(net.minecraft.entity.mob.CreeperEntity)e;
+                double d=m.player.squaredDistanceTo(c);
+                if(d<nearest && (c.getFuseSpeed()>0 || c.getClientFuseTime(1)>.05f) && m.player.canSee(c)) {
+                    threat=c;nearest=d;
+                }
+            }
+        }
+        if(threat==null) {
+            if(guardingCaveFuse) {
+                m.options.keyUse.setPressed(false);
+                if(m.player.getActiveItem().getItem()==Items.SHIELD) m.interactionManager.stopUsingItem(m.player);
+                guardingCaveFuse=false;
+            }
+            return false;
+        }
+        if(m.currentScreen!=null) m.player.closeHandledScreen();
+        Race.stop(m);
+        m.options.keyAttack.setPressed(false);
+        face(m,threat.getBoundingBox().getCenter());
+        if(!m.player.isUsingItem()) m.interactionManager.interactItem(m.player,m.world,Hand.OFF_HAND);
+        m.options.keyUse.setPressed(true);
+        guardingCaveFuse=true;
+        status="shielding the primed creeper on the cave landing";
+        return true;
+    }
+
     private static boolean ravineGuard;
     private static void releaseRavineShield(MinecraftClient m) {
         if(!ravineGuard)return;
@@ -277,9 +448,38 @@ final class EasternOpening {
         if(phase>=4 && m.player.getVehicle()!=null){
             m.options.keySneak.setPressed(true);return true;
         }
-        if(Hotbar.tick(m) || defendCastSite(m))return true;
+        if(shieldCaveCreeper(m) || Hotbar.tick(m) || defendCastSite(m))return true;
         switch(phase){
-          case 0:follow(m,COAST,1.35);break;
+          case 0:
+            if (!checkedApple) {
+                checkedApple=true;
+                for (Entity entity : m.world.getEntities()) {
+                    if (entity instanceof ItemEntity && entity.isAlive()
+                            && ((ItemEntity)entity).getStack().getItem()==Items.APPLE
+                            && entity.squaredDistanceTo(233.39,73,2.88)<7) appleCoast=true;
+                }
+            }
+            if (!appleCoast) {follow(m,COAST,1.35);break;}
+            // The dropped apple is already within pickup range during the jump from
+            // the blast crater. Return along the ground we just crossed to the native beach.
+            if (point<5 && (count(m,Items.APPLE)>0 || appleWalkTicks>145)) point=5;
+            appleWalkTicks++;
+            if (point==4 && count(m,Items.APPLE)==0) {
+                for (Entity entity : m.world.getEntities()) {
+                    if (!(entity instanceof ItemEntity) || !entity.isAlive()
+                            || ((ItemEntity)entity).getStack().getItem()!=Items.APPLE
+                            || entity.squaredDistanceTo(233.39,73,2.88)>9) continue;
+                    if (m.player.squaredDistanceTo(entity)<5) {
+                        move(m,entity.getX(),entity.getZ(),false);
+                        m.options.keyJump.setPressed(entity.getY()>m.player.getY()+.55 && m.player.isOnGround());
+                        status="picking up the apple dropped by the oak leaves";
+                        return true;
+                    }
+                }
+            }
+            follow(m,APPLE_COAST,.58);
+            status="taking the apple path from the TNT crater to the shore";
+            break;
           case 1:if(water(m)) advance();break;
           case 2:if(choose(m,Items.OAK_BOAT))follow(m,APPROACH,.85);break;
           case 3:firstDrop(m);break;
@@ -402,6 +602,7 @@ final class EasternOpening {
             status="waiting inside the eastern Nether portal";Race.advanceTo(1335);
             if(m.world.getBlockState(m.player.getBlockPos()).getBlock()!=Blocks.NETHER_PORTAL)
                 move(m,265.86,-30.35,false);
+            else eatInPortal(m);
             return;
         }
         if(castIndex>=14 && castIndex<30 && Math.hypot(m.player.getX()-265.49,m.player.getZ()+31.23)>.43){
@@ -455,7 +656,7 @@ final class EasternOpening {
           }
           case LIGHT:
             done=m.world.getBlockState(at.up()).getBlock()==Blocks.NETHER_PORTAL;
-            if(!done && choose(m,Items.FLINT_AND_STEEL)){
+            if(!done && stagePortalSupplies(m) && choose(m,Items.FLINT_AND_STEEL)){
                 BlockHitResult h=Middle.aim(m,at,Direction.UP);
                 if(h!=null && castAge-usedAt>=4){
                     if(m.interactionManager.interactBlock(m.player,m.world,Hand.MAIN_HAND,h).isAccepted())

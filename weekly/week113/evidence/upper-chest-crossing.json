@@ -1,0 +1,107 @@
+{
+  "south": {
+    "original": "east/fresh-east26/saves/W113",
+    "source_files": 37,
+    "source_hashes_reverified": true,
+    "initial": {
+      "run_tick": 1,
+      "elapsed_ms": 0,
+      "x": -50.299990174489125,
+      "y": 51.0,
+      "z": 81.49843029684092,
+      "hp": 20.0,
+      "middle_action": "approaching bastion"
+    },
+    "action_transitions": [
+      {
+        "run_tick": 339,
+        "elapsed_ms": 16624,
+        "x": -104.53820658212189,
+        "y": 39.0,
+        "z": 109.69551714640716,
+        "hp": 20.0,
+        "middle_action": "approaching the basalt center before the two missing floor blocks"
+      },
+      {
+        "run_tick": 365,
+        "elapsed_ms": 17840,
+        "x": -109.3120177576534,
+        "y": 39.0,
+        "z": 111.43041810951631,
+        "hp": 20.0,
+        "middle_action": "filling the far floor block from the basalt center"
+      },
+      {
+        "run_tick": 366,
+        "elapsed_ms": 18072,
+        "x": -109.32878022395992,
+        "y": 39.0,
+        "z": 111.43661963252828,
+        "hp": 20.0,
+        "middle_action": "filling the near floor block from the basalt center"
+      }
+    ],
+    "first_six_string_and_five_obsidian": {
+      "run_tick": 439,
+      "elapsed_ms": 21453,
+      "x": -118.52712896428362,
+      "y": 40.0,
+      "z": 110.40130065267806,
+      "hp": 20.0,
+      "middle_action": "looting the upper bastion chest"
+    },
+    "terminal_native_inventory": {
+      "string": 6,
+      "obsidian": 5
+    },
+    "normal_save_all_dimensions": true
+  },
+  "north": {
+    "original": "east/fresh-east26/saves/W113",
+    "source_files": 37,
+    "source_hashes_reverified": true,
+    "initial": {
+      "run_tick": 1,
+      "elapsed_ms": 0,
+      "x": -50.299990174489125,
+      "y": 51.0,
+      "z": 81.49843029684092,
+      "hp": 20.0,
+      "middle_action": "approaching bastion"
+    },
+    "action_transitions": [
+      {
+        "run_tick": 418,
+        "elapsed_ms": 20452,
+        "x": -125.61135267209423,
+        "y": 39.0,
+        "z": 104.68774215971501,
+        "hp": 20.0,
+        "middle_action": "centering on the northern aisle for a single floor block"
+      },
+      {
+        "run_tick": 424,
+        "elapsed_ms": 20660,
+        "x": -125.46385449706679,
+        "y": 39.0,
+        "z": 105.38643879789957,
+        "hp": 20.0,
+        "middle_action": "placing the northern aisle floor from the opposite wall"
+      }
+    ],
+    "first_six_string_and_five_obsidian": {
+      "run_tick": 472,
+      "elapsed_ms": 23093,
+      "x": -120.49902122860153,
+      "y": 40.0,
+      "z": 107.5750370781638,
+      "hp": 20.0,
+      "middle_action": "looting the upper bastion chest"
+    },
+    "terminal_native_inventory": {
+      "string": 6,
+      "obsidian": 5
+    },
+    "normal_save_all_dimensions": true
+  }
+}

@@ -1,17 +1,20 @@
 package dev.aiarena.week113;
 
 import java.util.List;
-import net.minecraft.util.Hand;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.item.Items;
+import net.minecraft.util.Hand;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
-/** Walk the eastern shore so the fortress return is the third Nether throw. */
+/** Walk the high eastern shore, then use the overworld Enderman pearl if one was obtained. */
 final class EastBastionApproach {
     private static final List<BlockPos> first=Middle.cells("east-first.csv");
     private static final List<BlockPos> escape=Middle.cells("east-escape.csv");
-    private static int phase,index;
-    private static boolean lowFallback;
+    private static final List<BlockPos> westRidge=Middle.cells("east-west-ridge.csv");
+    private static boolean unpearledApproach,onWestRidge;
+    private static int phase,index,aimTicks,flight;
+    private static boolean offeredGold, lowFallback, climbingPocket;
     private static int highPoint, nextPad, slowTicks;
     private static double checkX, checkZ;
     private static final double[][] HIGH = {
@@ -25,10 +28,10 @@ final class EastBastionApproach {
     private static double exitX,exitZ;
     static String status="";
 
-    static void reset(){phase=0;index=0;leftPortal=false;selectedExit=false;lowFallback=false;highPoint=nextPad=slowTicks=0;checkX=checkZ=0;}
+    static void reset(){ShelfCrossing.reset();WestBankPearl.reset();phase=0;index=0;aimTicks=0;flight=0;offeredGold=false;leftPortal=false;selectedExit=false;lowFallback=climbingPocket=false;highPoint=nextPad=slowTicks=0;checkX=checkZ=0;}
     static boolean shouldHandle(MinecraftClient m){
         if(phase==0){if(m.currentScreen!=null || m.player.getY()>57)return false;phase=m.player.getX()>20?1:5;}
-        return phase<5;
+        return phase<5 || phase==6;
     }
 
     private static boolean leavePortal(MinecraftClient m) {
@@ -56,7 +59,39 @@ final class EastBastionApproach {
         status="leaving the eastern portal on its open face";
         return false;
     }
+    /** When knocked off the narrow shore, climb the exposed gravel column beside the stairs. */
+    private static boolean climbShorePocket(MinecraftClient m) {
+        BlockPos column=new BlockPos(-18,32,51);
+        if (!climbingPocket && m.player.getY()>34.45) return false;
+        if (m.player.getBlockPos().getX()!=column.getX() || m.player.getBlockPos().getZ()!=column.getZ()
+                || m.player.getY()<32.8 || m.player.getY()>38.45
+                || BastionApproach.open(m,column) || BastionApproach.open(m,column.south().up(4))) {
+            climbingPocket=false;
+            return false;
+        }
+        climbingPocket=true;
+        BlockPos top=column;
+        while(top.getY()<36 && !BastionApproach.open(m,top.up())) top=top.up();
+        if (top.getY()>=36 && m.player.getY()>=36.9) {
+            index=21;
+            double x=-17.50,z=52.48;
+            Race.aim(m,new Vec3d(x,m.player.getEyeY(),z));
+            BastionApproach.move(m,x,z,false,false);
+            m.options.keyJump.setPressed(false);
+        } else {
+            Race.stop(m);
+            if (Middle.selectBuildingBlock(m,true) && m.currentScreen==null) {
+                net.minecraft.util.hit.BlockHitResult hit=Middle.aim(m,top,net.minecraft.util.math.Direction.UP);
+                m.options.keyJump.setPressed(true);
+                if (hit!=null && m.player.getY()>=top.getY()+1.99) Middle.use(m,hit);
+            }
+        }
+        status="climbing back to the eastern shore staircase";
+        return true;
+    }
+
     private static boolean walk(MinecraftClient m,List<BlockPos> cells) {
+        if (cells==escape && index>=18 && index<=23 && climbShorePocket(m)) return false;
         // A sprint through a diagonal turn can bypass a cell center even though
         // the player is already standing on a later safe foot cell.
         for(int i=Math.min(index+6,cells.size()-1);i>index;i--){
@@ -95,7 +130,9 @@ final class EastBastionApproach {
         boolean gap=index+1<cells.size() && BastionApproach.open(m,cells.get(index+1).down());
         double dy=p.getY()-m.player.getY(),d=Math.hypot(x-m.player.getX(),z-m.player.getZ());
         Race.aim(m,new Vec3d(x,m.player.getEyeY()-.12,z));
-        BastionApproach.move(m,x,z,gap && d<.9,!gap);
+        // Crouch on the outgoing bridge anchor once our feet reach it. Crouching
+        // three blocks above a safe landing would hold the player on the previous lip.
+        BastionApproach.move(m,x,z,gap && d<.9 && Math.abs(dy)<.55,!gap);
         m.options.keyJump.setPressed(!gap && (dy>.45 || m.player.horizontalCollision || (d>3.7 && BastionApproach.corridor(m,aim,true))));
         status="running along the eastern Nether shore "+index+"/"+cells.size();
         return false;
@@ -179,10 +216,100 @@ final class EastBastionApproach {
         if(phase==1){
             if(!leavePortal(m))return -1;
             if(!highShore(m))return -1;
-            index=0;phase=4;
+            index=0;
+            onWestRidge=false;
+            unpearledApproach=!ShelfCrossing.canUseEntrance(m);
+            phase=unpearledApproach?4:2;
         }
-        if(!walk(m,escape))return -1;
-        phase=5;return nearest(low,m,70,89);
+        if(phase==2){
+            final double bx=1.5,bz=56.5;
+            double dist=Math.hypot(m.player.getX()-bx,m.player.getZ()-bz);
+            if(dist>.18){
+                Race.aim(m,new Vec3d(bx,m.player.getEyeY()-.1,bz));
+                BastionApproach.move(m,bx,bz,dist<1.0,false);
+                status="centering for the cave Enderman pearl";
+                return -1;
+            }
+            if(!Middle.select(m,Items.ENDER_PEARL))return -1;
+            double yaw=Math.toRadians(56),pitch=Math.toRadians(-33);
+            Vec3d dir=new Vec3d(-Math.sin(yaw)*Math.cos(pitch),-Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));
+            Race.aim(m,m.player.getCameraPosVec(1).add(dir.multiply(10)));
+            status="throwing the bonus pearl across the bastion approach";
+            if(m.player.getRotationVec(1).dotProduct(dir)<.9998 || Math.hypot(m.player.getVelocity().x,m.player.getVelocity().z)>.045){aimTicks=0;return -1;}
+            if(++aimTicks<4)return -1;
+            if(m.player.isOnGround()){m.options.keyJump.setPressed(true);return -1;}
+            if(m.player.getVelocity().y<.32)return -1;
+            if(m.interactionManager.interactItem(m.player,m.world,Hand.MAIN_HAND).isAccepted()){
+                m.player.swingHand(Hand.MAIN_HAND);ShelfCrossing.entranceUsed();phase=3;flight=0;index=0;
+            }
+            return -1;
+        }
+        if(phase==3){
+            status="waiting for the cave Enderman pearl to land";
+            if(m.player.getX() < -35 && m.player.isOnGround()){
+                if(WestBankPearl.landed(m)){phase=6;return -1;}
+                int pos=nearest(low,m,96,151);phase=5;return pos;
+            }
+            if(m.player.getX()>-12){
+                walk(m,escape);
+                for(net.minecraft.entity.Entity e:m.world.getEntities()){
+                    if(!(e instanceof net.minecraft.entity.mob.PiglinEntity) || !e.isAlive()
+                            || e.squaredDistanceTo(m.player)>12 || !m.player.canSee(e))continue;
+                    net.minecraft.entity.mob.PiglinEntity pig=(net.minecraft.entity.mob.PiglinEntity)e;
+                    if(pig.isBaby() || pig.getActivity()!=net.minecraft.entity.mob.PiglinEntity.Activity.ATTACKING_WITH_MELEE_WEAPON)continue;
+                    Race.aim(m,pig.getBoundingBox().getCenter());
+                    m.gameRenderer.updateTargetedEntity(1);
+                    boolean aimed=m.crosshairTarget instanceof net.minecraft.util.hit.EntityHitResult
+                            && ((net.minecraft.util.hit.EntityHitResult)m.crosshairTarget).getEntity()==pig;
+                    if(!offeredGold && m.player.inventory.count(Items.GOLD_INGOT)>0){
+                        if(Middle.select(m,Items.GOLD_INGOT) && aimed &&
+                              m.interactionManager.interactEntity(m.player,pig,Hand.MAIN_HAND).isAccepted())offeredGold=true;
+                    } else if(m.player.getOffHandStack().getItem()==Items.SHIELD) {
+                        if(!m.player.isUsingItem())m.interactionManager.interactItem(m.player,m.world,Hand.OFF_HAND);
+                        m.options.keyUse.setPressed(true);
+                    } else if(Middle.select(m,Items.DIAMOND_SWORD) && aimed && m.player.getAttackCooldownProgress(.5f)>.9f) {
+                        m.interactionManager.attackEntity(m.player,pig);m.player.swingHand(Hand.MAIN_HAND);
+                    }
+                    if(index<escape.size()){
+                        BlockPos destination=escape.get(index);
+                        BastionApproach.move(m,destination.getX()+.5,destination.getZ()+.5,false,false);
+                    }
+                    break;
+                }
+                status="moving to cover during the bonus pearl flight";
+            }
+            if(++flight>150 && m.player.getX()>-8){phase=4;index=0;}
+            return -1;
+        }
+        if(phase==6){
+            if(!WestBankPearl.follow(m)){status=WestBankPearl.status;return -1;}
+            phase=5;return nearest(low,m,130,181);
+        }
+        if(!onWestRidge){
+            if(!walk(m,escape))return -1;
+            int blocks=m.player.inventory.count(Items.DIRT)+m.player.inventory.count(Items.NETHERRACK)
+                    +m.player.inventory.count(Items.BLACKSTONE)+m.player.inventory.count(Items.COBBLESTONE);
+            if(!unpearledApproach || blocks<2){
+                phase=5;return nearest(low,m,70,89);
+            }
+            onWestRidge=true;index=0;
+        }
+        if(index>4 && index<westRidge.size() && m.player.isOnGround()
+                && m.player.getY()<westRidge.get(index).getY()-3.5){
+            // Only reconnect after landing beside an actual foot cell of the lower approach.
+            int old=nearest(low,m,82,158);
+            BlockPos p=low.get(old);
+            if(Math.abs(m.player.getY()-p.getY())<1.15
+                    && Math.hypot(m.player.getX()-p.getX()-.5,m.player.getZ()-p.getZ()-.5)<2.2){
+                phase=5;return old;
+            }
+        }
+        if(!walk(m,westRidge)){
+            status=(BastionApproach.open(m,westRidge.get(index).down())?"bridging":"running along")
+                    +" the western Nether ridge "+index+"/"+westRidge.size();
+            return -1;
+        }
+        phase=5;return nearest(low,m,157,160);
     }
 
     private static int nearest(List<BlockPos> path,MinecraftClient m,int start,int end){

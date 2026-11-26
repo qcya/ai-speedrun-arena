@@ -29,6 +29,7 @@ public final class Fortress {
     private static final Vec3d SPAWNER = new Vec3d(-7.5, 60.5, 115.5);
     private static boolean excavating, guardingBridge;
     private static int bridgeSwing = -20;
+    private static boolean returningFromNorthPocket,checkingNorthPocket;
     private static int previousEnemy, swordTicks, jumpingAt = -1, jumpTicks;
     private static int lastSwing = -20;
     private static boolean ownsInventory, fighting;
@@ -38,8 +39,8 @@ public final class Fortress {
     private Fortress() {}
 
     public static void reset() {
-        EastRodPocket.reset();
-        excavating = guardingBridge = false;
+        SouthBlazes.reset();EastRodPocket.reset();
+        excavating = guardingBridge = returningFromNorthPocket = checkingNorthPocket = false;
         bridgeSwing = -20;
         previousEnemy = -1;
         pocketRods = observedCageRod = -1;
@@ -305,7 +306,7 @@ public final class Fortress {
         return true;
     }
 
-    private static void approachSpawner(MinecraftClient mc) {
+    static void approachSpawner(MinecraftClient mc) {
         double x = -7.62, z = mc.player.getZ() > 120.8 ? 120.0 : 116.55;
         double dx = x - mc.player.getX(), dz = z - mc.player.getZ();
         Race.aim(mc, new Vec3d(x, mc.player.getEyeY() - .38, z));
@@ -491,11 +492,103 @@ public final class Fortress {
         return next;
     }
 
+    private static final BlockPos NORTH_STEP = new BlockPos(-10,58,113);
+    private static final Vec3d NORTH_RIM = new Vec3d(-8.52,59,113.53);
+    private static final Vec3d NORTH_POCKET = new Vec3d(-10.50,57,113.53);
+
+    private static boolean isNorthPocket(Vec3d p) {
+        return p.x>=-11 && p.x< -10 && p.z>=113 && p.z<114 && p.y>=56.95 && p.y<57.30;
+    }
+
+    private static boolean northStairIsSafe(MinecraftClient mc) {
+        for(int x=-11; x<=-9; x++){
+            int floor=x==-11?56:x==-10?57:58;
+            BlockPos base=new BlockPos(x,floor,113);
+            Block block=mc.world.getBlockState(base).getBlock();
+            if(block!=Blocks.NETHER_BRICKS && block!=Blocks.NETHERRACK)return false;
+            for(int y=floor+1;y<=60;y++){
+                BlockPos pos=new BlockPos(x,y,113);
+                Block b=mc.world.getBlockState(pos).getBlock();
+                if(pos.equals(NORTH_STEP) && b==Blocks.NETHER_BRICKS)continue;
+                if(!clear(mc,pos) || !mc.world.getFluidState(pos).isEmpty()
+                        || b==Blocks.FIRE || b==Blocks.SOUL_FIRE)return false;
+            }
+        }
+        return true;
+    }
+
+    private static void walkNorthStair(MinecraftClient mc,Vec3d next,boolean climb) {
+        Race.aim(mc,new Vec3d(next.x,mc.player.getEyeY(),next.z));
+        BastionApproach.move(mc,next.x,next.z,false,false);
+        if(climb && mc.player.isOnGround() && mc.player.horizontalCollision)
+            mc.options.keyJump.setPressed(true);
+    }
+
+    private static boolean openNorthStep(MinecraftClient mc) {
+        Vec3d p=mc.player.getPos();
+        if(checkingNorthPocket && mc.world.getBlockState(NORTH_STEP).isAir()){
+            Vec3d rim=new Vec3d(-9.51,59,114.46);
+            if(!onCageFloor(p) || p.distanceTo(rim)<.14 || !cageFloorLine(mc,p,rim)) {
+                checkingNorthPocket=false;
+                return false;
+            }
+            takeControls(mc);
+            walkNorthStair(mc,rim,false);
+            status="looking down into the opened northern pickup pocket";
+            return true;
+        }
+        if(!onCageFloor(p) || p.z>=115.0 || p.x< -9.1 || p.x> -7.4
+                || mc.player.getBoundingBox().intersects(new Box(NORTH_STEP.up()))
+                || mc.world.getBlockState(NORTH_STEP).getBlock()!=Blocks.NETHER_BRICKS
+                || !northStairIsSafe(mc))return false;
+        BlockHitResult hit=BastionApproach.line(mc,Vec3d.ofCenter(NORTH_STEP).add(0,.499,0));
+        if(hit==null || !hit.getBlockPos().equals(NORTH_STEP))return false;
+        takeControls(mc);
+        if(Middle.select(mc,Items.IRON_PICKAXE))
+            mc.options.keyAttack.setPressed(Middle.aim(mc,NORTH_STEP,net.minecraft.util.math.Direction.UP)!=null);
+        checkingNorthPocket=true;
+        status="opening the northern pickup stair beside the cage";
+        return true;
+    }
+
+    private static boolean takeNorthRod(MinecraftClient mc,ItemEntity rod) {
+        Vec3d player=mc.player.getPos();
+        if(!isNorthPocket(rod.getPos()) || mc.world.getBlockState(NORTH_STEP).getBlock()==Blocks.NETHER_BRICKS
+                || !northStairIsSafe(mc) || player.y<56.9 || player.y>=59.30)return false;
+        observedCageRod=rod.getEntityId();
+        if(!isNorthPocket(player) && (player.x> -9.2 && Math.abs(player.z-NORTH_RIM.z)>.16)) {
+            Vec3d next=cageFloorLine(mc,player,NORTH_RIM)?NORTH_RIM:rodCorner(mc,player,NORTH_RIM);
+            if(next==null)return false;
+            walkNorthStair(mc,next,false);
+        }else{
+            returningFromNorthPocket=true;
+            walkNorthStair(mc,NORTH_POCKET,false);
+        }
+        status="descending the northern stair to the observed rod";
+        return true;
+    }
+
+    private static boolean leaveNorthStair(MinecraftClient mc) {
+        if(!returningFromNorthPocket)return false;
+        Entity rod=mc.world.getEntityById(observedCageRod);
+        if(rod!=null && rod.isAlive() && isNorthPocket(rod.getPos()))return false;
+        Vec3d p=mc.player.getPos();
+        if(p.y>=58.99 || p.z<112.8 || p.z>114.2 || !northStairIsSafe(mc)){
+            returningFromNorthPocket=false;
+            return false;
+        }
+        takeControls(mc);
+        walkNorthStair(mc,NORTH_RIM,true);
+        status="climbing the northern pickup stair back to the spawner";
+        return true;
+    }
+
     private static void takeRod(MinecraftClient mc, ItemEntity rod) {
         status = "collecting a dropped blaze rod";
         previousEnemy = -1;
         Vec3d p = rod.getPos();
         Vec3d player=mc.player.getPos();
+        if(takeNorthRod(mc,rod))return;
         Vec3d goal=cagePickupFoot(mc,player,p);
         if(goal!=null && Math.abs(player.x+7.5)<3.4 && Math.abs(player.z-115.5)<4.1) {
             observedCageRod=rod.getEntityId();
@@ -522,6 +615,13 @@ public final class Fortress {
                 && pocketRods < 0) {
             pocketRods = mc.player.inventory.count(Items.BLAZE_ROD);
             exitStep = 0;
+        }
+        if(landing!=null && rod.isOnGround() && mc.player.getBlockPos().getX()==landing.getX()
+                && mc.player.getBlockPos().getZ()==landing.getZ()){
+            // An item can sit against a two-high lip under the player's feet. The player
+            // must clear that lip by half a body width before falling onto the safe floor.
+            p=Vec3d.ofCenter(landing);
+            status="stepping clear of the lip above the dropped rod";
         }
         walk(mc, p.x - mc.player.getX(), p.z - mc.player.getZ(), landing, false);
     }
@@ -696,9 +796,13 @@ public final class Fortress {
      * screen.
      */
     public static boolean tick(MinecraftClient mc, int goal) {
-        if (leaveRodPocket(mc, goal)) return true;
+        if (leaveNorthStair(mc) || leaveRodPocket(mc, goal)) return true;
         if (EastRodPocket.active() && EastRodPocket.inspect(mc,goal,false)) {
             status=EastRodPocket.status;return true;
+        }
+        if (!ownsInventory && SouthBlazes.tick(mc, goal, SPAWNER)) {
+            status = SouthBlazes.status;
+            return true;
         }
         if (mc.player.inventory.count(Items.BLAZE_ROD) >= goal
                 || mc.player.squaredDistanceTo(SPAWNER) > 26 * 26
@@ -725,7 +829,8 @@ public final class Fortress {
             if (e instanceof ItemEntity
                     && ((ItemEntity) e).getStack().getItem() == Items.BLAZE_ROD) {
                 if (range < rodRange && (mc.player.canSee(e) || e.getEntityId()==observedCageRod
-                        && onCageFloor(mc.player.getPos()) && e.getY()>=58.95 && e.getY()<=61.18)) {
+                        && ((onCageFloor(mc.player.getPos()) && e.getY()>=58.95 && e.getY()<=61.18)
+                            || (isNorthPocket(e.getPos()) && !mc.world.getBlockState(NORTH_STEP).isFullCube(mc.world,NORTH_STEP))))) {
                     rod = (ItemEntity) e;
                     rodRange = range;
                 }
@@ -745,7 +850,7 @@ public final class Fortress {
             }
         }
         if (rod==null && enterSouthCageGap(mc,target,aim)) return true;
-        if (EastRodPocket.inspect(mc,goal,rod!=null || target!=null)) {
+        if(EastRodPocket.inspect(mc,goal,rod!=null || target!=null)) {
             status=EastRodPocket.status;return true;
         }
         if (blazesAtSpawner
@@ -760,7 +865,7 @@ public final class Fortress {
         }
         if (target == null && rod == null) {
             fighting = false;
-            if (openInnerCageFloor(mc) || clearCageWalls(mc) || openCageFloor(mc)) return true;
+            if (openInnerCageFloor(mc) || clearCageWalls(mc) || openNorthStep(mc) || openCageFloor(mc)) return true;
             if (excavating) {
                 mc.options.keyAttack.setPressed(false);
                 mc.interactionManager.cancelBlockBreaking();

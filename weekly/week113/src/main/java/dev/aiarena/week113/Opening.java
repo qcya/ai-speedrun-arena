@@ -33,6 +33,8 @@ public final class Opening {
             Items.COOKED_SALMON, Items.COOKED_COD, Items.GOLD_INGOT};
     private static boolean eastern;
     private static boolean looted,shieldOpening,ravineInventory,preparedGold;
+    private static boolean shoreIgnition;
+    private static int shoreStart, lastIgnition;
     private static int age;
     private static Item shovel=Items.GOLDEN_SHOVEL;
     public static String status = "following coast";
@@ -48,6 +50,9 @@ public final class Opening {
         shovel=server!=null && java.nio.file.Files.isRegularFile(
                 server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-opening-save-gold"))
                 ? Items.WOODEN_SHOVEL : Items.GOLDEN_SHOVEL;
+        shoreIgnition=eastern && shieldOpening && server!=null && java.nio.file.Files.isRegularFile(
+                server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-opening-shore-ignition"));
+        shoreStart=-1;lastIgnition=-100;
         EasternOpening.reset();looted = false; ravineInventory=false; preparedGold=false; doorAimAge=-1;previousDoor=null;doorFacingTicks=0;firstTree=0;shieldSwapAge=-30;landStep=0; blastAge=0; boatPoint=0; divePoint=0; castStep=0; castStarted=0; anchorTicks=0; bucketAimAge=-1;bucketUseAge=-30;bucketTicks=0;lastBucketGoal=null; boarded=false; launched=false; table=null; gravelPos=null; tableSupport=null;
         age = 0; extraSupportAge=-1;lowMold=false;inWell=false; stayBelow=false;riseFromWell=false;seekingAir=false; requestedRecipe=null; recipeAge=-30;
         status = "following coast";
@@ -257,7 +262,53 @@ public final class Opening {
         return false;
     }
 
+    private static boolean shoreFlint(MinecraftClient mc,int tick) {
+        if (tick<320 || mc.player.getX()<228.0) return false;
+        if (shoreStart<0) shoreStart=age;
+        Race.stop(mc);
+        if (count(mc,Items.FLINT_AND_STEEL)>0) {
+            if (mc.currentScreen!=null) mc.player.closeHandledScreen();
+            landStep=1;
+            return true;
+        }
+        if (count(mc,Items.FLINT)>0) {
+            craft(mc,"flint_and_steel",Items.FLINT_AND_STEEL,1,false,false);
+            return true;
+        }
+        if (age-shoreStart>340) {
+            if (mc.currentScreen!=null) mc.player.closeHandledScreen();
+            shoreIgnition=false;
+            return false;
+        }
+        BlockPos pad=new BlockPos(229,69,11);
+        if (mc.world.getBlockState(pad).getBlock()==Blocks.GRAVEL) {
+            status="breaking gravel at the coastal bank";
+            if (target(mc,pad)!=null) mc.options.keyAttack.setPressed(true);
+            return true;
+        }
+        if (count(mc,Items.GRAVEL)==0) {
+            status="collecting the gravel drop at the coastal bank";
+            for (Entity e:mc.world.getEntities()) if (e instanceof ItemEntity && e.isAlive()
+                    && mc.player.squaredDistanceTo(e)<36 && mc.player.canSee(e)) {
+                Item drop=((ItemEntity)e).getStack().getItem();
+                if (drop==Items.GRAVEL || drop==Items.FLINT) {if (!mc.player.getBoundingBox().expand(1,.5,1).intersects(e.getBoundingBox())) walk(mc,e.getPos(),false);break;}
+            }
+            return true;
+        }
+        Vec3d stance=new Vec3d(229.50,68,12.47);
+        status="replanting gravel at the coastal bank";
+        if (Math.hypot(mc.player.getX()-stance.x,mc.player.getZ()-stance.z)>.14
+                || mc.player.getBoundingBox().intersects(new net.minecraft.util.math.Box(pad))) {
+            walk(mc,stance,false);
+            return true;
+        }
+        if (mc.world.getBlockState(pad.down()).getBlock()==Blocks.GRASS_BLOCK)
+            place(mc,pad,Items.GRAVEL);
+        return true;
+    }
+
     private static boolean land(MinecraftClient mc,int tick) {
+        if (landStep==0 && shoreIgnition) return shoreFlint(mc,tick);
         if(landStep==0&&!shieldOpening){
             Race.cap(351);
             if(tick<270)return false;
@@ -302,6 +353,24 @@ public final class Opening {
             if(mc.world.getBlockState(TNT_SITE).getBlock()==Blocks.TNT){landStep++;}else place(mc,TNT_SITE,Items.TNT);
             return true;
         }
+        if(landStep==2 && shoreIgnition){
+            Race.stop(mc);status="lighting the oak grove TNT with flint and steel";
+            ServerPlayerEntity self=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+            if (self==null) return true;
+            for (Entity e:mc.world.getEntities()) if (e instanceof net.minecraft.entity.TntEntity
+                    && e.squaredDistanceTo(Vec3d.ofCenter(TNT_SITE))<9) {
+                blastAge=age;landStep=4;return true;
+            }
+            if (self.world.getBlockState(TNT_SITE).getBlock()==Blocks.TNT && select(mc,Items.FLINT_AND_STEEL)
+                    && self.getMainHandStack().getItem()==Items.FLINT_AND_STEEL && age-lastIgnition>=4) {
+                BlockHitResult hit=target(mc,TNT_SITE);
+                if (hit!=null) {
+                    mc.interactionManager.interactBlock(mc.player,mc.world,Hand.MAIN_HAND,hit);
+                    mc.player.swingHand(Hand.MAIN_HAND);lastIgnition=age;
+                }
+            }
+            return true;
+        }
         if(landStep==2){
             Race.stop(mc);status="placing pressure plate";
             if(mc.world.getBlockState(PLATE).getBlock()==(shieldOpening?Blocks.OAK_PRESSURE_PLATE:Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE))landStep++;
@@ -323,6 +392,18 @@ public final class Opening {
                 BlockPos pad=new BlockPos(229,69,11);
                 if(Math.hypot(mc.player.getX()-cover.x,mc.player.getZ()-cover.z)>.48){
                     status="taking cover from TNT";walk(mc,cover,Math.hypot(mc.player.getX()-cover.x,mc.player.getZ()-cover.z)>2);return true;
+                }
+                // Picking gravel up can pull the player back over the placement cell.
+                // Step clear on the same covered grass before the next placement.
+                if (elapsed<62 && count(mc,Items.GRAVEL)>0
+                        && mc.world.getBlockState(pad).getMaterial().isReplaceable()
+                        && mc.player.getBoundingBox().intersects(new net.minecraft.util.math.Box(pad))) {
+                    status="stepping clear to place the recovered gravel";
+                    Vec3d clear=new Vec3d(229.50,68,12.53);
+                    Race.aim(mc,new Vec3d(clear.x,mc.player.getEyeY()-.1,clear.z));
+                    BastionApproach.move(mc,clear.x,clear.z,false,false);
+                    mc.options.keyJump.setPressed(false);
+                    return true;
                 }
                 Race.stop(mc);status="mining gravel during TNT fuse";
                 if(mc.world.getBlockState(pad).getBlock()==Blocks.GRAVEL){
@@ -356,7 +437,24 @@ public final class Opening {
                     double d=mc.player.squaredDistanceTo(item);
                     if(d<min){min=d;log=item;}
                 }
-                if(log!=null){walk(mc,log.getPos(),true);return true;}return false;
+                if(log!=null){walk(mc,log.getPos(),true);return true;}
+                if(shoreIgnition && count(mc,Items.OAK_LOG)<7 && age-blastAge>105){
+                    // The grove is intact when the TNT is lit directly. Collect surviving
+                    // reachable timber if this explosion produces too few dropped logs.
+                    BlockPos best=null;double bestDistance=18;
+                    for(BlockPos at:BlockPos.iterate(mc.player.getBlockPos().add(-4,-1,-4),
+                            mc.player.getBlockPos().add(4,4,4))){
+                        if(mc.world.getBlockState(at).getBlock()!=Blocks.OAK_LOG)continue;
+                        double distance=mc.player.getCameraPosVec(1).squaredDistanceTo(Vec3d.ofCenter(at));
+                        if(distance<bestDistance && target(mc,at)!=null){best=at.toImmutable();bestDistance=distance;}
+                    }
+                    if(best!=null){
+                        Race.stop(mc);target(mc,best);mc.options.keyAttack.setPressed(true);
+                        status="harvesting the remaining coastal oak";return true;
+                    }
+                    walk(mc,new Vec3d(232.4,72,8.5),false);return true;
+                }
+                return false;
             }
         }
         if(landStep==17&&!shieldOpening){
@@ -435,6 +533,7 @@ public final class Opening {
             return true;
         }
         if(landStep==19){
+            if (count(mc,Items.FLINT_AND_STEEL)>0) {landStep++;return true;}
             Race.cap(699);status="obtaining flint";
             if(count(mc,Items.FLINT)>0){landStep++;return true;}
             if(tick<646)return false;

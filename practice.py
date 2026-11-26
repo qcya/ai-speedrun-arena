@@ -330,8 +330,8 @@ def prepare_attempt(prism_data, work, skin, deps, opening="fast", wait_for_pigli
     from types import SimpleNamespace
     setup = render.load_helper('prepare_weekly', WEEK / 'prepare.py')
     setup.prepare(SimpleNamespace(game_dir=game, world_name=WORLD, skin=None, ranked_jar=deps['ranked'],
-                                  replay_jar=deps['replaymod'], autostart=True, shield=opening in ('shield','east'),
-                                  wait_for_piglins=wait_for_piglins, save_gold=opening in ('shield','east'), eastern=opening=='east'))
+                                  replay_jar=deps['replaymod'], autostart=True, shield=opening in ('shield','east','east-upper'),
+                                  wait_for_piglins=wait_for_piglins, save_gold=opening in ('shield','east','east-upper'), eastern=opening in ('east','east-upper'), two_upper_chests=opening=='east-upper'))
     film = render.load_helper('prepare_local_film', ROOT / 'presentation/prepare.py')
     film.prepare(game, skin, 'auto', 'nether', RULES, ROOT / 'presentation/astra-local-film.jar', work / 'split-history')
     if initial_view_distance is not None:
@@ -479,7 +479,7 @@ if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--work',type=Path,default=Path.home()/'Astra-Practice-W113',help='Private campaign, resumable across launches')
     p.add_argument('--attempts',type=int,default=0,help='Number of attempts this invocation; zero continues until qualification')
-    p.add_argument('--opening', choices=['alternate', 'fast', 'shield', 'east'], default='alternate',
+    p.add_argument('--opening', choices=['alternate', 'fast', 'shield', 'east', 'east-upper'], default='alternate',
                    help='Alternate the western fast and shield openings, or select a route including the eastern ravine')
     p.add_argument('--initial-view-distance', type=int, default=16, metavar='CHUNKS',
                    help='Initial render distance in the isolated practice instance (default 16 chunks)')

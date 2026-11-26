@@ -235,6 +235,11 @@ public final class BastionApproach {
             index=resume;
         }
         if(entranceIndex<=3 && !secureEntrance(m))return false;
+        if (UpperLootRoute.enabled && index>=168) {
+            boolean done = UpperLootRoute.tick(m);
+            status = UpperLootRoute.status;
+            return done;
+        }
         if(index>=path.size())return reachChestTerrace(m,path.get(path.size()-1));
         // One supported dirt extension leaves the next cell open as a moat against sword pigs.
         if(index>181 && !open(m,lootPerch.down()) && m.player.squaredDistanceTo(

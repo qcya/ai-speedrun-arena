@@ -14,11 +14,11 @@ import net.minecraft.world.RayTraceContext;
 
 /** Turn the first mined block into a separate nine-ingot stack while the two later ores are intact. */
 final class EarlyBarter {
-    private static int started, initialGold, destination, sent;
+    private static int started, initialGold, destination, sent, staleSince=-1, lastRefresh=-20;
     private static boolean finished, paid;
     static String status;
 
-    static void reset() {started=sent=0;destination=-1;finished=paid=false;}
+    static void reset() {started=sent=0;destination=-1;staleSince=-1;lastRefresh=-20;finished=paid=false;}
     static boolean paid() {return paid;}
 
     private static boolean nine(ItemStack stack) {
@@ -100,6 +100,31 @@ final class EarlyBarter {
                     .ifPresent(r->mc.interactionManager.clickRecipe(sh.syncId,r,false));
         }
         return true;
+    }
+
+    // A recipe-book shift craft can leave a stale gold block in one visible slot.
+    // An ordinary left click there asks vanilla to return its authoritative contents.
+    static boolean refreshLastCraft(MinecraftClient mc,int age) {
+        if(!paid || !(mc.currentScreen instanceof InventoryScreen) || mc.getServer()==null)return false;
+        ServerPlayerEntity self=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+        if(self==null || self.inventory.count(Items.GOLD_BLOCK)>0 || self.inventory.count(Items.GOLD_INGOT)<18
+                || !mc.player.inventory.getCursorStack().isEmpty() || !self.inventory.getCursorStack().isEmpty()) {
+            staleSince=-1;return false;
+        }
+        ScreenHandler server=self.currentScreenHandler;
+        if(server!=self.playerScreenHandler || server.getSlot(0).getStack().getItem()==Items.GOLD_INGOT)return false;
+        for(int i=1;i<=4;i++)if(server.getSlot(i).getStack().getItem()==Items.GOLD_BLOCK)return false;
+        for(int i=0;i<36;i++) {
+            if(mc.player.inventory.getStack(i).getItem()!=Items.GOLD_BLOCK || !self.inventory.getStack(i).isEmpty())continue;
+            if(staleSince<0)staleSince=age;
+            if(age-staleSince>=6 && age-lastRefresh>=12) {
+                mc.interactionManager.clickSlot(mc.player.playerScreenHandler.syncId,
+                        i<9?36+i:i,0,SlotActionType.PICKUP,mc.player);
+                lastRefresh=age;
+            }
+            return true;
+        }
+        staleSince=-1;return false;
     }
 
     /** All remaining blocks now in hand or the recipe grid belong to the later batch. */

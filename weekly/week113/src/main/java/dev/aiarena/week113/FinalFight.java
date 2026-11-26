@@ -26,6 +26,8 @@ public final class FinalFight {
     private static int next, phase, age, held, jumpAge;
     private static int aimTicks, boardRequest, boatRequest, supportY, pearlAge, brakeTicks;
     private static double launchServerSpeed;
+    private static BlockPos landingWater;
+    private static int retrySupportY, retryColumnZ, bucketAttempts;
     private static long pearlThrownAt;
     private static boolean waterPlaced, landed, killed, pearlAttempted, pearlLanded, eating;
     private static boolean crossingChosen, keepPearl;
@@ -55,9 +57,14 @@ public final class FinalFight {
     public static void reset() {
         next = phase = age = held = jumpAge = aimTicks = 0;
         boardRequest = boatRequest = -100;
-        supportY = -1;
+        supportY = retrySupportY = -1;
+        landingWater = null;
+        retryColumnZ = 0;
+        bucketAttempts = 0;
         brakeTicks = 0;
         EndCrossing.reset();
+        EndPlacement.reset();
+        EndSupplies.reset();
         pearlAttempted = pearlLanded = eating = crossingChosen = keepPearl = false;
         pearlAge = 0;
         waterPlaced = landed = killed = false;
@@ -67,23 +74,19 @@ public final class FinalFight {
         status = "end approach";
     }
 
-    private static boolean match(Item item, int kind) {
+    static boolean match(Item item, int kind) {
+        if (kind == 5) return item == Items.BUCKET;
         if (kind == 4) return item == Items.ENDER_PEARL;
         if (kind == 3) return item == Items.WATER_BUCKET;
         if (kind == 2) return item instanceof BoatItem;
         if (kind == 1) return item == Items.BOW;
-        return item == Items.NETHERRACK
-                || item == Items.DIRT
-                || item == Items.COBBLESTONE
-                || item == Items.BLACKSTONE
-                || item == Items.END_STONE
-                || item == Items.OAK_PLANKS
-                || item == Items.NETHER_BRICKS
-                || item == Items.CRACKED_POLISHED_BLACKSTONE_BRICKS
-                || item == Items.CHISELED_POLISHED_BLACKSTONE;
+        if (kind == 6) return item == Items.GRAVEL;
+        if (kind == 7) return item == Items.IRON_PICKAXE;
+        return EndSupplies.stable(item);
     }
 
     private static boolean select(MinecraftClient m, int kind) {
+        if (kind == 0 || kind == 6) return EndPlacement.select(m, kind);
         for (int i = 0; i < 9; i++)
             if (match(m.player.inventory.getStack(i).getItem(), kind)) {
                 if (m.currentScreen instanceof InventoryScreen) m.player.closeHandledScreen();
@@ -107,6 +110,16 @@ public final class FinalFight {
 
     static boolean selectBuildingBlock(MinecraftClient m) {
         return select(m, 0);
+    }
+
+    static boolean selectPillarBlock(MinecraftClient m, BlockPos target) {
+        if (EndSupplies.anchored(m, target) && m.player.inventory.count(Items.GRAVEL) > 0)
+            return select(m, 6);
+        return selectBuildingBlock(m);
+    }
+
+    static boolean selectQuarryPick(MinecraftClient m) {
+        return select(m, 7);
     }
 
     private static void face(MinecraftClient m, Vec3d v) {
@@ -163,7 +176,7 @@ public final class FinalFight {
         int x = step[1], y = step[2];
         BlockPos target = new BlockPos(x, y, 0);
         Race.stop(mc);
-        if (!select(mc, 0)) return true;
+        if (!(x == 0 ? selectPillarBlock(mc, target) : selectBuildingBlock(mc))) return true;
         if (x == 0) {
             status = "building the vertical launch pillar";
             double dx = .5 - mc.player.getX(), dz = .5 - mc.player.getZ();
@@ -412,7 +425,7 @@ public final class FinalFight {
 
     private static boolean pillarUnderBoat(MinecraftClient m) {
         Race.stop(m);
-        if (!select(m, 0)) return true;
+        if (EndSupplies.active() && !EndSupplies.prepare(m)) return true;
         double dx = SEAT.x + .055 - m.player.getX(), dz = SEAT.z - .25 - m.player.getZ();
         if (Math.hypot(dx, dz) > .22) {
             brakeTicks = 0;
@@ -441,7 +454,9 @@ public final class FinalFight {
             if (!m.player.isOnGround()
                     || Math.hypot(m.player.getVelocity().x, m.player.getVelocity().z) > .06)
                 return true;
-            supportY = m.player.getBlockPos().getY();
+            BlockPos foot = new BlockPos(5, m.player.getBlockPos().getY(), 0);
+            if (!EndSupplies.begin(m, foot)) return true;
+            supportY = foot.getY();
         }
         while (supportY <= 84
                 && !m.world
@@ -456,6 +471,7 @@ public final class FinalFight {
             return true;
         }
         BlockPos target = new BlockPos(5, supportY, 0);
+        if (!selectPillarBlock(m, target)) return true;
         status = "building the launch column under the boat";
         face(m, new Vec3d(5.5, supportY - .001, .5));
         if (Math.hypot(dx, dz) > .031) moveOnDeck(m, dx, dz);
@@ -680,11 +696,90 @@ public final class FinalFight {
         return Math.hypot(v.x, v.z);
     }
 
+    private static boolean nearBoat(MinecraftClient mc) {
+        return Math.hypot(mc.player.getX() - SEAT.x, mc.player.getZ() - SEAT.z) < 2.8
+                && Math.abs(mc.player.getY() - SEAT.y) < 2;
+    }
+
+    private static boolean returnToBoat(MinecraftClient mc) {
+        if (DragonBreath.avoid(mc, retryColumnZ)) {
+            status = DragonBreath.status;
+            if ("waiting clear of dragon breath beneath the boat".equals(status) && recoverHunger(mc))
+                status = "eating on safe ground outside dragon breath";
+            return true;
+        }
+        if (landingWater != null && bucketAttempts < 10
+                && mc.player.inventory.count(Items.WATER_BUCKET) == 0
+                && mc.player.inventory.count(Items.BUCKET) > 0
+                && !mc.world.getFluidState(landingWater).isEmpty()
+                && mc.player.getCameraPosVec(1).squaredDistanceTo(Vec3d.ofCenter(landingWater)) < 18) {
+            status = "collecting the landing water";
+            if (!select(mc, 5)) return true;
+            face(mc, Vec3d.ofCenter(landingWater));
+            if (++bucketAttempts > 1) mc.interactionManager.interactItem(mc.player, mc.world, Hand.MAIN_HAND);
+            return true;
+        }
+        BoatEntity existing = boat(mc);
+        if (nearBoat(mc) && mc.player.isOnGround() && (existing != null || mc.player.getY() >= 84.95)) {
+            landed = waterPlaced = false;
+            landingWater = null;
+            bucketAttempts = 0;
+            retrySupportY = -1;
+            retryColumnZ = 0;
+            phase = existing != null ? 2 : 0;
+            held = aimTicks = 0;
+            boardRequest = boatRequest = age - 20;
+            return true;
+        }
+        // The first flight leaves the original support column solid. Build beside it
+        // with surviving inventory so the existing boat is reachable on the next pass.
+        if (retryColumnZ == 0) retryColumnZ = mc.player.getZ() < .5 ? -1 : 1;
+        if (EndSupplies.active() && !EndSupplies.prepare(mc)) return true;
+        double centerZ = retryColumnZ + .5;
+        double dx = 5.5 - mc.player.getX(), dz = centerZ - mc.player.getZ();
+        double dist = Math.hypot(dx, dz);
+        if (dist > .16) {
+            status = "returning to the foot of the launch column";
+            face(mc, new Vec3d(5.5, mc.player.getEyeY() - .38 * dist, centerZ));
+            moveOnDeck(mc, dx, dz);
+            if (dist > 1) {
+                mc.options.keySneak.setPressed(false);
+                mc.options.keySprint.setPressed(dist > 4);
+                mc.options.keyJump.setPressed(mc.player.horizontalCollision || mc.player.isTouchingWater());
+            }
+            return true;
+        }
+        if (retrySupportY < 0) {
+            if (!mc.player.isOnGround()
+                    || Math.hypot(mc.player.getVelocity().x, mc.player.getVelocity().z) > .06) return true;
+            BlockPos foot = new BlockPos(5, mc.player.getBlockPos().getY(), retryColumnZ);
+            if (!EndSupplies.begin(mc, foot)) return true;
+            retrySupportY = foot.getY();
+        }
+        while (retrySupportY <= 84 && !mc.world.getBlockState(
+                new BlockPos(5, retrySupportY, retryColumnZ)).getMaterial().isReplaceable()) retrySupportY++;
+        if (retrySupportY > 84) return true;
+        status = "building back to the existing boat";
+        BlockPos target = new BlockPos(5, retrySupportY, retryColumnZ);
+        if (!selectPillarBlock(mc, target)) return true;
+        face(mc, new Vec3d(mc.player.getX(), retrySupportY - .001, mc.player.getZ()));
+        mc.options.keyJump.setPressed(mc.player.isOnGround());
+        if (!mc.player.getBoundingBox().intersects(new Box(target))
+                && mc.crosshairTarget instanceof BlockHitResult) {
+            BlockHitResult hit = (BlockHitResult) mc.crosshairTarget;
+            if (hit.getType() == HitResult.Type.BLOCK && hit.getSide() == Direction.UP
+                    && target.down().equals(hit.getBlockPos())
+                    && mc.interactionManager.interactBlock(mc.player, mc.world, Hand.MAIN_HAND, hit).isAccepted())
+                mc.player.swingHand(Hand.MAIN_HAND);
+        }
+        return true;
+    }
+
     private static boolean recover(MinecraftClient mc) {
         Race.stop(mc);
         mc.options.keyUse.setPressed(false);
         if (!landed) {
-            if (mc.player.isTouchingWater() || (waterPlaced && mc.player.isOnGround())) {
+            if (mc.player.isTouchingWater() || mc.player.isOnGround()) {
                 landed = true;
                 if (killed) Race.advanceTo(6576);
             } else {
@@ -702,16 +797,16 @@ public final class FinalFight {
                         && ((BlockHitResult) mc.crosshairTarget).getSide() == Direction.UP) {
                     status = "placing the landing water";
                     mc.interactionManager.interactItem(mc.player, mc.world, Hand.MAIN_HAND);
-                    if (mc.player.getMainHandStack().getItem() == Items.BUCKET) waterPlaced = true;
+                    if (mc.player.getMainHandStack().getItem() == Items.BUCKET) {
+                        waterPlaced = true;
+                        landingWater = ((BlockHitResult) mc.crosshairTarget).getBlockPos().up();
+                    }
                 }
                 if (waterPlaced) status = "waiting for water contact";
                 return true;
             }
         }
-        if (!killed) {
-            status = "landed safely after the missed shot";
-            return true;
-        }
+        if (!killed) return returnToBoat(mc);
         // Stand inside the near side of the fountain ring. The live game
         // creates the exit blocks after the dragon's death animation.
         double x = .5, z = -1.5;
@@ -739,7 +834,7 @@ public final class FinalFight {
             killed = true;
             Race.advanceTo(6521);
         }
-        if (killed) return recover(m);
+        if (killed || phase == 6) return recover(m);
         if (!chooseCrossing(m)) return true;
         if (eating
                 || (next == 0
@@ -832,15 +927,17 @@ public final class FinalFight {
                     phase = 5;
                     held = 0;
                 } else if (held > 17) {
-                    // An off-axis pass leaves the arrow on the string. The
-                    // player can reboard and attempt another incoming pass.
-                    phase = 2;
+                    // A short hop within reach can reboard. A real wing hit can
+                    // carry the rider off the platform and needs the water first.
+                    phase = nearBoat(m) ? 2 : 6;
                     aimTicks = 0;
                 }
                 break;
             default:
-                if (++held > 9 && (m.player.getVelocity().y < -.18 || waterPlaced || landed))
+                if (++held > 9 && (m.player.getVelocity().y < -.18 || waterPlaced || landed)) {
+                    phase = 6;
                     return recover(m);
+                }
                 status = "waiting for actual dragon damage";
                 m.options.keyUse.setPressed(false);
                 break;

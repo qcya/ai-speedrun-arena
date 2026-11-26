@@ -83,17 +83,18 @@ public final class Middle {
         bowStarted = bowRetryAfter = 0;
         lastUse = thirdThrow = -1000;
         arrivedAtBastion=false;earlyTradeStarted=-1;earlyTradeLocation=null;
+        UpperLootRoute.reset(mc); EastHallRecovery.reset();
         BastionApproach.reset();
         BastionEgress.reset();
         Fortress.reset();
         ReturnFrame.reset();
         TravelPearls.reset();
-        Hotbar.reset();EarlyBarter.reset();
+        Hotbar.reset();EarlyBarter.reset();WellApple.reset();appleStarted=0;
         StrongholdEntry.reset();
         eating=false; drinkingFireResistance=false; splashFireTime=-100;
-        equipAfterChest=false;
+        equipAfterChest=false;equipReturnLeggings=false;ThirdChest.reset();
         pillar=null;
-        barricade=0;
+        barricade=0;ShaftDetour.reset();
         pearlWalk=0;
         chestPearlStep=-1; pendingWestPearls=false;
         collectingAbove=false;
@@ -392,7 +393,9 @@ public final class Middle {
     }
 
     private static boolean loot(MinecraftClient mc, Step s) {
-        if (s.value.equals("ender_pearl") && count(mc,Items.ENDER_PEARL) >= 12) return true;
+        boolean pearlChest=s.tick==5479 && s.value.equals("ender_pearl");
+        if (pearlChest && count(mc,Items.ENDER_PEARL)>=12
+                && !(mc.player.currentScreenHandler instanceof GenericContainerScreenHandler))return true;
         if (!(mc.player.currentScreenHandler instanceof GenericContainerScreenHandler)) {
             if (s.value.contains("arrow")) {
                 // Opening the chest from maximum reach brakes the jump one block short of
@@ -420,7 +423,10 @@ public final class Middle {
             return false;
         }
         List<String> wants=Arrays.asList(s.value.split("\\+"));
-        if (!VisibleSlots.loot(mc,stack->wants.contains(Registry.ITEM.getId(stack.getItem()).getPath()),false)) return false;
+        boolean takeLeggings=pearlChest && mc.player.getEquippedStack(net.minecraft.entity.EquipmentSlot.LEGS).isEmpty();
+        if (!VisibleSlots.loot(mc,stack->wants.contains(Registry.ITEM.getId(stack.getItem()).getPath())
+                || (takeLeggings && stack.getItem()==Items.IRON_LEGGINGS),false)) return false;
+        if(takeLeggings && count(mc,Items.IRON_LEGGINGS)>0)equipReturnLeggings=true;
         mc.player.closeHandledScreen();
         if (s.value.contains("golden_helmet")) equipAfterChest=true;
         return true;
@@ -498,13 +504,14 @@ public final class Middle {
         Item result=item(s.value);
         int goal = result == Items.STICK ? 3 : result == Items.ENDER_EYE ? 11
                 : result == Items.BLAZE_POWDER ? 11 : result == Items.GOLD_INGOT ? 18 : 1;
+        if(result==Items.GOLD_INGOT && EarlyBarter.refreshLastCraft(mc,age))return false;
         boolean complete=result==Items.GOLD_INGOT && EarlyBarter.paid()
                 ? EarlyBarter.remainingGoldCrafted(mc) : count(mc,result)>=goal;
         if (complete) {
             if (mc.currentScreen!=null) mc.player.closeHandledScreen();
             return true;
         }
-        if (result == Items.BOW) {
+        if (result == Items.BOW || result == Items.GOLDEN_APPLE) {
             if (!(mc.player.currentScreenHandler instanceof CraftingScreenHandler)) {
                 use(mc,aim(mc,s.target,null));
                 return false;
@@ -590,6 +597,10 @@ public final class Middle {
     }
 
     private static boolean feed(MinecraftClient mc, Step s) {
+        if(s.tick==2582){
+            int paid=WellApple.pay(mc,age);
+            if(paid>=0){status="reserving eight and paying the acknowledged west-well balance";return paid==1;}
+        }
         if (count(mc,Items.GOLD_INGOT)==0) return true;
         if (select(mc,Items.GOLD_INGOT)) dropTradeStack(mc,0);
         return false;
@@ -631,6 +642,14 @@ public final class Middle {
             Items.CRACKED_POLISHED_BLACKSTONE_BRICKS,Items.CHISELED_POLISHED_BLACKSTONE,
             Items.POLISHED_BLACKSTONE_BRICKS,Items.COBBLESTONE,Items.NETHER_BRICKS};
 
+    static boolean haveShaftSupports(MinecraftClient mc,int required) {
+        for(Item item:SHAFT_SUPPORTS) {
+            required-=count(mc,item);
+            if(required<=0)return true;
+        }
+        return false;
+    }
+
     private static boolean selectShaftSupport(MinecraftClient mc) {
         for (Item item:SHAFT_SUPPORTS) {
             if (count(mc,item)>0) return select(mc,item);
@@ -640,19 +659,22 @@ public final class Middle {
     }
 
     /** Keep outstanding ingots with the admiring pigs, and pillar straight up on our side. */
-    private static boolean climbTradingShaft(MinecraftClient mc) {
+    static boolean climbTradingShaft(MinecraftClient mc) {
+        boolean side=ShaftDetour.active(mc);
+        if (side && !ShaftDetour.readyToPillar(mc)) return false;
+        BlockPos shaft=side?ShaftDetour.SIDE:ShaftDetour.MAIN;
         BlockPos foot=mc.player.getBlockPos();
         if (mc.player.getY()>=38.98 && mc.player.isOnGround()) {
             return true;
         }
-        Vec3d column=new Vec3d(-154.50,mc.player.getY(),119.50);
+        Vec3d column=new Vec3d(shaft.getX()+.5,mc.player.getY(),shaft.getZ()+.5);
         // Keep the full 0.6-block player width inside the shaft before jumping.
         double offset=Math.hypot(column.x-mc.player.getX(),column.z-mc.player.getZ());
         if (offset>.13) {
             Race.aim(mc,new Vec3d(column.x,mc.player.getEyeY(),column.z));
             approach(mc,column,offset<=.45);
             if (offset>.45 && offset<1.6 && mc.player.isOnGround()) {
-                BlockPos step=new BlockPos(-155,mc.player.getY(),119);
+                BlockPos step=new BlockPos(shaft.getX(),mc.player.getY(),shaft.getZ());
                 if (!open(mc,step) && open(mc,step.up()) && open(mc,step.up(2))) {
                     mc.options.keyJump.setPressed(true);
                 }
@@ -660,7 +682,7 @@ public final class Middle {
             status="returning to the protected pillar with trade pearls";
             return false;
         }
-        BlockPos roof=new BlockPos(-155,38,119);
+        BlockPos roof=shaft.up(3);
         if (foot.getY()<38 && !open(mc,roof)) {
             Item tool=mc.world.getBlockState(roof).getBlock()==Blocks.DIRT
                     ? Opening.shovelOrPick(mc) : Items.IRON_PICKAXE;
@@ -672,8 +694,8 @@ public final class Middle {
         mc.options.keyAttack.setPressed(false);
         if (!selectShaftSupport(mc)) return false;
         int floor=(int)Math.floor(mc.player.getY()-.001);
-        while (floor>33 && open(mc,new BlockPos(-155,floor,119))) floor--;
-        BlockPos base=new BlockPos(-155,floor,119);
+        while (floor>33 && open(mc,new BlockPos(shaft.getX(),floor,shaft.getZ()))) floor--;
+        BlockPos base=new BlockPos(shaft.getX(),floor,shaft.getZ());
         BlockHitResult support=aim(mc,base,Direction.UP);
         mc.options.keyJump.setPressed(true);
         if (mc.player.getY()>=floor+2.002) use(mc,support);
@@ -718,7 +740,7 @@ public final class Middle {
         return false;
     }
 
-    private static void lowerShield(MinecraftClient mc) {
+    static void lowerShield(MinecraftClient mc) {
         if (mc.player.isUsingItem() && mc.player.getActiveItem().getItem()==Items.SHIELD) {
             mc.options.keyUse.setPressed(false);
             mc.interactionManager.stopUsingItem(mc.player);
@@ -774,6 +796,47 @@ public final class Middle {
     private static final Step makeShelterSticks = new Step("2583,craft,-155,36,118,stick");
     private static final Step makeShelterBow = new Step("2583,craft,-155,36,118,bow");
     private static int shelterBowStart, shelterBowStep, shelterBowRetryAfter;
+
+    private static final Step makeShelterApple = new Step("2583,craft,-155,36,118,golden_apple");
+    private static int appleStarted;
+
+    private static boolean craftShelterApple(MinecraftClient mc){
+        if(!WellApple.reserved())return false;
+        net.minecraft.server.network.ServerPlayerEntity self=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+        if(self==null)return false;
+        if(count(mc,Items.GOLDEN_APPLE)>0 && self.inventory.count(Items.GOLDEN_APPLE)>0){
+            if(mc.currentScreen instanceof net.minecraft.client.gui.screen.ingame.HandledScreen)mc.player.closeHandledScreen();
+            WellApple.finish();return false;
+        }
+        if(appleStarted==0)appleStarted=age;
+        if(mc.player.hurtTime>0 || mc.player.getHealth()<8 || age-appleStarted>105
+                || mc.player.squaredDistanceTo(-154.70,35,119.60)>1.2){
+            if(mc.currentScreen instanceof net.minecraft.client.gui.screen.ingame.HandledScreen)mc.player.closeHandledScreen();
+            mc.options.keyAttack.setPressed(false);WellApple.finish();return false;
+        }
+        Race.stop(mc);lowerShield(mc);mc.options.keyAttack.setPressed(false);
+        if(mc.world.getBlockState(shelterBench).getBlock()==Blocks.CRAFTING_TABLE){
+            status="crafting a golden apple with the eight reserved ingots";
+            recipe(mc,makeShelterApple);return true;
+        }
+        if(count(mc,Items.CRAFTING_TABLE)==0){
+            // During recipe-book placement the four planks can be in the crafting slots.
+            if(count(mc,Items.OAK_PLANKS)<4 && !(mc.currentScreen instanceof InventoryScreen)){
+                WellApple.finish();return false;
+            }
+            status="crafting the workbench for the apple and bow";
+            recipe(mc,makeShelterBench);return true;
+        }
+        if(mc.currentScreen instanceof InventoryScreen){mc.player.closeHandledScreen();return true;}
+        if(!mc.world.getBlockState(shelterBench).getMaterial().isReplaceable()){
+            status="opening the north workbench niche for the apple and bow";
+            if(select(mc,Items.IRON_PICKAXE))mc.options.keyAttack.setPressed(aim(mc,shelterBench,null)!=null);
+        }else{
+            status="placing the workbench beside the protected trading shelf";
+            if(select(mc,Items.CRAFTING_TABLE))use(mc,aim(mc,shelterBench.down(),Direction.UP));
+        }
+        return true;
+    }
 
     private static boolean craftWhileBartering(MinecraftClient mc) {
         boolean placed = mc.world.getBlockState(shelterBench).getBlock() == Blocks.CRAFTING_TABLE;
@@ -902,7 +965,12 @@ public final class Middle {
 
     private static boolean shelter(MinecraftClient mc,Step s) {
         int pearls=count(mc,Items.ENDER_PEARL);
+        if (EastHallRecovery.active() && EastHallRecovery.tick(mc)) {
+            status=EastHallRecovery.status;
+            return false;
+        }
         if (shelterBowStart>0 && craftWhileBartering(mc)) return false;
+        int westUpper=0;
         boolean eastDrop=false,westDrop=false;
         int visible=pearls;
         int settledPearls=pearls, lowerPearls=pearls;
@@ -915,6 +983,7 @@ public final class Middle {
             if (drop.getStack().getItem()==Items.ENDER_PEARL && drop.getX()>=-159 && drop.getX()<=-146
                     && drop.getY()>=34 && drop.getY()<=42 && drop.getZ()>=115 && drop.getZ()<=123) {
                 if (drop.isOnGround()) settledPearls+=drop.getStack().getCount();
+                if (EastHallRecovery.onWestLintel(drop)) westUpper+=drop.getStack().getCount();
                 if(drop.isOnGround() && drop.getBlockPos().equals(CHEST_PEARL))eastDrop=true;
                 if(drop.isOnGround() && drop.getBlockPos().equals(new BlockPos(-157,36,119)))westDrop=true;
                 if (drop.squaredDistanceTo(protectedSpot)<=38 && drop.getY()<37.6) lowerPearls+=drop.getStack().getCount();
@@ -924,6 +993,17 @@ public final class Middle {
             if (drop.getStack().getItem()==Items.ENDER_PEARL) visible+=drop.getStack().getCount();
             if (drop.getStack().getItem()==Items.GOLD_INGOT && drop.getY()<35.45
                     && drop.squaredDistanceTo(protectedSpot)<3.0 && age-entered>45) missed=drop;
+        }
+        if(WellApple.reserved() && (visible>=13 || collectingAbove)){
+            // Do not hold the escape to start an apple after the required pearl batch has arrived.
+            if(appleStarted>0 && mc.currentScreen instanceof net.minecraft.client.gui.screen.ingame.HandledScreen){
+                ScreenHandler grid=mc.player.currentScreenHandler;
+                if(grid instanceof CraftingScreenHandler && grid.getSlot(0).getStack().getItem()==Items.GOLDEN_APPLE){
+                    mc.interactionManager.clickSlot(grid.syncId,0,0,SlotActionType.QUICK_MOVE,mc.player);return false;
+                }
+                mc.player.closeHandledScreen();
+            }
+            WellApple.finish();
         }
         // The last barter can settle while the vanilla recipe screen for the next gold block is still open.
         if ((collectingAbove || settledPearls>=13 || lowerPearls>=13) && mc.currentScreen instanceof InventoryScreen) {
@@ -952,6 +1032,11 @@ public final class Middle {
             status="collecting the piglin pearl drops";
             return false;
         }
+        if (UpperLootRoute.enabled && EastHallRecovery.begin(mc,pearls,westUpper,
+                Math.max(visible,Math.max(settledPearls,lowerPearls)))) {
+            status=EastHallRecovery.status;
+            return false;
+        }
         // Gold and barter drops fit under the near lintel. Adult piglins need two blocks of clearance.
         BlockPos lid=new BlockPos(-157,37,119);
         if(!mc.world.getBlockState(lid).isAir()) {
@@ -961,6 +1046,7 @@ public final class Middle {
             return false;
         }
         mc.options.keyAttack.setPressed(false);
+        if(craftShelterApple(mc))return false;
         if (count(mc,Items.GOLD_BLOCK)>0 || mc.currentScreen instanceof InventoryScreen) {
             if (!(mc.currentScreen instanceof InventoryScreen)) {
                 mc.openScreen(new InventoryScreen(mc.player));
@@ -988,6 +1074,18 @@ public final class Middle {
             status="retrieving ingots below the piglin shelf";
         } else if (!shield(mc,true)) status="waiting under cover for piglin trades ("+visible+" pearls in reach)";
         return false;
+    }
+
+    private static void rememberEarlyBarter(MinecraftClient mc, Entity recipient) {
+        int ref=Race.referenceTick();
+        boolean onUpperHall = ref >= 2262 && ref < 2306
+                && mc.player.getX() < -126 && mc.player.getX() > -146;
+        if (earlyTradeStarted>=0 || ref<2089 || ref>=2262 && !onUpperHall
+                || count(mc,Items.ENDER_PEARL)>=4) return;
+        // Both the first chest and the floor below the second chest are possible
+        // handoff sites. The action cursor may already point to the next dirt placement.
+        earlyTradeStarted=age;
+        earlyTradeLocation=recipient.getPos();
     }
 
     static boolean offerExposedIngot(MinecraftClient mc,boolean firstChest) {
@@ -1019,7 +1117,7 @@ public final class Middle {
         if (mc.interactionManager.interactEntity(mc.player,nearest,Hand.MAIN_HAND).isAccepted())
             mc.player.swingHand(Hand.MAIN_HAND);
         else mc.player.dropSelectedItem(false);
-        if (firstChest) { earlyTradeStarted=age;earlyTradeLocation=nearest.getPos(); }
+        rememberEarlyBarter(mc,nearest);
         offerStart=-1;offerRetry=age+10;
         status="giving gold to the sword piglin guarding the descent";
         return true;
@@ -1061,17 +1159,77 @@ public final class Middle {
             } else {
                 mc.player.dropSelectedItem(false);
             }
-            if(earlyTradeStarted<0 && (count(mc,Items.WOODEN_SHOVEL)>0 || count(mc,Items.IRON_SHOVEL)>0) && next<steps.size()
-                    && steps.get(next).tick>=2089 && steps.get(next).tick<=2187) {
-                earlyTradeStarted=age;
-                earlyTradeLocation=target.getPos();
-            }
+            rememberEarlyBarter(mc,target);
         } else if (!barter && mc.player.getAttackCooldownProgress(.5f)>.91f) {
             mc.interactionManager.attackEntity(mc.player,target);
             mc.player.swingHand(Hand.MAIN_HAND);
         }
         status=barter?"giving an ingot to a nearby piglin":"defending with the drawn diamond sword";
         return true;
+    }
+
+    /** Keep the shield raised while an actual handoff is in progress. */
+    private static boolean guardFirstTrade(MinecraftClient mc) {
+        if (mc.currentScreen != null || mc.player.getOffHandStack().getItem() != Items.SHIELD) return false;
+        List<Vec3d> bearings = new ArrayList<>();
+        List<Double> weights = new ArrayList<>();
+        for (Entity entity : mc.world.getEntities()) {
+            if (!(entity instanceof PiglinEntity) || !entity.isAlive() || !mc.player.canSee(entity)) continue;
+            PiglinEntity pig = (PiglinEntity)entity;
+            PiglinEntity.Activity activity = pig.getActivity();
+            double range = pig.squaredDistanceTo(mc.player);
+            boolean sword = activity == PiglinEntity.Activity.ATTACKING_WITH_MELEE_WEAPON && range < 36;
+            boolean bow = (activity == PiglinEntity.Activity.CROSSBOW_CHARGE
+                    || activity == PiglinEntity.Activity.CROSSBOW_HOLD) && range < 144;
+            if (!sword && !bow) continue;
+            Vec3d direction = new Vec3d(pig.getX() - mc.player.getX(), 0, pig.getZ() - mc.player.getZ());
+            if (direction.lengthSquared() < .0001) continue;
+            bearings.add(direction.normalize());
+            weights.add(1 / Math.max(1, Math.sqrt(range)));
+        }
+        if (bearings.isEmpty()) {
+            if (!mc.player.isUsingItem() || mc.player.getActiveItem().getItem() != Items.SHIELD) return false;
+        } else {
+            // A pair delimiting a visible cluster has a middle bearing that can cover both.
+            // Prefer covering additional attacks, then keeping them farther from the shield edge.
+            Vec3d best = bearings.get(0);
+            double bestScore = -1;
+            for (int i = 0; i < bearings.size(); i++) {
+                for (int j = i; j < bearings.size(); j++) {
+                    Vec3d center = bearings.get(i).add(bearings.get(j)).normalize();
+                    if (center.lengthSquared() < .5) continue;
+                    double score = 0;
+                    for (int k = 0; k < bearings.size(); k++) {
+                        double dot = center.dotProduct(bearings.get(k));
+                        if (dot > .05) score += weights.get(k) * (1 + .1 * dot);
+                    }
+                    if (score > bestScore) { bestScore = score; best = center; }
+                }
+            }
+            Race.aim(mc, mc.player.getCameraPosVec(1).add(best.multiply(8)));
+            if (!mc.player.isUsingItem()
+                    && !mc.interactionManager.interactItem(mc.player, mc.world, Hand.OFF_HAND).isAccepted()) return false;
+        }
+        mc.options.keyAttack.setPressed(false);
+        mc.options.keyUse.setPressed(true);
+        return true;
+    }
+
+    private static boolean equipReturnLeggings;
+
+    private static boolean finishReturnLeggings(MinecraftClient mc) {
+        if(!equipReturnLeggings)return false;
+        Race.stop(mc);
+        status="equipping the iron leggings from the pearl chest";
+        if(!VisibleSlots.equip(mc,Items.IRON_LEGGINGS))return true;
+        net.minecraft.item.Item equipped=mc.player.getEquippedStack(net.minecraft.entity.EquipmentSlot.LEGS).getItem();
+        if(equipped==Items.IRON_LEGGINGS){
+            net.minecraft.server.network.ServerPlayerEntity self=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+            if(self!=null && self.getEquippedStack(net.minecraft.entity.EquipmentSlot.LEGS).getItem()!=Items.IRON_LEGGINGS)
+                return true;
+        }
+        equipReturnLeggings=false;
+        return false;
     }
 
     private static boolean collectFirstTrade(MinecraftClient mc) {
@@ -1082,7 +1240,10 @@ public final class Middle {
             return false;
         }
         ItemEntity best=null;
+        boolean stillAdmiring=false;
         for(Entity e:mc.world.getEntities()) {
+            if (e instanceof PiglinEntity && e.isAlive() && e.getPos().squaredDistanceTo(earlyTradeLocation)<=225
+                    && ((PiglinEntity)e).getOffHandStack().getItem()==Items.GOLD_INGOT) stillAdmiring=true;
             if(!(e instanceof ItemEntity) || !e.isAlive())continue;
             ItemEntity drop=(ItemEntity)e;
             if(drop.getStack().getItem()!=Items.ENDER_PEARL || drop.getPos().squaredDistanceTo(earlyTradeLocation)>225)continue;
@@ -1093,7 +1254,7 @@ public final class Middle {
             lowerShield(mc);
             Vec3d goal=best.getPos();
             BlockPos pocket=best.getBlockPos();
-            if (best.isOnGround() && mc.player.getY()>goal.y+.80 && mc.player.getY()<goal.y+4.2
+            if (best.isOnGround() && mc.player.getY()>goal.y+1.8 && mc.player.getY()<goal.y+4.2
                     && mc.player.squaredDistanceTo(best)<24 && !open(mc,pocket.down())
                     && open(mc,pocket) && open(mc,pocket.up()) && open(mc,pocket.up(2))) {
                 // A dropped item may rest against the lip while the player's wider feet
@@ -1105,12 +1266,12 @@ public final class Middle {
             status="collecting the first bastion pearl stack";
             return true;
         }
-        if(age-earlyTradeStarted>200) {
+        if(age-earlyTradeStarted>200 && !stillAdmiring) {
             // A missed handoff or a different real barter may produce no local pearls.
             earlyTradeStarted=-1;earlyTradeLocation=null;
             return false;
         }
-        if(!protectFromPiglin(mc))mc.options.keySneak.setPressed(mc.player.getY()>35.5);
+        if(!guardFirstTrade(mc) && !protectFromPiglin(mc))mc.options.keySneak.setPressed(mc.player.getY()>35.5);
         status="waiting for the first bastion piglin to finish its trade";
         return true;
     }
@@ -1148,7 +1309,7 @@ public final class Middle {
         return false;
     }
 
-    private static boolean refreshFireResistance(MinecraftClient mc) {
+    static boolean refreshFireResistance(MinecraftClient mc) {
         if (drinkingFireResistance) {
             if (mc.player.isUsingItem()) {
                 Race.stop(mc); mc.options.keyUse.setPressed(true);
@@ -1201,8 +1362,30 @@ public final class Middle {
         return false;
     }
 
+    private static boolean guardUpperTerraceDuringMeal(MinecraftClient mc) {
+        if (!UpperLootRoute.enabled || arrivedAtBastion || mc.player.getOffHandStack().getItem()!=Items.SHIELD
+                || mc.player.getX() < -125 || mc.player.getX() > -99 || mc.player.getZ()<96 || mc.player.getZ()>117
+                || mc.player.getY()<36 || mc.player.getY()>44) return false;
+        if (mc.player.getActiveItem().getItem()==Items.GOLDEN_APPLE
+                || mc.player.getHealth()<9 && count(mc,Items.GOLDEN_APPLE)>0) return false;
+        for (PiglinEntity pig:mc.world.getNonSpectatingEntities(PiglinEntity.class,mc.player.getBoundingBox().expand(4))) {
+            if (!pig.isAlive() || pig.isBaby() || !pig.isAttacking() || !mc.player.canSee(pig)
+                    || !(pig.getMainHandStack().getItem() instanceof SwordItem)
+                    || pig.getY()+2.25<mc.player.getY() || mc.player.squaredDistanceTo(pig)>=15) continue;
+            // Let the existing shield-and-walk controller take over before a normal meal.
+            if (eating && mc.player.isUsingItem() && mc.player.getActiveItem().isFood()) {
+                mc.interactionManager.stopUsingItem(mc.player);
+                mc.options.keyUse.setPressed(false);
+                eating=false;
+            }
+            return true;
+        }
+        return false;
+    }
+
     private static boolean eat(MinecraftClient mc) {
         if (!eating && leavingEntrancePortal(mc)) return false;
+        if (guardUpperTerraceDuringMeal(mc)) return false;
         // A shield may already be raised on the way out of a bastion chest.
         // Let its owner keep moving while blocking.
         if (mc.player.isUsingItem() && !mc.player.getActiveItem().isFood()) {
@@ -1218,7 +1401,8 @@ public final class Middle {
         } else {
             if (mc.currentScreen!=null || !mc.player.isOnGround() || mc.player.isInLava()) return false;
             int hunger=mc.player.getHungerManager().getFoodLevel();
-            if (hunger>14 && (mc.player.getHealth()>=14 || hunger>=18)) return false;
+            boolean emergencyApple=mc.player.getHealth()<9 && count(mc,Items.GOLDEN_APPLE)>0;
+            if (!emergencyApple && hunger>14 && (mc.player.getHealth()>=14 || hunger>=18)) return false;
             Item food=null;
             for (ItemStack s:mc.player.inventory.main) {
                 if (s.getItem()==Items.COOKED_SALMON || s.getItem()==Items.COOKED_COD || s.getItem()==Items.BREAD) {
@@ -1226,6 +1410,8 @@ public final class Middle {
                     break;
                 }
             }
+            if (emergencyApple) food=Items.GOLDEN_APPLE;
+            if (food==null && count(mc,Items.APPLE)>0 && hunger<=14) food=Items.APPLE;
             Hand hand=Hand.MAIN_HAND;
             if (food==null) {
                 Item offhand=mc.player.getOffHandStack().getItem();
@@ -1274,6 +1460,12 @@ public final class Middle {
         }
         // Fire resistance is handled before the first lake crossing, including bottles from barters.
         if(s.kind.equals("drink")) return true;
+        if(ShelfCrossing.routeActive() && s.value.equals("pearl2"))
+            return ShelfCrossing.travel(mc);
+        if(ShelfCrossing.routeActive() && !ShelfCrossing.canThrow(mc,s.value)) {
+            status="confirming the number of pearls used before the fortress throw";
+            return false;
+        }
         Item wanted=Items.ENDER_PEARL;
         if (!s.value.equals("pearl1") && !select(mc,wanted))
             return false;
@@ -1351,10 +1543,16 @@ public final class Middle {
             status=StrongholdEntry.status;
             return true;
         }
+        if(finishReturnLeggings(mc))return true;
         if (Hotbar.tick(mc)) return true;
         boolean nether=mc.world.getRegistryKey()==World.NETHER;
         if (!nether && mc.world.getRegistryKey()!=World.OVERWORLD) return false;
         if (nether) manageStasis(mc,tick);
+        if (nether && ReturnFrame.guardFromEndermite(mc,tick)) {
+            eating=false;
+            status=ReturnFrame.status;
+            return true;
+        }
         if (!nether) {
             while(next<steps.size() && steps.get(next).tick<5412) next++;
             if (originalDistance>0) { distance(mc,originalDistance); if (mc.options.viewDistance==originalDistance) originalDistance=-1; }
@@ -1363,6 +1561,19 @@ public final class Middle {
             Race.stop(mc);
             if (VisibleSlots.equip(mc)) equipAfterChest=false;
             else { status="equipping gold armor in inventory"; return true; }
+        }
+        if(nether && tick>=2298 && next<steps.size() && steps.get(next).tick==2306 && ThirdChest.needed(mc)) {
+            Race.stop(mc);
+            if(mc.player.currentScreenHandler instanceof GenericContainerScreenHandler) {
+                lowerShield(mc);
+                status="taking obsidian, arrows, and gold from the sheltered third chest";
+                Step chest=steps.get(next);
+                if(loot(mc,chest))finish(mc,chest);
+            } else {
+                ThirdChest.tick(mc);
+                status=ThirdChest.status;
+            }
+            return true;
         }
         if(nether && tick>=2307 && tick<2419 && mc.player.getX()<-149) {
             if (!rushingWest) for (Entity e:mc.world.getEntities()) {
@@ -1388,6 +1599,9 @@ public final class Middle {
                 && BastionEgress.prepareExit(mc)) {status=BastionEgress.status;return true;}
         if(nether && next<steps.size() && steps.get(next).tick==2548 && EarlyBarter.tick(mc,age)) {
             status=EarlyBarter.status;return true;
+        }
+        if(nether && UpperLootRoute.enabled && tick>=2262 && tick<=2583 && (age&7)==0) {
+            EastHallRecovery.observe(mc);
         }
         if(nether && collectFirstTrade(mc))return true;
         if(nether && tick>=2089 && tick<=2144 && mc.player.getY()>=30.5 && mc.player.getY()<34
@@ -1444,7 +1658,7 @@ public final class Middle {
         }
         if (nether && tick>=3314 && tick<3391 && mc.player.getX()>-39 && mc.player.getY()>=55 && next<steps.size() && steps.get(next).tick==3348) {
             lowerShield(mc);
-            next++; entered=age; Race.advanceTo(TravelPearls.reachedFortressAfterSwim(mc)?3393:3350);
+            next++; entered=age; Race.advanceTo(ShelfCrossing.rejoined() || TravelPearls.reachedFortressAfterSwim(mc)?3393:3350);
             if (mc.player.squaredDistanceTo(Race.stance(3388))<12) Race.advanceTo(3388);
             tick=Race.referenceTick();
         }
@@ -1491,8 +1705,9 @@ public final class Middle {
             if(BastionApproach.tick(mc)) {
                 arrivedAtBastion=true;
                 cell=0;
-                while(next<steps.size() && steps.get(next).tick<2089) next++;
-                Race.advanceTo(2089);
+                int resume=UpperLootRoute.enabled?2277:2089;
+                while(next<steps.size() && steps.get(next).tick<resume) next++;
+                Race.advanceTo(resume);
             }
             return true;
         }

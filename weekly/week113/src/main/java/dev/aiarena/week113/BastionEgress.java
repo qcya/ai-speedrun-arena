@@ -6,6 +6,7 @@ import net.minecraft.entity.mob.PiglinEntity;
 import net.minecraft.item.SwordItem;
 import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -25,7 +26,7 @@ final class BastionEgress {
         {-119,35,118},{-120,35,119},{-121,35,120},{-122,35,120}
     };
     private static boolean prepared,shortRecess,branchDecided;
-    private static int padTicks;
+    private static int padTicks,bridgeAimFrom,bridgeGuardUntil;
     private static final BlockPos CHEST = new BlockPos(-124,33,122);
     private static boolean decided,useUpper,covering,waitForPiglins,upperAllowed,waiting;
     private static int index,settledTicks,waitingTicks,clearTicks;
@@ -34,7 +35,7 @@ final class BastionEgress {
     static String status="";
 
     static void reset() {
-        prepared=shortRecess=branchDecided=false;padTicks=0;
+        prepared=shortRecess=branchDecided=false;padTicks=0;bridgeAimFrom=-1;bridgeGuardUntil=0;
         decided=false;useUpper=false;arrived=false;covering=false;waiting=false;index=1;lootFoot=null;lastUnreachable=null;settledTicks=waitingTicks=clearTicks=0;
         net.minecraft.server.integrated.IntegratedServer server=MinecraftClient.getInstance().getServer();
         waitForPiglins=server!=null&&java.nio.file.Files.isRegularFile(server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-bastion-wait"));
@@ -106,26 +107,41 @@ final class BastionEgress {
         return false;
     }
 
-    private static void lowerShield(MinecraftClient mc){
+    static void lowerShield(MinecraftClient mc){
         if(!covering)return;
         mc.options.keyUse.setPressed(false);
         if(mc.player.isUsingItem())mc.interactionManager.stopUsingItem(mc.player);
         covering=false;
     }
 
-    /** Face the single melee attacker that can reach the ledge while continuing to move. */
-    private static boolean guardRamp(MinecraftClient mc){
-        Entity threat=null;double best=15.0;
+    /** Cover the closest melee and ranged piglins together while walking sideways. */
+    static boolean guardRamp(MinecraftClient mc,boolean turn){
+        Entity sword=null,bow=null;
+        double swordDistance=15.0,bowDistance=100.0;
         for(Entity entity:mc.world.getEntities()){
             if(!(entity instanceof PiglinEntity)||!entity.isAlive())continue;
             PiglinEntity pig=(PiglinEntity)entity;
-            if(pig.isBaby()||!(pig.getMainHandStack().getItem() instanceof SwordItem)
-                    ||pig.getY()+2.25<mc.player.getY()||!mc.player.canSee(pig))continue;
+            if(pig.isBaby() || !pig.isAttacking() || !mc.player.canSee(pig))continue;
             double dist=mc.player.squaredDistanceTo(pig);
-            if(pig.isAttacking() && dist<best){best=dist;threat=pig;}
+            if(pig.getMainHandStack().getItem() instanceof SwordItem
+                    && pig.getY()+2.25>=mc.player.getY() && dist<swordDistance) {
+                swordDistance=dist;sword=pig;
+            }else if(pig.getMainHandStack().getItem()==Items.CROSSBOW && dist<bowDistance) {
+                bowDistance=dist;bow=pig;
+            }
         }
+        Entity threat=sword!=null?sword:bow;
         if(threat==null){lowerShield(mc);return false;}
-        Race.aim(mc,threat.getBoundingBox().getCenter());
+        double best=sword!=null?swordDistance:bowDistance;
+        Vec3d facing=threat.getBoundingBox().getCenter();
+        if(sword!=null && bow!=null && mc.player.getOffHandStack().getItem()==Items.SHIELD){
+            double sx=sword.getX()-mc.player.getX(),sz=sword.getZ()-mc.player.getZ();
+            double bx=bow.getX()-mc.player.getX(),bz=bow.getZ()-mc.player.getZ();
+            double sl=Math.max(.001,Math.hypot(sx,sz)),bl=Math.max(.001,Math.hypot(bx,bz));
+            double dx=sx/sl+bx/bl,dz=sz/sl+bz/bl;
+            if(Math.hypot(dx,dz)>.10)facing=new Vec3d(mc.player.getX()+dx,mc.player.getEyeY(),mc.player.getZ()+dz);
+        }
+        if(turn)Race.aim(mc,facing);
         if(mc.player.getOffHandStack().getItem()==Items.SHIELD){
             if(!mc.player.isUsingItem())mc.interactionManager.interactItem(mc.player,mc.world,Hand.OFF_HAND);
             mc.options.keyUse.setPressed(true);covering=true;
@@ -137,6 +153,41 @@ final class BastionEgress {
             }
         }
         return true;
+    }
+
+    static void guardBridge(MinecraftClient mc,BlockPos previous,BlockPos next) {
+        mc.options.keySneak.setPressed(true);
+        int dx=next.getX()-previous.getX(),dz=next.getZ()-previous.getZ();
+        Direction face=Direction.fromVector(dx,0,dz);
+        if(face==null || Math.abs(dx)+Math.abs(dz)!=1)return;
+        BlockPos support=previous.down();
+        Vec3d center=Vec3d.ofCenter(support);
+        double across=(mc.player.getX()-center.x)*dx+(mc.player.getZ()-center.z)*dz;
+        Vec3d aim=null;
+        if(across>.51 && mc.player.age>=bridgeGuardUntil) {
+            search:for(double h:new double[]{.34,.71,.19,.85})for(double along:new double[]{.5,.22,.78}) {
+                Vec3d point=new Vec3d(support.getX()+(dx>0?.999:dx<0?.001:along),support.getY()+h,
+                        support.getZ()+(dz>0?.999:dz<0?.001:along));
+                BlockHitResult visible=BastionApproach.line(mc,point);
+                if(visible!=null && visible.getBlockPos().equals(support) && visible.getSide()==face){aim=point;break search;}
+            }
+        }
+        if(!guardRamp(mc,aim==null) || mc.player.getOffHandStack().getItem()!=Items.SHIELD) {
+            bridgeAimFrom=-1;lowerShield(mc);BastionApproach.bridge(mc,previous,next);return;
+        }
+        if(aim!=null && Middle.selectBuildingBlock(mc,false)) {
+            if(bridgeAimFrom<0)bridgeAimFrom=mc.player.age;
+            Race.aim(mc,aim);mc.gameRenderer.updateTargetedEntity(1);
+            if(mc.crosshairTarget instanceof BlockHitResult) {
+                BlockHitResult hit=(BlockHitResult)mc.crosshairTarget;
+                if(hit.getBlockPos().equals(support) && hit.getSide()==face) {
+                    lowerShield(mc);Middle.use(mc,hit);bridgeAimFrom=-1;return;
+                }
+            }
+            // A piglin can stand between the player and the face. Re-cover the group before retrying.
+            if(mc.player.age-bridgeAimFrom>=6){bridgeAimFrom=-1;bridgeGuardUntil=mc.player.age+7;}
+        }else bridgeAimFrom=-1;
+        if(across<.69)BastionApproach.move(mc,center.x+dx*.69,center.z+dz*.69,across>.47,false);
     }
 
     private static Vec3d chestPoint(MinecraftClient mc){
@@ -190,7 +241,7 @@ final class BastionEgress {
                 status="offering the saved ingot to the piglin above the descent";
                 return true;
             }
-            if(mc.player.getOffHandStack().getItem()==Items.SHIELD) guardRamp(mc);
+            if(mc.player.getOffHandStack().getItem()==Items.SHIELD) guardRamp(mc,true);
             int angry=0;
             for(Entity entity:mc.world.getEntities())if(entity instanceof PiglinEntity && entity.isAlive()
                     && mc.player.squaredDistanceTo(entity)<256 && ((PiglinEntity)entity).isAttacking())angry++;
@@ -244,9 +295,8 @@ final class BastionEgress {
             }
         }
         if(BastionApproach.open(mc,p.down())){
-            lowerShield(mc);
             status="bridging above the first-chest piglins "+index+"/"+(length-1);
-            BastionApproach.bridge(mc,previous,p);return true;
+            guardBridge(mc,previous,p);return true;
         }
         double x=p.getX()+.5,z=p.getZ()+.5;
         double d=Math.hypot(mc.player.getX()-x,mc.player.getZ()-z);
@@ -254,7 +304,7 @@ final class BastionEgress {
             index++;return true;
         }
         status="crossing the upper bastion terrace "+index+"/"+(length-1);
-        if(!guardRamp(mc))Race.aim(mc,new Vec3d(x,mc.player.getEyeY()-.1,z));
+        if(!guardRamp(mc,true))Race.aim(mc,new Vec3d(x,mc.player.getEyeY()-.1,z));
         boolean downhill=p.getY()<previous.getY();
         boolean nearGap=index+1<length && BastionApproach.open(mc,at(index+1).down());
         BastionApproach.move(mc,x,z,!downhill && (nearGap || d<.35),!nearGap && d>1.1);

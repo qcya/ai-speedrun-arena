@@ -15,6 +15,7 @@ final class Hotbar {
     private Hotbar() {}
 
     static void reset() {
+        InventoryReceipt.reset();
         pending=null;
         clicked=false;
         ticks=0;
@@ -25,18 +26,29 @@ final class Hotbar {
     }
 
     static boolean select(MinecraftClient mc, Item item, int preferred) {
-        if (pending!=null) return false;
-        if (mc.player.getMainHandStack().getItem()==item) return true;
+        if (pending!=null || InventoryReceipt.active()) return false;
+        if (mc.player.getMainHandStack().getItem()==item)
+            return selectSlot(mc,mc.player.inventory.selectedSlot,preferred);
+        for(int i=0;i<36;i++) {
+            if(mc.player.inventory.getStack(i).getItem()==item && InventoryReceipt.matches(mc,i))
+                return selectSlot(mc,i,preferred);
+        }
         for(int i=0;i<36;i++) {
             if(mc.player.inventory.getStack(i).getItem()!=item)continue;
             return selectSlot(mc,i,preferred);
         }
+        if (InventoryReceipt.findMissing(mc,item)) return false;
         Middle.status="needs "+net.minecraft.util.registry.Registry.ITEM.getId(item);
         return false;
     }
 
     static boolean selectSlot(MinecraftClient mc,int slot,int preferred) {
         if(pending!=null || mc.currentScreen!=null) return false;
+        if (InventoryReceipt.active()) return false;
+        if (!InventoryReceipt.matches(mc,slot)) {
+            InventoryReceipt.start(mc,slot);
+            return false;
+        }
         Item item=mc.player.inventory.getStack(slot).getItem();
         if(slot<9) {
             mc.player.inventory.selectedSlot=slot;
@@ -47,11 +59,17 @@ final class Hotbar {
         else if(item==Items.DIAMOND_SWORD) destination=2;
         else if(item==Items.IRON_PICKAXE) destination=1;
         else if(destination==1 || destination==2) destination=0;
+        if (!InventoryReceipt.matches(mc,destination)) {
+            pending=null;
+            InventoryReceipt.start(mc,destination);
+            return false;
+        }
         mc.openScreen(new InventoryScreen(mc.player));
         return false;
     }
 
     static boolean tick(MinecraftClient mc) {
+        if (InventoryReceipt.tick(mc)) return true;
         if (pending==null)return false;
         if (!(mc.currentScreen instanceof InventoryScreen)) {reset();return false;}
         Race.stop(mc);
@@ -72,7 +90,7 @@ final class Hotbar {
         if(clicked) {
             ServerPlayerEntity actual=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
             if(mc.player.inventory.getStack(destination).getItem()==pending && actual!=null
-                    && actual.inventory.getStack(destination).getItem()==pending) {
+                    && actual.inventory.getStack(destination).getItem()==pending && InventoryReceipt.matches(mc,destination)) {
                 mc.player.inventory.selectedSlot=destination;
                 mc.player.closeHandledScreen();reset();
             } else if(ticks>24) {
