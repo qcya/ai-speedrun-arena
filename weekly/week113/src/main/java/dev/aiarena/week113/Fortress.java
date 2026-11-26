@@ -273,7 +273,8 @@ public final class Fortress {
         if (!(mc.crosshairTarget instanceof BlockHitResult)
                 || mc.crosshairTarget.getType() != HitResult.Type.BLOCK) return false;
         BlockPos obstruction = ((BlockHitResult) mc.crosshairTarget).getBlockPos();
-        if (obstruction.equals(mc.player.getBlockPos().down())) return false;
+        if (obstruction.equals(mc.player.getBlockPos().down())
+                || obstruction.equals(new BlockPos(SPAWNER).down())) return false;
         Block block = mc.world.getBlockState(obstruction).getBlock();
         if (block != Blocks.NETHERRACK && block != Blocks.NETHER_BRICKS) return false;
         mc.options.keyAttack.setPressed(true);
@@ -583,12 +584,42 @@ public final class Fortress {
         return true;
     }
 
+    private static boolean takeNorthwestShelfRod(MinecraftClient mc, ItemEntity rod) {
+        Vec3d drop=rod.getPos(), feet=mc.player.getPos();
+        if(!rod.isOnGround() || drop.x< -10.85 || drop.x> -9.45 || drop.z<113.05 || drop.z>114.28
+                || drop.y<59.85 || drop.y>61.18 || feet.x< -10.7 || feet.x> -8.80
+                || feet.z<113.85 || feet.z>116.60 || feet.y<58.85 || feet.y>60.70) return false;
+        BlockPos step=new BlockPos(-10,59,114);
+        if(mc.world.getBlockState(step).getBlock()!=Blocks.NETHER_BRICKS
+                || !clear(mc,step.up()) || !clear(mc,step.up(2)) || !clear(mc,step.up(3))
+                || !mc.world.getFluidState(step.up()).isEmpty())return false;
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        if(mc.world.getBlockState(step.up()).getBlock()==Blocks.FIRE) {
+            Vec3d aim=new Vec3d(-9.55,60.035,114.67);
+            Race.aim(mc,aim);mc.gameRenderer.updateTargetedEntity(1);
+            if(mc.crosshairTarget instanceof BlockHitResult && mc.crosshairTarget.getType()==HitResult.Type.BLOCK
+                    && step.up().equals(((BlockHitResult)mc.crosshairTarget).getBlockPos())){
+                mc.options.keyAttack.setPressed(true);
+                status="extinguishing the northwest rod pickup step";
+                return true;
+            }
+            if(!mc.player.hasStatusEffect(net.minecraft.entity.effect.StatusEffects.FIRE_RESISTANCE))return false;
+        }
+        Vec3d landing=new Vec3d(-9.56,60,114.32);
+        Race.aim(mc,new Vec3d(landing.x,mc.player.getEyeY(),landing.z));
+        BastionApproach.move(mc,landing.x,landing.z,false,false);
+        if(mc.player.isOnGround() && feet.y<59.93)mc.options.keyJump.setPressed(true);
+        status="climbing the northwest shelf to the dropped rod";
+        return true;
+    }
+
     private static void takeRod(MinecraftClient mc, ItemEntity rod) {
         status = "collecting a dropped blaze rod";
         previousEnemy = -1;
         Vec3d p = rod.getPos();
         Vec3d player=mc.player.getPos();
-        if(takeNorthRod(mc,rod))return;
+        if(takeNorthRod(mc,rod) || takeNorthwestShelfRod(mc,rod))return;
         Vec3d goal=cagePickupFoot(mc,player,p);
         if(goal!=null && Math.abs(player.x+7.5)<3.4 && Math.abs(player.z-115.5)<4.1) {
             observedCageRod=rod.getEntityId();
@@ -736,6 +767,7 @@ public final class Fortress {
         for (int x = -9; x <= -6; x++) {
             for (int z = 113; z <= 117; z++) {
                 BlockPos p = new BlockPos(x, 59, z);
+                if (p.equals(new BlockPos(SPAWNER).down())) continue;
                 if (mc.world.getBlockState(p).getBlock() != Blocks.NETHER_BRICKS
                         || mc.world.getBlockState(p.down()).getBlock() != Blocks.NETHER_BRICKS
                         || !clear(mc, p.up()) || mc.player.getBoundingBox().intersects(new Box(p.up()))) continue;

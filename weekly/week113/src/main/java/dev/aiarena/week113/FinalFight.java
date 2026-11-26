@@ -696,6 +696,41 @@ public final class FinalFight {
         return Math.hypot(v.x, v.z);
     }
 
+    // The player receives the capped wing impulse before the bow-release tick.
+    // A late release lost the right wing between two consecutive server updates.
+    public static void onWingVelocity(MinecraftClient mc, net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket packet) {
+        if (phase != 4 || held < 3 || mc.player == null || mc.world == null || mc.interactionManager == null
+                || mc.player.getEntityId() != packet.getId() || mc.world.getRegistryKey() != World.END
+                || mc.player.hasVehicle() || mc.player.getItemUseTime() < 20
+                || mc.player.getActiveItem().getItem() != Items.BOW) return;
+        // This is the first visible push away from the incoming wing, before the
+        // client's capped movement decays. It is not the uncapped arrow velocity.
+        if (packet.getVelocityX() <= 0 || packet.getVelocityY() <= 0 || packet.getVelocityZ() > -31000) return;
+        ServerPlayerEntity player = endPlayer(mc);
+        if (player == null || player.getActiveItem().getItem() != Items.BOW || player.getItemUseTime() < 20
+                || Math.hypot(player.getX()-SEAT.x,player.getZ()-SEAT.z) > .36) return;
+        Vec3d speed = player.getVelocity();
+        if (speed.x <= 0 || Math.hypot(speed.x,speed.z) < 110) return;
+        Vec3d origin = new Vec3d(player.getX(),player.getEyeY()-.1,player.getZ());
+        Vec3d end = origin.add(speed).add(player.getRotationVec(1).multiply(3));
+        for (Entity visible : mc.world.getEntities()) {
+            if (!(visible instanceof EnderDragonEntity) || visible.squaredDistanceTo(mc.player) > 18*18) continue;
+            Entity serverDragon = player.getEntityWorld().getEntityById(visible.getEntityId());
+            if (!(serverDragon instanceof EnderDragonEntity) || !serverDragon.isAlive()) continue;
+            for (net.minecraft.entity.boss.dragon.EnderDragonPart wing : ((EnderDragonEntity)serverDragon).getBodyParts()) {
+                if (!"wing".equals(wing.name) || wing.getX() <= origin.x) continue;
+                Box now = wing.getBoundingBox().expand(.3);
+                Box nextWing = now.offset(wing.getX()-wing.prevX,wing.getY()-wing.prevY,wing.getZ()-wing.prevZ);
+                if (!now.rayTrace(origin,end).isPresent() || !nextWing.rayTrace(origin,end).isPresent()) continue;
+                release(mc);
+                phase=5;
+                held=0;
+                status="releasing the full bow on the visible wing impulse";
+                return;
+            }
+        }
+    }
+
     private static boolean nearBoat(MinecraftClient mc) {
         return Math.hypot(mc.player.getX() - SEAT.x, mc.player.getZ() - SEAT.z) < 2.8
                 && Math.abs(mc.player.getY() - SEAT.y) < 2;

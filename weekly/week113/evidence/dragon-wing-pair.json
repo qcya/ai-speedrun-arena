@@ -1,0 +1,153 @@
+{
+  "check": "matched natural E39 first wing shot",
+  "original_source": "/workspace/scratch/6c4d6385883a/east/fresh-east39/saves/W113",
+  "replayable_clean_start": "/workspace/scratch/6c4d6385883a/dragon/e52-wing/e39-paired-start.zip",
+  "clean_start_sha256": "3c7344c2db46646cec77d72fc5420d220bf5a1a52c6aba4f1630bb1bb0d55a89",
+  "source_file_count": 57,
+  "source_sha256_by_relative_path": {
+    "DIM-1/data/piglin_path.dat": "dfe66c99a901cf304cc009bea3a2a4e3df5db2ea68a3f4f8920b54ec00e9cbda",
+    "DIM-1/data/raids.dat": "722d268576b6c44b48ff54aa41b71daf95cc729cde7d6347a3c3b3f8f8fcc11e",
+    "DIM-1/data/rng.dat": "9733dd3673ee39fce2a8e60f4f7ef81f79e66c62ef4b591d0bb55aa97de64ba8",
+    "DIM-1/data/spawn_rng.dat": "da333e9ce9354a8ba625da59b86832c008d2d0b698984c9d3bd7bd3b3b239495",
+    "DIM-1/poi/r.-1.-1.mca": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "DIM-1/poi/r.-1.0.mca": "eed5684c55a2ccf55bf8a338a4b5bec006f686705fe09661ab8ef6b9b5c6d508",
+    "DIM-1/poi/r.0.-1.mca": "fe48254beac942dcaf16e2ca082b51b4c19a56b2585f4a447f8d0913efba5e0d",
+    "DIM-1/poi/r.0.0.mca": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "DIM-1/region/r.-1.-1.mca": "acb35548ab9ef4b5c9000862f66258c6d925fa038d0be210e98be88bf95c5734",
+    "DIM-1/region/r.-1.0.mca": "7d521528881c1d3bce94de4174998260a082acaf3b35e593d51ae0712dc081c3",
+    "DIM-1/region/r.-1.1.mca": "cba84fa7442125019def6a0ecc13171dd75d89069f36ff62147677d3f28d0f26",
+    "DIM-1/region/r.-2.-1.mca": "f846f154a419073289ee6726ade6c93689f9c074a7ca86b6d1175f2bbe561872",
+    "DIM-1/region/r.-2.0.mca": "222da7a1216d9de6147dc65991fb7a3e543003a47f5b8ad81810996ada750ca8",
+    "DIM-1/region/r.-2.1.mca": "4f8159c010dfbf786a8a537cb1c9d67ed653a577d49c90cf7bc1e89a344ea001",
+    "DIM-1/region/r.0.-1.mca": "ee3fbef4f22998f0916b93fcad280d2c322dd9e3f4d6f5ff9fd8c7126c7a33ee",
+    "DIM-1/region/r.0.0.mca": "35b49603398c12bb03c02cb1db9fb4cbf002317223cec7e6372d28ef24b8c80e",
+    "DIM-1/region/r.0.1.mca": "57bb3e619218720c0267e42435c283a1f069f0584471dfd1b0f7795521588e94",
+    "DIM1/data/raids_end.dat": "722d268576b6c44b48ff54aa41b71daf95cc729cde7d6347a3c3b3f8f8fcc11e",
+    "advancements/d8a82407-79e2-3688-8671-8353761a508c.json": "4e88676982036dad2de0db660e8d15e6bfa8271117211d6de0f23f0fb322cc87",
+    "astra-113.local": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "astra-opening-east": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "astra-opening-save-gold": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "astra-opening-shield": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "astra-two-upper-chests": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "data/extra_stats.dat": "2d52e6c3c915fa04944ccacc3a81713e61610e5631560cd4c2a0adce5a4a149f",
+    "data/portals.dat": "44735148e12f18bc001240e4c9bd4a7ff1f9cf0fad89a5568536402b6640063c",
+    "data/raids.dat": "722d268576b6c44b48ff54aa41b71daf95cc729cde7d6347a3c3b3f8f8fcc11e",
+    "data/rng.dat": "389cf2010fdbe660534ff9c37003f9a6c1b6655f1ff9d414c19eaa26c53f67c9",
+    "data/run_splits.dat": "513e7a6d760213a1432585ac34f99cecfcdcef05de9b141bbae1f6da1db586c2",
+    "icon.png": "991809b1b37c334ac75c29a49844bed0a94640d9fc7d0a4fe9bc30ec7a759f65",
+    "level.dat": "082fd964d088b53dbb5fd27323d0702a880e906ddd4a1b90addc695f30cf0fa8",
+    "level.dat_old": "a2693e8bd9540de8077bd8ef2bccfa110fbf33ea0192bb801aa66aa18ae18d1e",
+    "playerdata/d8a82407-79e2-3688-8671-8353761a508c.dat": "c9e2f89aba20c5cf45c7154e395017a2365384065db4bb04a94174fb932bfffc",
+    "playerdata/d8a82407-79e2-3688-8671-8353761a508c.dat_old": "221893f66dada7059077b76f474d58abeb0aae624d6f23cc8ef2da218d4f8e25",
+    "poi/r.-2.2.mca": "1e0e989910fefc989714f3b13155bf1214e82b862ffbc54b333c5fc19a4a112f",
+    "poi/r.0.-1.mca": "c1edfca1a47398720221ea5dbbf616b2354fd9ab0358e68852018c73120aa64b",
+    "region/r.-1.-1.mca": "b57cb66ef497b72c6df5b073dc8f25e3a53c4834ca20972e1d55b8f14c818390",
+    "region/r.-1.0.mca": "df0eb83a0697dfa3b31473fe913d99b3670179c435985d0bbaaf74df2e5b2f0d",
+    "region/r.-1.1.mca": "14484b145e6d53237a80f48ed51af97d5c61ed2955753ce5972f7807644fbcfe",
+    "region/r.-1.2.mca": "ff51207f19c910f842810705789b2cc176e6810250d82a163fa3c6a60c3b2050",
+    "region/r.-1.3.mca": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "region/r.-2.1.mca": "0eec6127336e248035a6405a269d3229f5b9df31c4a2a4a4faac5ef783c77ac5",
+    "region/r.-2.2.mca": "932e3f474ea88f9997eb44eda7b2dd98c4425057c96466a935b3c1dacceca696",
+    "region/r.-2.3.mca": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "region/r.-3.1.mca": "84683f8846629ec2fd60bbb91daec19693be5dbe49ce357210a257d1567af0f6",
+    "region/r.-3.2.mca": "028f17633dced8be92ebe7749c7ea4184a1837d08042d72bec476495df672a30",
+    "region/r.-3.3.mca": "c0bfd73f6cf68c66867e5c12cf21717251be3c1e5b7457fc4ce72a7ed260a6d2",
+    "region/r.0.-1.mca": "97dd342905bdac9822314304c599884ced72eac2da349a0e9afb1821a75e6c33",
+    "region/r.0.0.mca": "d09d69fbe3989010c27ea74bf1eee232bc63024a4ce1ad05d0b5f322d9767113",
+    "region/r.1.-1.mca": "9a72c114985627dfbc8fca74e698daee56d48c01b8f710d348e2601d491e453a",
+    "region/r.1.0.mca": "99abe8d064846824baa2409309e4ddb98e05652b7a458b720c0da75d2022108d",
+    "speedrunigt/data/timer.igt": "0bb3220760eeddb62b35e9c2d0cf44ee43c578375a88fdeebee12c5062e55a1b",
+    "speedrunigt/data/timer.igt.old": "38bec1557e1ebd4b2f6db8dbd537e0e662f1cb3cb020bbf45fb0c923c94dfa0f",
+    "speedrunigt/events.log": "51b2e03719bc8ce29b741d44e05fc8ec9560162e44c5f70661ea9007c86f41bb",
+    "speedrunigt/logs/igt_freeze.log": "b0aadd5c6aa929e3a1c41cc70f302c14b13ef4e767646a8b1c3ae56a91d2da64",
+    "speedrunigt/record.json": "9d06834af641c4d3e8941b4e5e32fe3976dfafb45cebbca3ff1e451d0d5018fd",
+    "stats/d8a82407-79e2-3688-8671-8353761a508c.json": "e969a9751c7472837af36c256111005fc3aced5991c242ea6be8d27e0fb53b72"
+  },
+  "world_before": {
+    "dimension": "overworld",
+    "hp": 16.42,
+    "ender_pearl": 11,
+    "blaze_powder": 12,
+    "arrows": 22,
+    "bow": 1,
+    "oak_boat": 1,
+    "end_generated": false
+  },
+  "results": {
+    "control": {
+      "release_source": "tick",
+      "world_tick": 9995,
+      "full_draw_ticks": 32,
+      "native_player_xyz": [
+        5.269621655801071,
+        86.72860926093821,
+        0.3652626503637362
+      ],
+      "native_player_velocity": [
+        1461.6749343873246,
+        2.1205415751137706,
+        348.3279856835807
+      ],
+      "native_horizontal_speed": 1502.6064020316733,
+      "first_report_before_arrow_ms": 82,
+      "decay_after_arrow_ms": 4,
+      "first_native_dying": 1106,
+      "native_hp_before_release": 200.0,
+      "native_hp_after_arrow": 1.0,
+      "arrow_xyz": [
+        5.269621655801071,
+        88.24860926421647,
+        0.3652626503637362
+      ],
+      "all_dimensions_saved": true,
+      "replay": "dragon/e52-wing/e39-control/replay_recordings/recording/2026_11_27_00_01_35.mcpr",
+      "crc_error": null,
+      "jar": {
+        "calibration_jar": "dragon/e52-wing/e39-control/mods/astra113.jar",
+        "sha256": "2487e7f55a571107fef7285b3ac7d592bf21634832323ceab4b40a120855e638"
+      },
+      "sealed_replay": "dragon/e52-wing/e39-control/replay_recordings/recording/2026_11_27_00_01_35.mcpr",
+      "sealed_replay_sha256": "e20c2f818b49a1613668569c64e86fd847d6eb9897ac47247c488164edfd3d28",
+      "native_phase": "Dying (#9)",
+      "original_manifest_digest": "40fb97003156e5c56e5cac2fb1450f68e0acf18896fcdef3dda07ffc5898ae52"
+    },
+    "candidate": {
+      "release_source": "visible_velocity_packet",
+      "world_tick": 9936,
+      "full_draw_ticks": 71,
+      "native_player_xyz": [
+        5.270331392376514,
+        86.72860926093821,
+        0.365143927930878
+      ],
+      "native_player_velocity": [
+        1312.7957811915314,
+        2.1205415751137706,
+        245.86014756139656
+      ],
+      "native_horizontal_speed": 1335.6196970968924,
+      "first_report_before_arrow_ms": 37,
+      "decay_after_arrow_ms": 40,
+      "first_native_dying": 1103,
+      "native_hp_before_release": 200.0,
+      "native_hp_after_arrow": 1.0,
+      "arrow_xyz": [
+        5.270331392376514,
+        88.33168708202294,
+        0.365143927930878
+      ],
+      "all_dimensions_saved": true,
+      "replay": "dragon/e52-wing/e39-candidate/replay_recordings/recording/2026_11_27_00_03_16.mcpr",
+      "crc_error": null,
+      "jar": {
+        "calibration_jar": "dragon/e52-wing/e39-candidate/mods/astra113.jar",
+        "sha256": "bf8fa108ed753dc724ef3286e429425d75414c3e1e002db7777f2424a193f4fc"
+      },
+      "sealed_replay": "dragon/e52-wing/e39-candidate/replay_recordings/recording/2026_11_27_00_03_16.mcpr",
+      "sealed_replay_sha256": "c192be1514ec9061cf7b79d9f2beee935840b4950342fb9717ea2e4e45a5cea4",
+      "native_phase": "Dying (#9)",
+      "original_manifest_digest": "40fb97003156e5c56e5cac2fb1450f68e0acf18896fcdef3dda07ffc5898ae52"
+    }
+  },
+  "limits": "Each branch hit from its own naturally executed subsequent approach. The additional callback really released an arrow which caused Dying. A paired increase in success rate or speed was not demonstrated."
+}

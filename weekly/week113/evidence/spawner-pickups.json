@@ -452,5 +452,113 @@
     "limits": "Saved natural P97 game-tick 6000; isolated practice. Original full-run observer from exact position/health to six: 55185 ms. Core floor only same original: 30097 ms. Normal tick scheduling and combat can differ on reloads.",
     "candidate": "third-wave-east-face.patch",
     "candidate_sha256": "56e5bc206870fe24bedef43ba4992ef05e69bb1f43d2adc8b196c16fe4530862"
+  },
+  "p101_northwest_shelf": {
+    "source": "pilot101/native-autosave-6000",
+    "original_files_sha256_verified": 41,
+    "simulation_or_world_edits": false,
+    "same_original_level_and_entities": true,
+    "saved_original_drops": [
+      [
+        -9.875,
+        60,
+        113.37
+      ],
+      [
+        -10.25,
+        61,
+        113.697
+      ]
+    ],
+    "original_observed_stationary_until_native_input": [
+      {
+        "run_tick": 5770,
+        "elapsed_ms": 287991,
+        "hp": 16.866669,
+        "x": -9.503216779212806,
+        "y": 59.0,
+        "z": 115.30000001192093,
+        "middle_action": "collecting a dropped blaze rod"
+      },
+      {
+        "run_tick": 7268,
+        "elapsed_ms": 362899,
+        "hp": 16.866669,
+        "x": -9.471085211277725,
+        "y": 59.0,
+        "z": 115.56216450001199,
+        "middle_action": "collecting a dropped blaze rod"
+      }
+    ],
+    "original_at_normal_stop": {
+      "run_tick": 7997,
+      "elapsed_ms": 399363,
+      "hp": 16.866669,
+      "x": -9.415388165583707,
+      "y": 59.0,
+      "z": 115.32638052016028,
+      "middle_action": "collecting a dropped blaze rod"
+    },
+    "native_branch": "Marked calibration, restarted original native automatic save; normal client input and no edited entity or item",
+    "initial": {
+      "run_tick": 1,
+      "elapsed_ms": 5,
+      "hp": 16.866669,
+      "x": -9.531169717107364,
+      "y": 59.0,
+      "z": 115.30000001192093,
+      "middle_action": "approaching bastion"
+    },
+    "first_observed_extinguish": {
+      "run_tick": 3,
+      "elapsed_ms": 54,
+      "hp": 16.866669,
+      "x": -9.531169717107364,
+      "y": 59.0,
+      "z": 115.30000001192093,
+      "middle_action": "extinguishing the northwest rod pickup step"
+    },
+    "first_seen_rods": {
+      "3": {
+        "run_tick": 11,
+        "elapsed_ms": 291,
+        "hp": 16.866669,
+        "x": -9.537843468364963,
+        "y": 60.024424088213685,
+        "z": 114.94500399937668,
+        "middle_action": "climbing the northwest shelf to the dropped rod"
+      },
+      "4": {
+        "run_tick": 17,
+        "elapsed_ms": 439,
+        "hp": 16.866669,
+        "x": -9.54365212482342,
+        "y": 60.0,
+        "z": 114.30195898099781,
+        "middle_action": "climbing the northwest shelf to the dropped rod"
+      },
+      "5": {
+        "run_tick": 445,
+        "elapsed_ms": 21712,
+        "hp": 16.866669,
+        "x": -6.7298551613969835,
+        "y": 59.0,
+        "z": 114.50607890791554,
+        "middle_action": "walking around the spawner base to the observed rod"
+      },
+      "6": {
+        "run_tick": 627,
+        "elapsed_ms": 30811,
+        "hp": 20.0,
+        "x": -7.324026181392256,
+        "y": 59.0,
+        "z": 114.3881350310241,
+        "middle_action": "walking around the spawner base to the observed rod"
+      }
+    },
+    "normal_exit": true,
+    "production_patch": "northwest-shelf.patch",
+    "sha256": "9cee6ea1425fe7873497f6313ec2f76ef7ec3c3c68756a3e44456afa1427e7c1",
+    "diagnostic_reference": "Physical world time 6000. Diagnostic resumes general fortress dispatcher at reference 3740; the source full-run observer had been waiting at reference 3711. Both dispatch ordinary pickup via Fortress.takeRod."
   }
 }

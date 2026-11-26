@@ -235,13 +235,28 @@ public final class ReturnFrame {
     }
 
     private static boolean nearDryBank(MinecraftClient m, int reference) {
-        if (reference < 5161 || reference > 5220 || m.player.getX() < -87.1 || m.player.getX() > -82.8
+        if (reference < 5161 || reference > 5220 || m.player.getX() < -87.1 || m.player.getX() > -80.20
                 || m.player.getZ() < 168.0 || m.player.getZ() > 176.3 || m.player.getY() < 73
                 || m.player.getY() > 78 || m.player.inventory.count(Items.BLAZE_ROD) < 6)
             return false;
         net.minecraft.entity.effect.StatusEffectInstance fire = m.player.getStatusEffect(
                 net.minecraft.entity.effect.StatusEffects.FIRE_RESISTANCE);
         if (fire == null || fire.getDuration() < 160) return false;
+        if (m.player.getX()>-82.8) {
+            // The eastern part of this shelf can lie under a shallow lava flow.
+            // Traverse it only with live fire resistance, a continuous floor and headroom.
+            double x=m.player.getX(), z=m.player.getZ();
+            double tx=-85.56,tz=170.58;
+            int checks=Math.max(1,(int)Math.ceil(Math.hypot(tx-x,tz-z)/.22));
+            for(int i=0;i<=checks;i++) {
+                double f=(double)i/checks;
+                for(double dx:new double[]{-.29,.29})for(double dz:new double[]{-.29,.29}) {
+                    BlockPos foot=new BlockPos(x+(tx-x)*f+dx,74,z+(tz-z)*f+dz);
+                    if(!full(m,foot) && !full(m,foot.down()))return false;
+                    if(full(m,foot.up()) || full(m,foot.up(2)))return false;
+                }
+            }
+        }
         for (double[] stance : DRY_BANK) {
             BlockPos at = new BlockPos(stance[0],74,stance[1]);
             if (!full(m,at) && !full(m,at.down())) return false;
@@ -259,7 +274,7 @@ public final class ReturnFrame {
                     || m.player.getY() < 68
                     || m.player.getY() > 84
                     || m.player.squaredDistanceTo(-84.5, 75, 168.5) > 15 * 15) return false;
-            if(dry)dryStep=m.player.getZ()<170.50 ? 2 : m.player.getZ()<172.7 ? 1 : 0;
+            if(dry)dryStep=m.player.getX()>-82.8 ? 1 : m.player.getZ()<170.50 ? 2 : m.player.getZ()<172.7 ? 1 : 0;
             else if(onBank)bankStep=0;
             active = true;
         }

@@ -139,5 +139,72 @@
     },
     "saved_ticks": 35,
     "saved_observer_ms": 1790
+  },
+  "e53_eastern_landing": {
+    "origin": "Unedited survival practice save, cage-route/native01. Fresh-east53 original recall was nearby. Separate practice timing.",
+    "source_files_sha256_verified": 49,
+    "fresh_e53_recall": {
+      "run_tick": 7132,
+      "elapsed_ms": 356179,
+      "x": -82.62452990268558,
+      "y": 74.267315448261,
+      "z": 170.95979884581774,
+      "hp": 15.0,
+      "middle_action": "stasis - at -83, 75, 179",
+      "event": "state"
+    },
+    "calibration_start": {
+      "run_tick": 0,
+      "elapsed_ms": 0,
+      "x": -80.74139271748118,
+      "y": 74.0,
+      "z": 170.7772555790272,
+      "hp": 11.306669,
+      "middle_action": "approaching bastion",
+      "event": "spawn"
+    },
+    "distance_from_fresh_original": 1.911,
+    "initial_inventory": {
+      "obsidian": 18,
+      "blaze_rod": 6,
+      "ender_pearl": 10
+    },
+    "starting_fire_resistance_ticks": 2779,
+    "first_safe_western_edge": {
+      "run_tick": 87,
+      "elapsed_ms": 4079,
+      "x": -85.30909248392932,
+      "y": 75.0,
+      "z": 170.57787376879742,
+      "hp": 11.306669,
+      "middle_action": "crossing to the dry western edge of the portal ledge",
+      "event": "state"
+    },
+    "lit_frame": {
+      "run_tick": 289,
+      "elapsed_ms": 14137,
+      "x": -86.517715235509,
+      "y": 75.0,
+      "z": 165.48013914022928,
+      "hp": 17.740004,
+      "middle_action": "lighting the return frame",
+      "event": "observed_lit_return_frame"
+    },
+    "inventory_at_finish": {
+      "obsidian": 7,
+      "blaze_rod": 6,
+      "ender_pearl": 10
+    },
+    "portal_in_final_nether_region": {
+      "-87,74,164": "nether_portal",
+      "-87,75,164": "nether_portal",
+      "-87,76,164": "nether_portal",
+      "-86,74,164": "nether_portal",
+      "-86,75,164": "nether_portal",
+      "-86,76,164": "nether_portal"
+    },
+    "raw_game_recording_bytes": 33595242,
+    "native_replay_sha256": "355d79f2800f473f92d6beb184e794a48a20b03c53bc4fefaa0f601b57480116",
+    "all_dimensions_saved": true
   }
 }
