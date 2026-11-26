@@ -1,0 +1,67 @@
+{
+  "week": 113,
+  "ends_at_utc": "2026-11-30T00:00:00Z",
+  "snapshot_local_date": "2026-11-26",
+  "source": "https://api.mcsrranked.com/weekly-race/113",
+  "minecraft": "1.16.1",
+  "seed": {
+    "overworld": "830551220630082827",
+    "nether": "830551220630082827",
+    "theEnd": "830551220630082827",
+    "rng": "830551220630082827",
+    "flags": 207
+  },
+  "ranked": {
+    "filename": "mcsrranked-6.0.12.jar",
+    "url": "https://cdn.modrinth.com/data/I9W1u5Ac/versions/Uppa2nGO/mcsrranked-6.0.12.jar",
+    "hashes": {
+      "sha1": "3a896bf8cb13c695206cd59db5f0fa650bbe1069",
+      "sha512": "bc2cd6b137fb5beccff7d8b690bc59388546da2f9c4cba2bf5c979f86d561625ea72a4eef50192369d514880b0efd1881af9f890e76d7af3d3671c82de9d9f47"
+    }
+  },
+  "ranked_version": "6.0.12",
+  "replaymod": {
+    "filename": "replaymod-1.16.1-2.6.20.jar",
+    "url": "https://cdn.modrinth.com/data/Nv2fQJo5/versions/vfpKdLlR/replaymod-1.16.1-2.6.20.jar",
+    "hashes": {
+      "sha512": "0e7d04ea11eb9504ffbcda3f854d8728447bfb29b6c304afb32bb54e6ea5578a3f60f63aba51961daa2d7ee3923d861d1f2ca53d0b64cf1f57f9b2cf513d241b",
+      "sha1": "ff6be2b27f8886ac77f2ff96893f48ff719908bd"
+    }
+  },
+  "replaymod_version": "1.16.1-2.6.20",
+  "world_template_sha256": "82e884f24d77286abe4dd0335d6250a18613bb0d4922b5ceae7e41ad61da95e6",
+  "top_five": [
+    {
+      "rank": 1,
+      "player": "xiamoys",
+      "time_ms": 335528,
+      "has_replay": true
+    },
+    {
+      "rank": 2,
+      "player": "Ormo",
+      "time_ms": 350652,
+      "has_replay": true
+    },
+    {
+      "rank": 3,
+      "player": "55_jake1",
+      "time_ms": 390196,
+      "has_replay": true
+    },
+    {
+      "rank": 4,
+      "player": "Annkexu",
+      "time_ms": 400060,
+      "has_replay": true
+    },
+    {
+      "rank": 5,
+      "player": "Chato61",
+      "time_ms": 405516,
+      "has_replay": true
+    }
+  ],
+  "champion_replay_url": "https://replay.mcsrranked.com/races/113/a20541925b5648e1ae88a141ca37911e.rrf?t=335528",
+  "champion_replay_sha256": "ff4c9b5906fac14ee1b34b02ef09d41839ebb3190f1a0713519b71454a83faa1"
+}
