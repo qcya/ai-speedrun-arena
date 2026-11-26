@@ -1,0 +1,223 @@
+{
+  "source": "https://replay.mcsrranked.com/races/113/146eaaeb896d4c97b42619a0fb697ae5.rrf?t=328356",
+  "sha256": "6066ebc8e7a2dd1b0e987104e9c3d72b41df8eb62475d3436e7fb2d2a2452628",
+  "player": "Ormo",
+  "week": 113,
+  "result_igt_ms": 328356,
+  "timelines_ms": {
+    "story.mine_diamond": 9692,
+    "story.smelt_iron": 9692,
+    "story.iron_tools": 30288,
+    "adventure.kill_a_mob": 43351,
+    "story.mine_stone": 50140,
+    "story.lava_bucket": 57138,
+    "story.enter_the_nether": 68089,
+    "nether.find_bastion": 87590,
+    "nether.loot_bastion": 89649,
+    "nether.obtain_crying_obsidian": 124240,
+    "story.form_obsidian": 133839,
+    "nether.find_fortress": 165985,
+    "nether.obtain_blaze_rod": 180585,
+    "story.follow_ender_eye": 278731,
+    "story.enter_the_end": 280731,
+    "adventure.shoot_arrow": 303264,
+    "end.kill_dragon": 311119
+  },
+  "leaderboard": {
+    "week_url": "https://api.mcsrranked.com/weekly-race/113",
+    "active_url": "https://api.mcsrranked.com/weekly-race",
+    "checked_utc": "2026-11-26T07:52:05+00:00",
+    "rank": 1,
+    "second_place": {
+      "player": "xiamoys",
+      "time_ms": 335528
+    }
+  },
+  "rrf_bytes": 196750,
+  "rrf_format_version": 41,
+  "player_uuid": "146eaaeb896d4c97b42619a0fb697ae5",
+  "nether_entry_xyz": [
+    32.895416,
+    43,
+    -2.5
+  ],
+  "overworld_return_xyz": [
+    -754.5,
+    39,
+    1276.699951
+  ],
+  "end_entry_xyz": [
+    100,
+    49,
+    0
+  ],
+  "delayed_pearl": {
+    "entity_id": 206292,
+    "throw_tick": 3287,
+    "origin_xyz": [
+      -94.485405,
+      58.52,
+      200.549408
+    ],
+    "velocity_xyz": [
+      -0.284808,
+      0.14459,
+      -1.474506
+    ],
+    "render_distance_events": [
+      [
+        1,
+        13
+      ],
+      [
+        3318,
+        2
+      ],
+      [
+        5250,
+        3
+      ],
+      [
+        5253,
+        4
+      ],
+      [
+        5254,
+        5
+      ],
+      [
+        5255,
+        6
+      ],
+      [
+        5257,
+        7
+      ],
+      [
+        5258,
+        8
+      ],
+      [
+        5259,
+        9
+      ],
+      [
+        5260,
+        10
+      ],
+      [
+        5262,
+        11
+      ],
+      [
+        5263,
+        12
+      ],
+      [
+        5264,
+        13
+      ],
+      [
+        5265,
+        14
+      ],
+      [
+        5267,
+        15
+      ]
+    ],
+    "entity_remove_tick": 5293,
+    "last_fortress_pose_tick": 5269,
+    "last_fortress_pose_xyz": [
+      73.7,
+      57,
+      184.3
+    ],
+    "first_return_pose_tick": 5293,
+    "first_return_pose_xyz": [
+      -105.385,
+      34.867,
+      144.119
+    ]
+  },
+  "nether_exit_portal": {
+    "axis": "z",
+    "interior_bottom_xyz": [
+      -96,
+      35,
+      158
+    ],
+    "activation_tick": 5487,
+    "entered_tick": 5489,
+    "overworld_arrival_tick": 5574,
+    "end_portal_center_xyz": [
+      -764,
+      41,
+      1275
+    ],
+    "end_portal_activated_tick": 5622,
+    "end_arrival_tick": 5628
+  },
+  "end_fight": {
+    "end_pearl_throw_ticks": [
+      5655,
+      5736,
+      5807
+    ],
+    "bed_head_or_foot_xyz": [
+      -21,
+      96,
+      -1
+    ],
+    "bed_placement_ticks": [
+      6032,
+      6090,
+      6118,
+      6162
+    ],
+    "respawn_anchor_placement_tick": 6189,
+    "damage_events": [
+      {
+        "tick": 6080,
+        "source": "arrow",
+        "damage": 3.25
+      },
+      {
+        "tick": 6088,
+        "source": "bed_anchor",
+        "damage": 33.75
+      },
+      {
+        "tick": 6094,
+        "source": "bed_anchor",
+        "damage": 44.0
+      },
+      {
+        "tick": 6153,
+        "source": "arrow",
+        "damage": 2.75
+      },
+      {
+        "tick": 6160,
+        "source": "bed_anchor",
+        "damage": 44.25
+      },
+      {
+        "tick": 6167,
+        "source": "bed_anchor",
+        "damage": 48.0
+      },
+      {
+        "tick": 6224,
+        "source": "arrow",
+        "damage": 2.75
+      },
+      {
+        "tick": 6237,
+        "source": "bed_anchor",
+        "damage": 35.25
+      }
+    ]
+  },
+  "reference_tick_note": "timelines_ms and result_igt_ms are official IGT. Other ticks order replay events and must not be converted into official IGT. Render distance values are observed settings; the replay does not identify physical keys."
+}

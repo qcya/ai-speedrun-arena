@@ -6,17 +6,25 @@ from pathlib import Path
 
 def compare(record,reference):
     actual=json.loads(record.read_text(encoding="utf-8"))["advancements"]
-    expected=json.loads(reference.read_text(encoding="utf-8"))["timelines_ms"]
+    baseline=json.loads(reference.read_text(encoding="utf-8"))
+    player=baseline["player"]
+    expected=baseline["timelines_ms"]
     rows=[]
     for key,goal in expected.items():
         category,criterion=key.split(".",1)
         own=actual.get("minecraft:"+category+"/"+criterion,{})
         if own.get("complete") and isinstance(own.get("igt"),int):
-            rows.append({"event":key,"astra_igt_ms":own["igt"],"xiamoys_igt_ms":goal,"difference_ms":own["igt"]-goal})
+            row={"event":key,"astra_igt_ms":own["igt"],"reference_player":player,
+                 "reference_igt_ms":goal,"difference_ms":own["igt"]-goal}
+            if player == "xiamoys":
+                row["xiamoys_igt_ms"]=goal
+            rows.append(row)
     return rows
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("record",type=Path,help="speedrunigt/record.json in the closed local world")
+    parser.add_argument("--reference", choices=("xiamoys","Ormo"), default="xiamoys")
     opts=parser.parse_args()
-    print(json.dumps(compare(opts.record,Path(__file__).resolve().parents[1]/"champion.json"),indent=2))
+    filename="champion.json" if opts.reference == "xiamoys" else "ormo-reference.json"
+    print(json.dumps(compare(opts.record,Path(__file__).resolve().parents[1]/filename),indent=2))

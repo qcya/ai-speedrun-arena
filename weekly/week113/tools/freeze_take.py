@@ -78,7 +78,8 @@ def pack(world, replay, destination, segment):
     if complete and delta is None: raise ValueError("A scored run requires a recorded clock alignment")
     if delta is not None and complete and hi<delta+last["elapsed_ms"]-150:
         raise ValueError("Replay ends before the native finish")
-    reference=course['top_five'][0].copy()
+    route=course.get('route_reference',course['top_five'][0])
+    reference={key:route[key] for key in ('player','time_ms')}
     if complete and not segment:
         from official_board import current_benchmark, ENDPOINT
         course=current_benchmark(course)

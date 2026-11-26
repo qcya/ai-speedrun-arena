@@ -33,14 +33,14 @@
   "top_five": [
     {
       "rank": 1,
-      "player": "xiamoys",
-      "time_ms": 335528,
+      "player": "Ormo",
+      "time_ms": 328356,
       "has_replay": true
     },
     {
       "rank": 2,
-      "player": "Ormo",
-      "time_ms": 350652,
+      "player": "xiamoys",
+      "time_ms": 335528,
       "has_replay": true
     },
     {
@@ -62,6 +62,12 @@
       "has_replay": true
     }
   ],
-  "champion_replay_url": "https://replay.mcsrranked.com/races/113/a20541925b5648e1ae88a141ca37911e.rrf?t=335528",
-  "champion_replay_sha256": "ff4c9b5906fac14ee1b34b02ef09d41839ebb3190f1a0713519b71454a83faa1"
+  "route_reference": {
+    "player": "xiamoys",
+    "time_ms": 335528,
+    "rank_at_route_selection": 1,
+    "replay_url": "https://replay.mcsrranked.com/races/113/a20541925b5648e1ae88a141ca37911e.rrf?t=335528",
+    "replay_sha256": "ff4c9b5906fac14ee1b34b02ef09d41839ebb3190f1a0713519b71454a83faa1"
+  },
+  "leaderboard_checked_at_utc": "2026-11-26T07:48:11+00:00"
 }

@@ -239,9 +239,10 @@ def inspect_world(world):
     timer = read(timer_file) if timer_file.is_file() else {}
     from compare_splits import compare
     splits = compare(timer_file, WEEK / 'champion.json') if 'advancements' in timer else []
+    ormo_splits = compare(timer_file, WEEK / 'ormo-reference.json') if 'advancements' in timer else []
     location = {name: rows.last[name] for name in ('dim', 'x', 'y', 'z', 'hp', 'reference_tick',
                 'opening_action', 'middle_action', 'end_action') if name in rows.last}
-    return {'last_state': location, 'comparison_ms': splits,
+    return {'last_state': location, 'comparison_ms': splits, 'comparison_ormo_ms': ormo_splits,
             'observer_event': rows.last.get('event'), 'final_igt_ms': timer.get('final_igt'),
             'observer_rta_ms': rows.last.get('elapsed_ms'), 'native_completed': timer.get('is_completed') is True,
             'observed_credits': 'credits' in rows.events, 'death': 'death' in rows.events,
