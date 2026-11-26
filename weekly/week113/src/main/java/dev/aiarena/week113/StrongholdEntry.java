@@ -264,11 +264,15 @@ public final class StrongholdEntry {
         double dx = mc.player.getX() - x, dz = mc.player.getZ() - z;
         double forward = dx * d[6] + dz * d[7];
         double across = Math.abs(dx * d[7] - dz * d[6]);
-        double advance = forward < -.4 && across > .085 ? Math.min(forward, -.82) : 1.2;
+        boolean aligning = forward < -.4 && across > .085;
+        double advance = aligning ? Math.min(forward, -.82) : 1.2;
         x += d[6] * advance;
         z += d[7] * advance;
-        if (facingMob) {
-            BastionApproach.move(mc, x, z, false, false);
+        if (aligning || facingMob) {
+            // Normal corridor walking accepts a 0.4-block arrival radius. An open
+            // iron door admits only a narrow band. A short sidestep must still move.
+            if (!facingMob) Race.aim(mc, new Vec3d(x, mc.player.getEyeY(), z));
+            BastionApproach.move(mc, x, z, aligning, false);
         } else {
             walk(mc, x, z, false);
             mc.options.keyJump.setPressed(false);

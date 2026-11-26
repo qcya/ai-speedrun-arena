@@ -207,7 +207,14 @@ final class BastionEgress {
         Race.stop(mc);mc.options.keyAttack.setPressed(false);Race.cap(2131);
         if(mc.player.getY()<33.5){lowerShield(mc);useUpper=false;return false;}
         if(index==BRANCH && !branchDecided){
-            branchDecided=true;shortRecess=!lowerLandingOccupied(mc);
+            branchDecided=true;
+            shortRecess=!lowerLandingOccupied(mc);
+            // The diagonal descent cannot be built from the upper terrace by a side-face click.
+            // Use this shortcut only when every landing has a real collision surface.
+            for (int[] foot : RECESS) {
+                BlockPos floor = new BlockPos(foot[0], foot[1] - 1, foot[2]);
+                if (BastionApproach.open(mc, floor)) shortRecess=false;
+            }
         }
         // Recheck while still able to stay on the high crossing.
         if(shortRecess && index==BRANCH && mc.player.getY()>=35.7 && lowerLandingOccupied(mc))shortRecess=false;

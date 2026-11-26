@@ -439,6 +439,32 @@ public final class Opening {
             if(count(mc,Items.FLINT)>0){landStep++;return true;}
             if(tick<646)return false;
             Race.stop(mc);
+            // The item can land behind a one-block lip in the TNT crater. Track the
+            // real dropped flint before choosing where to replant another piece of gravel.
+            net.minecraft.entity.ItemEntity drop = null;
+            double closestDrop = 24 * 24;
+            boolean needsGravel = count(mc, Items.GRAVEL) == 0;
+            for (net.minecraft.entity.Entity entity : mc.world.getEntities()) {
+                if (!(entity instanceof net.minecraft.entity.ItemEntity) || !entity.isAlive()) continue;
+                net.minecraft.entity.ItemEntity item = (net.minecraft.entity.ItemEntity)entity;
+                Item type = item.getStack().getItem();
+                if (type != Items.FLINT && !(needsGravel && type == Items.GRAVEL)) continue;
+                double range = mc.player.squaredDistanceTo(item);
+                if (range >= 24 * 24) continue;
+                if (drop != null && drop.getStack().getItem() == Items.FLINT && type != Items.FLINT) continue;
+                if (drop == null || type == Items.FLINT && drop.getStack().getItem() != Items.FLINT
+                        || range < closestDrop) {
+                    drop = item;
+                    closestDrop = range;
+                }
+            }
+            if (drop != null) {
+                mc.options.keyAttack.setPressed(false);
+                if (!mc.player.getBoundingBox().expand(1, .5, 1).intersects(drop.getBoundingBox()))
+                    walk(mc, drop.getPos(), closestDrop > 7);
+                status = drop.getStack().getItem() == Items.FLINT ? "collecting the mined flint" : "collecting the mined gravel";
+                return true;
+            }
             if(gravelPos!=null &&mc.world.getBlockState(gravelPos).getBlock()==Blocks.GRAVEL
                     &&mc.player.getCameraPosVec(1).squaredDistanceTo(Vec3d.ofCenter(gravelPos))>18){
                 walk(mc,Vec3d.ofCenter(gravelPos).add(0,0,.6),true);return true;
@@ -468,15 +494,6 @@ public final class Opening {
                 return true;
             }
             mc.options.keyAttack.setPressed(false);
-            for(net.minecraft.entity.Entity ent:mc.world.getEntities()){
-                if(ent instanceof net.minecraft.entity.ItemEntity){
-                    Item i=((net.minecraft.entity.ItemEntity)ent).getStack().getItem();
-                    if((i==Items.FLINT || i==Items.GRAVEL && count(mc,Items.GRAVEL)==0)
-                            && mc.player.squaredDistanceTo(ent)<40 && mc.player.canSee(ent)) {
-                        walk(mc,ent.getPos(),false);return true;
-                    }
-                }
-            }
             if(count(mc,Items.GRAVEL)>0){
                 BlockPos support=gravelPos.down();
                 Vec3d top=Vec3d.ofCenter(support).add(0,.499,0);
