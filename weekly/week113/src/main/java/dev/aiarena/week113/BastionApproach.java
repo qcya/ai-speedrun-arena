@@ -39,7 +39,7 @@ public final class BastionApproach {
     private static int index, inventoryTicks;
     private static Boolean originalAutoJump;
     private static int entranceIndex=1;
-    public static void reset(){restoreJump();entranceIndex=1;index=0;inventoryTicks=0;status="";}
+    public static void reset(){EastBastionApproach.reset();restoreJump();entranceIndex=1;index=0;inventoryTicks=0;status="";}
     private static void restoreJump(){
         if(originalAutoJump!=null){MinecraftClient.getInstance().options.autoJump=originalAutoJump;originalAutoJump=null;}
     }
@@ -163,7 +163,7 @@ public final class BastionApproach {
     }
     // Trace the player's width across the live surface. Select a distant aim point
     // only when a sprinting player can run all the way there without a new bridge.
-    private static boolean corridor(MinecraftClient m,BlockPos target,boolean forJump) {
+    static boolean corridor(MinecraftClient m,BlockPos target,boolean forJump) {
         double ax=m.player.getX(),az=m.player.getZ(),dx=target.getX()+.5-ax,dz=target.getZ()+.5-az,len=Math.hypot(dx,dz);
         if(len<.25)return false;
         double nx=-dz/len*.26,nz=dx/len*.26;
@@ -227,6 +227,13 @@ public final class BastionApproach {
     /** Packets only follow ordinary local input or a rendered crosshair interaction. */
     public static boolean tick(MinecraftClient m){
         Race.stop(m);m.options.keyAttack.setPressed(false);
+        if(EastBastionApproach.shouldHandle(m)) {
+            int resume=EastBastionApproach.tick(m,path);
+            status=EastBastionApproach.status;
+            if(resume<0)return false;
+            entranceIndex=4;
+            index=resume;
+        }
         if(entranceIndex<=3 && !secureEntrance(m))return false;
         if(index>=path.size())return reachChestTerrace(m,path.get(path.size()-1));
         // One supported dirt extension leaves the next cell open as a moat against sword pigs.

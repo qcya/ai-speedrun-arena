@@ -7,6 +7,8 @@ import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.mob.BlazeEntity;
+import net.minecraft.entity.mob.WitherSkeletonEntity;
+import net.minecraft.entity.mob.ZombifiedPiglinEntity;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.tag.FluidTags;
@@ -25,7 +27,10 @@ import net.minecraft.world.RayTraceContext;
  */
 public final class Fortress {
     private static final Vec3d SPAWNER = new Vec3d(-7.5, 60.5, 115.5);
-    private static int previousEnemy, swordTicks;
+    private static boolean excavating, guardingBridge;
+    private static int bridgeSwing = -20;
+    private static int previousEnemy, swordTicks, jumpingAt = -1, jumpTicks;
+    private static int lastSwing = -20;
     private static boolean ownsInventory, fighting;
     private static int pocketRods = -1, exitStep;
     public static String status = "approaching the fortress spawner";
@@ -33,10 +38,15 @@ public final class Fortress {
     private Fortress() {}
 
     public static void reset() {
+        excavating = guardingBridge = false;
+        bridgeSwing = -20;
         previousEnemy = -1;
         pocketRods = -1;
         exitStep = 0;
         swordTicks = 0;
+        jumpingAt = -1;
+        jumpTicks = 0;
+        lastSwing = -20;
         ownsInventory = fighting = false;
     }
 
@@ -104,6 +114,73 @@ public final class Fortress {
         return false;
     }
 
+    /** Covers the bridge after the second pearl while the third launch still uses the reference route. */
+    static boolean guardBridge(MinecraftClient mc, int reference) {
+        WitherSkeletonEntity threat = null;
+        double nearest = guardingBridge ? 81 : 49;
+        boolean onReturnBridge = reference >= 5161 && reference < 5412
+                && mc.player.inventory.count(Items.BLAZE_ROD) >= 6
+                && mc.player.getX() >= -38 && mc.player.getX() <= 3
+                && mc.player.getZ() >= 150 && mc.player.getZ() <= 174;
+        if (((reference >= 3350 && reference < 3490) || onReturnBridge) && mc.player.getX() > -39
+                && mc.player.getY() >= 54 && !mc.player.isInLava() && mc.currentScreen == null) {
+            for (Entity entity : mc.world.getEntities()) {
+                if (!(entity instanceof WitherSkeletonEntity) || !entity.isAlive()
+                        || Math.abs(entity.getY() - mc.player.getY()) > 2.75) continue;
+                double distance = entity.squaredDistanceTo(mc.player);
+                if (distance < nearest && mc.player.canSee(entity)) {
+                    nearest = distance;
+                    threat = (WitherSkeletonEntity) entity;
+                }
+            }
+        }
+        if (threat == null) {
+            if (guardingBridge) {
+                mc.options.keyUse.setPressed(false);
+                if (mc.player.getActiveItem().getItem() == Items.SHIELD)
+                    mc.interactionManager.stopUsingItem(mc.player);
+            }
+            guardingBridge = false;
+            return false;
+        }
+
+        guardingBridge = true;
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        if (mc.player.isUsingItem() && mc.player.getActiveItem().getItem() != Items.SHIELD) {
+            mc.options.keyUse.setPressed(false);
+            mc.interactionManager.stopUsingItem(mc.player);
+        }
+        Vec3d point = threat.getPos().add(0, 1.55, 0);
+        Race.aim(mc, point);
+        mc.gameRenderer.updateTargetedEntity(1);
+        boolean sword = Middle.select(mc, Items.DIAMOND_SWORD);
+        boolean shield = mc.player.getOffHandStack().getItem() == Items.SHIELD;
+        double dx = threat.getX() - mc.player.getX(), dz = threat.getZ() - mc.player.getZ();
+        double distance = Math.hypot(dx, dz);
+        if (distance < 2.65) walk(mc, -dx, -dz);
+        // A counter after the enemy's visible swing leaves time to raise the shield again.
+        // At outer sword reach we can also interrupt the approach before its stone sword connects.
+        boolean canStrike = !shield || distance >= 2.50 || threat.handSwinging;
+        if (sword && canStrike && mc.player.age - bridgeSwing >= 13
+                && mc.player.getAttackCooldownProgress(.5f) >= .995f
+                && mc.crosshairTarget instanceof EntityHitResult
+                && ((EntityHitResult)mc.crosshairTarget).getEntity() == threat) {
+            if (mc.player.isUsingItem()) mc.interactionManager.stopUsingItem(mc.player);
+            mc.options.keyUse.setPressed(false);
+            mc.interactionManager.attackEntity(mc.player, threat);
+            mc.player.swingHand(Hand.MAIN_HAND);
+            bridgeSwing = mc.player.age;
+            status = "countering the wither skeleton on the fortress bridge";
+            return true;
+        }
+        if (shield && !mc.player.isUsingItem())
+            mc.interactionManager.interactItem(mc.player, mc.world, net.minecraft.util.Hand.OFF_HAND);
+        mc.options.keyUse.setPressed(shield);
+        status = "guarding against the wither skeleton on the fortress bridge";
+        return true;
+    }
+
     private static boolean clear(MinecraftClient mc, BlockPos p) {
         return mc.world.getBlockState(p).getCollisionShape(mc.world, p).isEmpty();
     }
@@ -127,15 +204,29 @@ public final class Fortress {
     }
 
     private static void walk(MinecraftClient mc, double dx, double dz) {
-        walk(mc, dx, dz, null);
+        walk(mc, dx, dz, null, false);
     }
 
-    private static void walk(MinecraftClient mc, double dx, double dz, BlockPos rodLanding) {
+    private static boolean canClimbCageStep(MinecraftClient mc, double dx, double dz) {
+        BlockPos feet = new BlockPos(mc.player.getX() + .65 * dx, mc.player.getY() + .06,
+                mc.player.getZ() + .65 * dz);
+        if (feet.getY() < 58 || feet.getY() > 61 || feet.getX() < -10 || feet.getX() > -5
+                || feet.getZ() < 112 || feet.getZ() > 120
+                || mc.world.getBlockState(feet).getBlock() != Blocks.NETHER_BRICKS) return false;
+        return clear(mc, feet.up()) && clear(mc, feet.up(2))
+                && clear(mc, mc.player.getBlockPos().up(2))
+                && mc.world.getBlockState(feet.up()).getBlock() != Blocks.FIRE
+                && !mc.world.getFluidState(feet.up()).isIn(FluidTags.LAVA);
+    }
+
+    private static void walk(MinecraftClient mc, double dx, double dz, BlockPos rodLanding, boolean chase) {
         double length = Math.hypot(dx, dz);
         if (length < .08) return;
         dx /= length;
         dz /= length;
-        if (!safeStep(mc, dx, dz, rodLanding)) {
+        if (chase && canClimbCageStep(mc, dx, dz)) {
+            mc.options.keyJump.setPressed(mc.player.isOnGround());
+        } else if (!safeStep(mc, dx, dz, rodLanding)) {
             // Try stepping around a fence post or the spawner instead of backing into a wall.
             double leftX = (dx + dz) * .707, leftZ = (dz - dx) * .707;
             double rightX = (dx - dz) * .707, rightZ = (dz + dx) * .707;
@@ -266,7 +357,73 @@ public final class Fortress {
             pocketRods = mc.player.inventory.count(Items.BLAZE_ROD);
             exitStep = 0;
         }
-        walk(mc, p.x - mc.player.getX(), p.z - mc.player.getZ(), landing);
+        walk(mc, p.x - mc.player.getX(), p.z - mc.player.getZ(), landing, false);
+    }
+
+    private static boolean openCageFloor(MinecraftClient mc) {
+        if (Race.referenceTick() < 3700 || mc.player.inventory.count(Items.BOW) == 0
+                || mc.player.inventory.count(Items.IRON_PICKAXE) == 0 || !mc.player.isOnGround()
+                || mc.player.getY() < 59 || mc.player.getY() > 61.1
+                || Math.hypot(mc.player.getX() + 7.5, mc.player.getZ() - 115.5) > 5.5) return false;
+        Vec3d eye = mc.player.getCameraPosVec(1);
+        BlockPos best = null;
+        double score = 16;
+        for (int x = -9; x <= -6; x++) {
+            for (int z = 113; z <= 117; z++) {
+                BlockPos p = new BlockPos(x, 59, z);
+                if (mc.world.getBlockState(p).getBlock() != Blocks.NETHER_BRICKS
+                        || mc.world.getBlockState(p.down()).getBlock() != Blocks.NETHER_BRICKS
+                        || !clear(mc, p.up()) || mc.player.getBoundingBox().intersects(new Box(p.up()))) continue;
+                Vec3d top = new Vec3d(x+.5, 59.99, z+.5);
+                double distance = eye.squaredDistanceTo(top);
+                if (distance >= score) continue;
+                BlockHitResult hit = mc.world.rayTrace(new RayTraceContext(eye, top,
+                        RayTraceContext.ShapeType.OUTLINE, RayTraceContext.FluidHandling.NONE, mc.player));
+                if (hit.getType() == HitResult.Type.BLOCK && p.equals(hit.getBlockPos())) {
+                    score = distance;
+                    best = p;
+                }
+            }
+        }
+        if (best == null) return false;
+        Race.stop(mc);
+        status = "opening spawn space in the fortress cage";
+        mc.options.keyAttack.setPressed(false);
+        if (!Middle.select(mc, Items.IRON_PICKAXE)) return true;
+        if (Middle.aim(mc, best, net.minecraft.util.math.Direction.UP) != null)
+            mc.options.keyAttack.setPressed(true);
+        excavating = true;
+        return true;
+    }
+
+    /** On the flat cage floor, two fully charged falling sword hits defeat a full-health blaze. */
+    private static boolean waitForFallingHit(MinecraftClient mc, BlazeEntity blaze, double range) {
+        float hp = blaze.getHealth();
+        if (jumpingAt != blaze.getEntityId()) {
+            jumpingAt = blaze.getEntityId();
+            jumpTicks = 0;
+        }
+        // A grounded diamond-sword sweep can enrage a nearby neutral piglin.
+        // Wait for a descending jump even when the blaze needs only one ordinary hit.
+        for (ZombifiedPiglinEntity piglin : mc.world.getNonSpectatingEntities(
+                ZombifiedPiglinEntity.class, blaze.getBoundingBox().expand(1.15, .35, 1.15))) {
+            if (piglin.squaredDistanceTo(mc.player) > 3.3 * 3.3 || !mc.player.canSee(piglin)) continue;
+            if (mc.player.fallDistance >= .21f) break;
+            if (mc.player.isOnGround()) mc.options.keyJump.setPressed(true);
+            return true;
+        }
+        // The first descending movement packet can still be in transit when a click is issued.
+        if (mc.player.fallDistance >= .21f && !mc.player.isSprinting()) return false;
+        if (hp <= 7 || (hp > 10.5f && hp <= 17.5f) || range > 3.35
+                || mc.player.getHealth() < 7 || mc.player.getY() < 59.5
+                || mc.player.getY() > 62.5 || mc.player.getZ() < 111.0 || mc.player.getZ() > 119.9)
+            return false;
+        if (mc.player.isOnGround()) {
+            if (!clear(mc, mc.player.getBlockPos().up(2))) return false;
+            if (mc.player.getAttackCooldownProgress(.5f) >= .40f)
+                mc.options.keyJump.setPressed(true);
+        }
+        return ++jumpTicks <= 14;
     }
 
     /**
@@ -330,6 +487,12 @@ public final class Fortress {
         }
         if (target == null && rod == null) {
             fighting = false;
+            if (openCageFloor(mc)) return true;
+            if (excavating) {
+                mc.options.keyAttack.setPressed(false);
+                mc.interactionManager.cancelBlockBreaking();
+                excavating = false;
+            }
             previousEnemy = -1;
             swordTicks = 0;
             return false;
@@ -339,6 +502,10 @@ public final class Fortress {
                 && (target == null
                         || rodRange < .65 * .65
                         || target.squaredDistanceTo(mc.player) > 3.25 * 3.25)) {
+            if (Middle.makeRoomForRods(mc,1)) {
+                status=Middle.status;
+                return true;
+            }
             takeRod(mc, rod);
             return true;
         }
@@ -351,12 +518,16 @@ public final class Fortress {
                 dz = target.getZ() - mc.player.getZ(),
                 range = Math.hypot(dx, dz);
         if (range < 2.40) walk(mc, -dx, -dz);
-        else if (range > 2.85 || eye.distanceTo(aim) > 2.98) walk(mc, dx, dz);
-        if (mc.crosshairTarget instanceof EntityHitResult
+        else if (range > 2.85 || eye.distanceTo(aim) > 2.98) walk(mc, dx, dz, null, true);
+        boolean waitForCritical = waitForFallingHit(mc, target, range);
+        if (!waitForCritical && mc.player.age - lastSwing >= 13
+                && mc.crosshairTarget instanceof EntityHitResult
                 && ((EntityHitResult) mc.crosshairTarget).getEntity() == target
                 && mc.player.getAttackCooldownProgress(.5f) >= .995f) {
             mc.interactionManager.attackEntity(mc.player, target);
             mc.player.swingHand(Hand.MAIN_HAND);
+            jumpTicks = 0;
+            lastSwing = mc.player.age;
         }
         return true;
     }

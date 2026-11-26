@@ -1,6 +1,11 @@
 package dev.aiarena.week113;
 
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.vehicle.BoatEntity;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.recipe.Recipe;
 import net.minecraft.screen.ScreenHandler;
@@ -384,7 +389,7 @@ public final class Opening {
             case 11:ok=craft(mc,"bucket",Items.BUCKET,1,true,false);break;
             case 12:ok=craft(mc,"oak_boat",Items.OAK_BOAT,1,true,false);break;
             case 13:ok=craft(mc,"oak_door",Items.OAK_DOOR,6,true,false);break;
-            case 14:ok=craft(mc,"stick",Items.STICK,3,true,false);break;
+            case 14:ok=craft(mc,"stick",Items.STICK,7,true,false);break;
             case 15:ok=craft(mc,"diamond_sword",Items.DIAMOND_SWORD,1,true,false);break;
             case 16:ok=craft(mc,shovel==Items.WOODEN_SHOVEL?"wooden_shovel":"golden_shovel",shovel,1,true,false);break;
             case 17:ok=craft(mc,"shield",Items.SHIELD,1,true,false);break;
@@ -469,6 +474,27 @@ public final class Opening {
         if(landStep==20){
             if(!craft(mc,"flint_and_steel",Items.FLINT_AND_STEEL,1,false,false))return true;
             if(mc.currentScreen!=null)mc.player.closeHandledScreen();
+            if(count(mc,Items.OAK_PLANKS)<4 && count(mc,Items.CRAFTING_TABLE)==0) {
+                // A shield spends six planks. Carry the existing workbench when the
+                // remaining planks cannot supply a second one for the fortress bow.
+                Race.stop(mc);
+                status="recovering the workbench for the fortress bow";
+                if(table!=null && mc.world.getBlockState(table).getBlock()==Blocks.CRAFTING_TABLE) {
+                    if(target(mc,table)!=null) mc.options.keyAttack.setPressed(true);
+                    else if(!mc.player.getBlockPos().down().equals(table)) walk(mc,Vec3d.ofCenter(table),true);
+                    // On the table, let target() finish pitching down over successive ticks.
+                    return true;
+                }
+                for(net.minecraft.entity.Entity entity:mc.world.getEntities()) {
+                    if(entity instanceof net.minecraft.entity.ItemEntity && entity.isAlive()
+                            && ((net.minecraft.entity.ItemEntity)entity).getStack().getItem()==Items.CRAFTING_TABLE
+                            && mc.player.squaredDistanceTo(entity)<64) {
+                        walk(mc,entity.getPos(),false);
+                        break;
+                    }
+                }
+                return true;
+            }
             landStep++;Race.advanceTo(698);
         }
         return false;
@@ -500,16 +526,44 @@ public final class Opening {
             return true;
         }
         if(boarded){
-            mc.options.keySneak.setPressed(false);
-            if(count(mc,Items.OAK_BOAT)==0) {
-                for(net.minecraft.entity.Entity e:mc.world.getEntities())if(e instanceof net.minecraft.entity.vehicle.BoatEntity && mc.player.squaredDistanceTo(e)<14){
-                    Race.aim(mc,e.getPos().add(0,.3,0));mc.gameRenderer.updateTargetedEntity(1);
-                    if(mc.crosshairTarget instanceof net.minecraft.util.hit.EntityHitResult && ((net.minecraft.util.hit.EntityHitResult)mc.crosshairTarget).getEntity()==e){
-                        select(mc,Items.DIAMOND_SWORD);mc.interactionManager.attackEntity(mc.player,e);mc.player.swingHand(Hand.MAIN_HAND);
-                    }break;
+            Race.stop(mc);
+            ServerPlayerEntity self=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+            if(count(mc,Items.OAK_BOAT)>0 && self!=null && self.inventory.count(Items.OAK_BOAT)>0){
+                Race.advanceTo(968);
+                return false;
+            }
+            Race.cap(965);
+            if(Hotbar.tick(mc))return true;
+            status="recovering the boat at the ravine";
+            Entity vehicle=null,drop=null;
+            double boatDistance=196,dropDistance=196;
+            for(Entity entity:mc.world.getEntities()){
+                if(!entity.isAlive())continue;
+                double distance=mc.player.squaredDistanceTo(entity);
+                if(entity instanceof ItemEntity && ((ItemEntity)entity).getStack().getItem()==Items.OAK_BOAT && distance<dropDistance){
+                    drop=entity;dropDistance=distance;
+                }else if(entity instanceof BoatEntity && distance<boatDistance){
+                    vehicle=entity;boatDistance=distance;
                 }
             }
-            return false;
+            Entity target=drop!=null?drop:vehicle;
+            if(target!=null){
+                Vec3d point=target.getBoundingBox().getCenter();
+                Race.aim(mc,point);
+                if(Math.hypot(point.x-mc.player.getX(),point.z-mc.player.getZ())>(drop!=null?.24:1.8))
+                    BastionApproach.move(mc,point.x,point.z,false,false);
+                if(drop==null && vehicle!=null && Hotbar.select(mc,Items.DIAMOND_SWORD,2)
+                        && self!=null && self.getMainHandStack().getItem()==Items.DIAMOND_SWORD
+                        && mc.player.getAttackCooldownProgress(.5f)>.95f){
+                    mc.gameRenderer.updateTargetedEntity(1);
+                    if(mc.crosshairTarget instanceof EntityHitResult && ((EntityHitResult)mc.crosshairTarget).getEntity()==vehicle){
+                        mc.interactionManager.attackEntity(mc.player,vehicle);
+                        mc.player.swingHand(Hand.MAIN_HAND);
+                    }
+                }
+            }
+            mc.options.keyJump.setPressed(mc.player.isTouchingWater() && (target==null || target.getY()>=mc.player.getY()-.25));
+            return true;
         }
         if(tick>=720 && tick<900) {
             net.minecraft.entity.Entity boat=null;

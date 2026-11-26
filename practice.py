@@ -319,7 +319,7 @@ def select_skin(explicit, work):
     raise ValueError('Point --skin at the original local qcya_ovo.png, or put it in Downloads.')
 
 
-def prepare_attempt(prism_data, work, skin, deps, opening="fast", wait_for_piglins=False, initial_view_distance=None):
+def prepare_attempt(prism_data, work, skin, deps, opening="fast", wait_for_piglins=False, initial_view_distance=16):
     token = str(uuid.uuid4())
     instance = Path(tempfile.mkdtemp(prefix='Astra-Practice-', dir=prism_data / 'instances'))
     game = instance / '.minecraft'
@@ -331,7 +331,7 @@ def prepare_attempt(prism_data, work, skin, deps, opening="fast", wait_for_pigli
     setup = render.load_helper('prepare_weekly', WEEK / 'prepare.py')
     setup.prepare(SimpleNamespace(game_dir=game, world_name=WORLD, skin=None, ranked_jar=deps['ranked'],
                                   replay_jar=deps['replaymod'], autostart=True, shield=opening=='shield',
-                                  wait_for_piglins=wait_for_piglins))
+                                  wait_for_piglins=wait_for_piglins, save_gold=opening=='shield'))
     film = render.load_helper('prepare_local_film', ROOT / 'presentation/prepare.py')
     film.prepare(game, skin, 'auto', 'nether', RULES, ROOT / 'presentation/astra-local-film.jar', work / 'split-history')
     if initial_view_distance is not None:
@@ -475,8 +475,8 @@ if __name__=='__main__':
     p.add_argument('--attempts',type=int,default=0,help='Number of attempts this invocation; zero continues until qualification')
     p.add_argument('--opening', choices=['alternate', 'fast', 'shield'], default='alternate',
                    help='Alternate the fast iron-trigger and shield openings across completed attempts, or select one lane')
-    p.add_argument('--initial-view-distance', type=int, metavar='CHUNKS',
-                   help='Use a chosen initial render distance, for example 16, in the isolated practice instance')
+    p.add_argument('--initial-view-distance', type=int, default=16, metavar='CHUNKS',
+                   help='Initial render distance in the isolated practice instance (default 16 chunks)')
     p.add_argument('--wait-for-piglins', action='store_true',
                    help='Wait on the isolated chest ledge if the lower bastion corridor contains attacking piglins')
     p.add_argument('--reset-after-rta-seconds', type=int, metavar='SECONDS',

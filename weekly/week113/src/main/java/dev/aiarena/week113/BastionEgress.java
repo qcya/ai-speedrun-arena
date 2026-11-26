@@ -22,13 +22,13 @@ final class BastionEgress {
     };
     private static final BlockPos CHEST = new BlockPos(-124,33,122);
     private static boolean decided,useUpper,covering,waitForPiglins,upperAllowed,waiting;
-    private static int index,settledTicks,waitingTicks;
+    private static int index,settledTicks,waitingTicks,clearTicks;
     private static BlockPos lootFoot,lastUnreachable;
     static boolean arrived;
     static String status="";
 
     static void reset() {
-        decided=false;useUpper=false;arrived=false;covering=false;waiting=false;index=1;lootFoot=null;lastUnreachable=null;settledTicks=waitingTicks=0;
+        decided=false;useUpper=false;arrived=false;covering=false;waiting=false;index=1;lootFoot=null;lastUnreachable=null;settledTicks=waitingTicks=clearTicks=0;
         net.minecraft.server.integrated.IntegratedServer server=MinecraftClient.getInstance().getServer();
         waitForPiglins=server!=null&&java.nio.file.Files.isRegularFile(server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-bastion-wait"));
         upperAllowed=server!=null&&java.nio.file.Files.isRegularFile(server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-bastion-upper"));
@@ -37,15 +37,35 @@ final class BastionEgress {
     private static boolean crowded(MinecraftClient mc) {
         int count=0;
         for(Entity entity:mc.world.getEntities()) {
-            if(!(entity instanceof PiglinEntity)||!entity.isAlive()||entity.getY()>35.5)continue;
+            if(!(entity instanceof PiglinEntity)||!entity.isAlive())continue;
             PiglinEntity piglin=(PiglinEntity)entity;
             if(piglin.isBaby()||!(piglin.getMainHandStack().getItem() instanceof SwordItem))continue;
+            // A sword piglin already on the chest ledge can knock the player into
+            // the lower group before the first descent block is in reach.
+            if(entity.getY() >= 35.5 && Math.abs(entity.getY()-mc.player.getY()) < 2.25
+                    && entity.squaredDistanceTo(mc.player) < 20.25
+                    && piglin.getActivity()==PiglinEntity.Activity.ATTACKING_WITH_MELEE_WEAPON) return true;
+            if(entity.getY()>35.5)continue;
             // A second adult on the western approach is within striking distance
             // a few seconds after the drop even when it is far from the first chest.
             double x=entity.getX(),z=entity.getZ();
             double fraction=Math.max(0,Math.min(1,((x+111)*-8+(z-112)*3)/73));
             double distance=Math.hypot(x-(-111-8*fraction),z-(112+3*fraction));
             if(distance<5.1 && ++count>=2)return true;
+        }
+        return false;
+    }
+
+    private static boolean descentThreatened(MinecraftClient mc) {
+        for (Entity entity:mc.world.getEntities()) {
+            if (!(entity instanceof PiglinEntity) || !entity.isAlive()) continue;
+            PiglinEntity pig=(PiglinEntity)entity;
+            if (pig.isBaby() || !pig.isAttacking() || pig.getY()<30.5 || pig.getY()>38.5) continue;
+            double x=pig.getX(), z=pig.getZ();
+            double t=Math.max(0,Math.min(1,((x+110.5)*-12+(z-109.5)*12)/288));
+            double routeDistance=Math.hypot(x-(-110.5-12*t),z-(109.5+12*t));
+            double radius=pig.getMainHandStack().getItem() instanceof SwordItem ? 6.0 : 12.0;
+            if (routeDistance<radius) return true;
         }
         return false;
     }
@@ -105,16 +125,20 @@ final class BastionEgress {
     static boolean tick(MinecraftClient mc) {
         if(!decided){
             decided=true;
-            boolean blocked=BastionApproach.onLootPerch(mc)&&crowded(mc);
+            boolean blocked=overFirstChestTerrace(mc)&&crowded(mc);
             waiting=blocked&&waitForPiglins;
             useUpper=blocked&&upperAllowed&&!waitForPiglins;
         }
         // The first hand-fed trade takes six seconds. Piglins can fill the lower hall during that wait,
         // and the pickup can leave Astra one cell away from the original chest perch or briefly airborne.
-        if(waitForPiglins && !waiting && waitingTicks==0 && mc.player.inventory.count(Items.ENDER_PEARL)>=4
+        if(waitForPiglins && !waiting && waitingTicks==0
                 && overFirstChestTerrace(mc) && crowded(mc)) waiting=true;
         if(waiting){
             Race.stop(mc);mc.options.keyAttack.setPressed(false);mc.options.keySneak.setPressed(true);
+            if(Middle.offerExposedIngot(mc,true)) {
+                status="offering the saved ingot to the piglin above the descent";
+                return true;
+            }
             if(mc.player.getOffHandStack().getItem()==Items.SHIELD) guardRamp(mc);
             int angry=0;
             for(Entity entity:mc.world.getEntities())if(entity instanceof PiglinEntity && entity.isAlive()
@@ -123,7 +147,8 @@ final class BastionEgress {
             // The vanilla chest-looting anger memory lasts 600 ticks. Stay on the
             // isolated ledge in equipped gold, without re-aggroing the group.
             waitingTicks++;
-            if((waitingTicks<603 || angry>0&&waitingTicks<680) && mc.player.getY()>35.6)return true;
+            clearTicks=descentThreatened(mc)?0:clearTicks+1;
+            if(clearTicks<16 && (waitingTicks<603 || angry>0&&waitingTicks<680) && mc.player.getY()>35.6)return true;
             waiting=false;
             lowerShield(mc);
         }

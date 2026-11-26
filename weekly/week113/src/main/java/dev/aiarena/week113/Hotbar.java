@@ -29,20 +29,25 @@ final class Hotbar {
         if (mc.player.getMainHandStack().getItem()==item) return true;
         for(int i=0;i<36;i++) {
             if(mc.player.inventory.getStack(i).getItem()!=item)continue;
-            if(i<9) {
-                mc.player.inventory.selectedSlot=i;
-                return true;
-            }
-            if(mc.currentScreen!=null)return false;
-            pending=item;source=i;destination=mc.player.inventory.selectedSlot;ticks=0;clicked=false;
-            if(preferred>=0) destination=preferred;
-            else if(item==Items.DIAMOND_SWORD) destination=2;
-            else if(item==Items.IRON_PICKAXE) destination=1;
-            else if(destination==1 || destination==2) destination=0;
-            mc.openScreen(new InventoryScreen(mc.player));
-            return false;
+            return selectSlot(mc,i,preferred);
         }
         Middle.status="needs "+net.minecraft.util.registry.Registry.ITEM.getId(item);
+        return false;
+    }
+
+    static boolean selectSlot(MinecraftClient mc,int slot,int preferred) {
+        if(pending!=null || mc.currentScreen!=null) return false;
+        Item item=mc.player.inventory.getStack(slot).getItem();
+        if(slot<9) {
+            mc.player.inventory.selectedSlot=slot;
+            return true;
+        }
+        pending=item;source=slot;destination=mc.player.inventory.selectedSlot;ticks=0;clicked=false;
+        if(preferred>=0) destination=preferred;
+        else if(item==Items.DIAMOND_SWORD) destination=2;
+        else if(item==Items.IRON_PICKAXE) destination=1;
+        else if(destination==1 || destination==2) destination=0;
+        mc.openScreen(new InventoryScreen(mc.player));
         return false;
     }
 

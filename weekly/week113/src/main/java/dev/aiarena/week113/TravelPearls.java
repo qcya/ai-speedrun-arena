@@ -20,10 +20,14 @@ final class TravelPearls {
     private static int readyTicks;
     private static Vec3d returnDirection;
     private static int returnReady;
+    private static boolean swimmingToFortress;
 
-    static void reset() { aimDirection = null; jumping = false; readyTicks = 0; firstDirection=null; firstReady=0; returnDirection=null; returnReady=0; }
+    static void reset() { swimmingToFortress=false; aimDirection = null; jumping = false; readyTicks = 0; firstDirection=null; firstReady=0; returnDirection=null; returnReady=0; }
 
     static boolean catchWall(MinecraftClient mc) {
+        if(!swimmingToFortress && mc.player.isInLava() && mc.player.getY()<35 &&
+                mc.player.getX()>-98 && mc.player.getX()<-39) swimmingToFortress=true;
+        if(swimmingToFortress) return swimToLaunch(mc);
         if (mc.player.getX() < -98) {
             // Track the approaching fortress wall during pearl flight.
             Race.aim(mc,mc.player.getCameraPosVec(1).add(0,-1.5,1));
@@ -113,18 +117,9 @@ final class TravelPearls {
             return false;
         }
         if (firstDirection==null && mc.player.isOnGround()) {
-            Vec3d start=mc.player.getPos().add(0,mc.player.getStandingEyeHeight()+.42-.10,0);
-            Vec3d shelf=new Vec3d(-77.5,74,174.5);
-            double best=Double.POSITIVE_INFINITY;
-            for(int yaw=-36;yaw>=-60;yaw-=2) for(int pitch=-43;pitch>=-68;pitch--) {
-                Vec3d dir=direction(yaw,pitch);
-                double a=landingScore(mc,start,dir.multiply(1.5).add(0,.42,0),shelf,70,79);
-                if (!Double.isFinite(a)) continue;
-                double b=landingScore(mc,start,dir.multiply(1.5).add(0,.335,0),shelf,70,79);
-                double score=Math.max(a,b);
-                if (score<best) {best=score;firstDirection=dir;}
-            }
-            if(firstDirection==null) firstDirection=direction(-48,-55);
+            // Reproducing three native projectiles isolated the lip above the shore.
+            // This angle clears its side and lands on the broad floor at Y74.
+            firstDirection=direction(-52.5,-55.5);
         }
         if(firstDirection==null || !Middle.select(mc,Items.ENDER_PEARL))return false;
         Race.aim(mc,mc.player.getCameraPosVec(1).add(firstDirection.multiply(10)));
@@ -169,7 +164,46 @@ final class TravelPearls {
         return rising(mc,returnDirection);
     }
 
+    static boolean reachedFortressAfterSwim(MinecraftClient mc) {
+        if (!swimmingToFortress || mc.player.squaredDistanceTo(-30.5,57,167.45)>=9) return false;
+        BlockPos support=new BlockPos(mc.player.getX(),56,mc.player.getZ());
+        return !mc.world.getBlockState(support).getCollisionShape(mc.world,support).isEmpty();
+    }
+
+    static boolean usesLavaRecovery() {
+        return swimmingToFortress;
+    }
+
+    private static boolean swimToLaunch(MinecraftClient mc) {
+        double x=-44.50,z=167.50;
+        double distance=Math.hypot(mc.player.getX()-x,mc.player.getZ()-z);
+        mc.options.keyJump.setPressed(true);
+        if(distance>.32) {
+            Vec3d target=new Vec3d(x,mc.player.getEyeY(),z);
+            Race.aim(mc,target);
+            Middle.approach(mc,target,false);
+            mc.options.keyJump.setPressed(true);
+            mc.options.keySprint.setPressed(true);
+            Middle.status="swimming across the lava to the fortress throw";
+            return false;
+        }
+        Middle.status="settling at the fortress throw on the lava surface";
+        if(!Middle.select(mc,Items.ENDER_PEARL))return false;
+        return Math.hypot(mc.player.getVelocity().x,mc.player.getVelocity().z)<.06;
+    }
+
     static boolean aimSecond(MinecraftClient mc) {
+        if(swimmingToFortress){
+            if(!swimToLaunch(mc))return false;
+            Vec3d dir=direction(-90,-74);
+            Race.aim(mc,mc.player.getCameraPosVec(1).add(dir.multiply(10)));
+            net.minecraft.server.network.ServerPlayerEntity player=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+            if(player==null || player.getRotationVec(1).dotProduct(dir)<.9998 ||
+                    player.getY()<31.55 || player.getY()>31.96 ||
+                    player.getVelocity().y<-.088 || player.getVelocity().y>-.034) return false;
+            Middle.status="throwing from the lava surface to the fortress bridge";
+            return true;
+        }
         if (aimDirection==null && mc.player.isOnGround()) {
             Vec3d offset=FORTRESS.subtract(mc.player.getPos());
             double yaw=Math.toDegrees(Math.atan2(-offset.x,offset.z));

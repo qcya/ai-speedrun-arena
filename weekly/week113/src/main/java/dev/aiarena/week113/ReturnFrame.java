@@ -2,10 +2,8 @@ package dev.aiarena.week113;
 
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
-import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -34,35 +32,19 @@ public final class ReturnFrame {
         for (int slot = 0; slot < 36; slot++) {
             Item i = m.player.inventory.getStack(slot).getItem();
             if (i != primary && (other == null || i != other)) continue;
-            if (slot < 9) {
-                if (m.currentScreen instanceof InventoryScreen) m.player.closeHandledScreen();
-                m.player.inventory.selectedSlot = slot;
-                return m.currentScreen == null;
-            }
-            if (m.currentScreen == null) {
-                m.openScreen(new InventoryScreen(m.player));
-                return false;
-            }
-            if (m.currentScreen instanceof InventoryScreen)
-                m.interactionManager.clickSlot(
-                        m.player.playerScreenHandler.syncId,
-                        slot,
-                        exchangeSlot(m),
-                        SlotActionType.SWAP,
-                        m.player);
-            return false;
+            return Hotbar.select(m,i,exchangeSlot(m));
         }
         return false;
     }
 
     private static int exchangeSlot(MinecraftClient m) {
-        // Keep the lighter in its original hotbar slot so there is no need to
-        // exchange the same two stacks again when the frame is complete.
-        for (int i = 0; i < 9; i++) {
-            Item item = m.player.inventory.getStack(i).getItem();
-            if (item == Items.DIRT
-                    || item == Items.NETHERRACK
-                    || m.player.inventory.getStack(i).isEmpty()) return i;
+        // Keep both frame materials and the lighter available through the entire build.
+        for (int i=0;i<9;i++) if (m.player.inventory.getStack(i).isEmpty()) return i;
+        for (int i=0;i<9;i++) {
+            Item item=m.player.inventory.getStack(i).getItem();
+            if (item!=Items.DIRT && item!=Items.NETHERRACK && item!=Items.OBSIDIAN
+                    && item!=Items.FLINT_AND_STEEL && item!=Items.FIRE_CHARGE
+                    && item!=Items.IRON_PICKAXE && item!=Items.DIAMOND_SWORD) return i;
         }
         return m.player.inventory.selectedSlot;
     }
