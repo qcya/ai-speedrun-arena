@@ -49,6 +49,10 @@ public final class StrongholdEntry {
     };
     private static int door = -1, misses;
     private static boolean guardingCorridor;
+    private static final double[][] FLOODED_TURNS = {
+        {-730.47,1274.52}, {-732.52,1274.52}, {-733.30,1275.55}, {-734.55,1275.55}
+    };
+    private static int floodedTurn = -1;
     private static boolean returnToButton;
     private static boolean active, finished, westernPortal;
     private static final double[][] WESTERN_TURNS = {
@@ -64,6 +68,7 @@ public final class StrongholdEntry {
         phase = point = 0;
         door = -1;
         guardingCorridor = false;
+        floodedTurn = -1;
         misses = 0;
         returnToButton = false;
         waterSpot = null;
@@ -434,8 +439,36 @@ public final class StrongholdEntry {
         return true;
     }
 
+    // A corridor creeper can breach the stronghold ceiling beneath the ocean.
+    // Take the north edge of the same passage, clear the current, then rejoin the floor.
+    private static boolean clearFloodedTurn(MinecraftClient mc, int reference) {
+        if (reference < 5610 || reference > 5644 || mc.currentScreen != null) return false;
+        if (floodedTurn < 0) {
+            if (!mc.player.isTouchingWater() || mc.player.getX() < -731.95 || mc.player.getX() > -728
+                    || mc.player.getZ() < 1274.2 || mc.player.getZ() > 1278.7
+                    || Math.abs(mc.player.getY() - 39) > 1.8) return false;
+            floodedTurn = 0;
+        }
+        double[] target = FLOODED_TURNS[floodedTurn];
+        BlockPos floor = new BlockPos(target[0],38,target[1]);
+        if (mc.world.getBlockState(floor).getCollisionShape(mc.world,floor).isEmpty()
+                || !mc.world.getBlockState(floor.up()).getCollisionShape(mc.world,floor.up()).isEmpty()
+                || !mc.world.getBlockState(floor.up(2)).getCollisionShape(mc.world,floor.up(2)).isEmpty()) {
+            floodedTurn = -1;
+            return false;
+        }
+        Race.stop(mc);
+        if (walk(mc,target[0],target[1],false) && ++floodedTurn == FLOODED_TURNS.length) {
+            floodedTurn = -1;
+            Race.advanceTo(5640);
+        }
+        mc.options.keyJump.setPressed(false);
+        status = "walking along the brick floor beside the flooded corridor";
+        return true;
+    }
+
     public static boolean tick(MinecraftClient mc, int reference) {
-        if (coolPortalPool(mc, reference) || doorPass(mc, reference)) return true;
+        if (clearFloodedTurn(mc, reference) || coolPortalPool(mc, reference) || doorPass(mc, reference)) return true;
         if (finished) return false;
         if (!active && reference >= 5412 && reference < 5479
                 && mc.player.getY() >= 32 && mc.player.getY() <= 38

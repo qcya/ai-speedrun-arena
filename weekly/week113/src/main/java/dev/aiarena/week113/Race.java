@@ -230,6 +230,9 @@ public final class Race {
         limit=LAST;
         boolean controlled=dimensionPhase==0?Opening.tick(mc,cursor):
                 dimensionPhase==3?FinalFight.tick(mc,cursor):Middle.tick(mc,cursor);
-        if(!controlled) follow(mc,dim);
+        if (!controlled) {
+            if (dimensionPhase == 1 || dimensionPhase == 2) Middle.status = "following the recorded route on foot";
+            follow(mc,dim);
+        }
     }
 }
