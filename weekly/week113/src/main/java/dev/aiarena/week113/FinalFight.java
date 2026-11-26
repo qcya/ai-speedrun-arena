@@ -11,9 +11,11 @@ import net.minecraft.item.BoatItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.*;
 import net.minecraft.util.math.*;
+import net.minecraft.world.World;
 
 import java.io.*;
 import java.util.*;
@@ -22,10 +24,11 @@ import java.util.*;
 public final class FinalFight {
     private static final List<int[]> blocks = new ArrayList<>();
     private static int next, phase, age, held, jumpAge;
-    private static int aimTicks, boardRequest, boatRequest, supportY, pearlAge;
+    private static int aimTicks, boardRequest, boatRequest, supportY, pearlAge, brakeTicks;
     private static double launchServerSpeed;
     private static long pearlThrownAt;
     private static boolean waterPlaced, landed, killed, pearlAttempted, pearlLanded, eating;
+    private static boolean crossingChosen, keepPearl;
     private static double lastDragonDistance;
     public static String status = "end approach";
 
@@ -53,8 +56,9 @@ public final class FinalFight {
         next = phase = age = held = jumpAge = aimTicks = 0;
         boardRequest = boatRequest = -100;
         supportY = -1;
+        brakeTicks = 0;
         EndCrossing.reset();
-        pearlAttempted = pearlLanded = eating = false;
+        pearlAttempted = pearlLanded = eating = crossingChosen = keepPearl = false;
         pearlAge = 0;
         waterPlaced = landed = killed = false;
         launchServerSpeed = 0;
@@ -322,6 +326,33 @@ public final class FinalFight {
         return false;
     }
 
+    private static ServerPlayerEntity endPlayer(MinecraftClient mc) {
+        if (mc.getServer() == null) return null;
+        ServerPlayerEntity p = mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+        return p != null && p.getEntityWorld().getRegistryKey() == World.END ? p : null;
+    }
+
+    private static boolean chooseCrossing(MinecraftClient mc) {
+        if (crossingChosen || next != 0 || mc.player.getX() < 96) return true;
+        ServerPlayerEntity server = endPlayer(mc);
+        // A freshly allocated client entity initially reports 20 HP even when
+        // the actual player arrived wounded. Wait for the real arrival position.
+        if (server == null || server.getX() < 96 || Math.abs(server.getZ()) > 3) {
+            Race.stop(mc);
+            status = "arriving on the End platform";
+            return false;
+        }
+        keepPearl = server.getHealth() < 15;
+        crossingChosen = true;
+        if (mc.options.viewDistance < 8
+                && !keepPearl
+                && mc.player.inventory.count(Items.ENDER_PEARL) > 0) {
+            mc.options.viewDistance = 8;
+            mc.options.onPlayerModelPartChange();
+        }
+        return true;
+    }
+
     private static long pearlClock(MinecraftClient m) {
         if (m.getServer() != null && m.getServer().getWorld(net.minecraft.world.World.END) != null)
             return m.getServer().getWorld(net.minecraft.world.World.END).getTime();
@@ -330,7 +361,7 @@ public final class FinalFight {
 
     /** Use only a pearl left in the actual inventory after the portal is filled. */
     private static boolean pearlFromArrival(MinecraftClient m) {
-        if (pearlLanded || (!pearlAttempted && next != 0)) return false;
+        if (keepPearl || pearlLanded || (!pearlAttempted && next != 0)) return false;
         if (!pearlAttempted && m.player.inventory.count(Items.ENDER_PEARL) == 0) return false;
         if (pearlAttempted) {
             if (m.player.getX() < 72 && m.player.getY() > 52) {
@@ -358,7 +389,12 @@ public final class FinalFight {
                         -Math.sin(pitch),
                         Math.cos(yaw) * Math.cos(pitch));
         face(m, m.player.getCameraPosVec(1).add(dir.multiply(10)));
-        if (Math.abs(MathHelper.wrapDegrees(m.player.yaw - 83)) < .15
+        ServerPlayerEntity server = endPlayer(m);
+        if (server != null
+                && server.isOnGround()
+                && Math.abs(MathHelper.wrapDegrees(server.yaw - 83)) < .25
+                && Math.abs(server.pitch + 39) < .25
+                && Math.abs(MathHelper.wrapDegrees(m.player.yaw - 83)) < .15
                 && Math.abs(m.player.pitch + 39) < .15
                 && ++pearlAge >= 2) {
             int before = m.player.inventory.count(Items.ENDER_PEARL);
@@ -378,6 +414,7 @@ public final class FinalFight {
         if (!select(m, 0)) return true;
         double dx = SEAT.x + .055 - m.player.getX(), dz = SEAT.z - .25 - m.player.getZ();
         if (Math.hypot(dx, dz) > .22) {
+            brakeTicks = 0;
             // Record that the final approach now owns the controls before
             // walking away from the last overland waypoint.
             if (supportY == -1) supportY = 0;
@@ -396,6 +433,10 @@ public final class FinalFight {
             return true;
         }
         if (supportY <= 0) {
+            if (!pearlLanded) {
+                m.options.keySneak.setPressed(true);
+                if (++brakeTicks < 4) return true;
+            }
             if (!m.player.isOnGround()
                     || Math.hypot(m.player.getVelocity().x, m.player.getVelocity().z) > .06)
                 return true;
@@ -536,6 +577,17 @@ public final class FinalFight {
                 && Math.hypot(h.getPos().x - SEAT.x, h.getPos().z - SEAT.z) < tolerance;
     }
 
+    private static boolean serverLookingAtDeck(MinecraftClient mc) {
+        ServerPlayerEntity server = endPlayer(mc);
+        if (server == null) return false;
+        Vec3d eye = server.getCameraPosVec(1), direction = server.getRotationVec(1);
+        if (direction.y >= -.01 || eye.y <= SEAT.y) return false;
+        double travel = (SEAT.y - eye.y) / direction.y;
+        if (travel > 5) return false;
+        Vec3d hit = eye.add(direction.multiply(travel));
+        return Math.hypot(hit.x - SEAT.x, hit.z - SEAT.z) < .034;
+    }
+
     private static boolean draw(MinecraftClient mc) {
         if (!select(mc, 1)) return false;
         if (!mc.player.isUsingItem() && mc.player.inventory.count(Items.ARROW) > 0)
@@ -568,7 +620,7 @@ public final class FinalFight {
         if (mc.player.isOnGround()) mc.options.keyJump.setPressed(true);
         // Wait through at least one movement update with the correct aim before the
         // server raycasts the BoatItem. Never manufacture a placement hit or velocity.
-        if (floorPoint(mc, .004) && mc.player.getY() >= SEAT.y + 1.15) {
+        if (floorPoint(mc, .004) && mc.player.getY() >= SEAT.y + 1.15 && serverLookingAtDeck(mc)) {
             if (++aimTicks >= 2) {
                 mc.interactionManager.interactItem(mc.player, mc.world, Hand.MAIN_HAND);
                 boatRequest = age;
@@ -683,17 +735,20 @@ public final class FinalFight {
             Race.advanceTo(6521);
         }
         if (killed) return recover(m);
+        if (!chooseCrossing(m)) return true;
         if (eating
                 || (next == 0
                         && phase == 0
-                        && (pearlAttempted || m.player.inventory.count(Items.ENDER_PEARL) == 0))) {
+                        && (pearlAttempted
+                                || keepPearl
+                                || m.player.inventory.count(Items.ENDER_PEARL) == 0))) {
             if (recoverHunger(m)) return true;
         }
         if (pearlFromArrival(m)) return true;
         if (next == 0
                 && !pearlLanded
                 && m.player.getX() > 72
-                && m.player.inventory.count(Items.ENDER_PEARL) == 0) {
+                && (keepPearl || m.player.inventory.count(Items.ENDER_PEARL) == 0)) {
             if (EndCrossing.tick(m)) {
                 while (next < blocks.size() && blocks.get(next)[0] < 5958) next++;
                 Race.advanceTo(5958);

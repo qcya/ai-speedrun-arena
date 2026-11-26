@@ -126,7 +126,12 @@ def pack(world, replay, destination, segment):
             for name, data in files.items():
                 # Both packet replay and observer are already compressed.
                 out.writestr(name,data,compress_type=zipfile.ZIP_STORED if name.endswith((".mcpr",".gz")) else zipfile.ZIP_DEFLATED)
-        os.link(temp,destination)
+        if os.name == 'nt':
+            # A same-volume Windows rename is atomic and refuses an existing destination.
+            # It also works on removable volumes that do not support hard links.
+            os.rename(temp,destination)
+        else:
+            os.link(temp,destination)
     finally:temp.unlink(missing_ok=True)
     return checks
 

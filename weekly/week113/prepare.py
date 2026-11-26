@@ -63,6 +63,8 @@ def prepare(args):
             installed.add(ident)
         staged=tmp/"newworld";staged.mkdir();shutil.copyfile(ROOT/"level.dat",staged/"level.dat")
         (staged/"astra-113.local").touch()
+        if getattr(args,"shield",False):
+            (staged/"astra-opening-shield").touch()
         if args.skin:
             subprocess.run([sys.executable,str(REPO/"presentation/prepare.py"),"--instance",str(instance),
                 "--skin",str(args.skin),"--route","nether","--rules","week113-6.0.12-flags207"],check=True)
@@ -77,6 +79,7 @@ def prepare(args):
 
 if __name__=="__main__":
     p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--shield",action="store_true",help="Use the wooden TNT trigger and equip a shield before entering the Nether")
     p.add_argument("--game-dir",type=Path,required=True);p.add_argument("--world-name",default="Astra-W113")
     p.add_argument("--skin",type=Path);p.add_argument("--ranked-jar",type=Path);p.add_argument("--replay-jar",type=Path)
     p.add_argument("--autostart",action="store_true",help="Enter this fresh local world at the title screen")

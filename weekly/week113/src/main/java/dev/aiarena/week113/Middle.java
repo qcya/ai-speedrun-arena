@@ -58,9 +58,9 @@ public final class Middle {
 
     private static final List<BlockPos> returnWalk=cells("fortress-return-walk.csv");
     private static int cell, next, age, entered, lastUse, thirdThrow, originalDistance = -1;
-    private static boolean arrivedAtBastion, eating, equipAfterChest;
+    private static boolean arrivedAtBastion, eating, equipAfterChest, drinkingFireResistance;
     private static BlockPos pillar;
-    private static int barricade;
+    private static int barricade, firstThirteen;
     private static final Step[] eastCover={new Step("0,place,-149,37,118,dirt"),
             new Step("0,place,-149,38,118,dirt"),new Step("0,place,-149,39,118,dirt")};
     public static String status = "approaching bastion";
@@ -76,14 +76,17 @@ public final class Middle {
         lastUse = thirdThrow = -1000;
         arrivedAtBastion=false;
         BastionApproach.reset();
+        BastionEgress.reset();
         Fortress.reset();
         ReturnFrame.reset();
         TravelPearls.reset();
+        Hotbar.reset();
         StrongholdEntry.reset();
-        eating=false;
+        eating=false; drinkingFireResistance=false;
         equipAfterChest=false;
         pillar=null;
         barricade=0;
+        firstThirteen=-1;
         cell=0;
     }
 
@@ -91,16 +94,14 @@ public final class Middle {
     private static Item item(String path) { return Registry.ITEM.get(new Identifier(path)); }
 
     static boolean select(MinecraftClient mc, Item item) {
-        if (mc.player.getMainHandStack().getItem() == item) return true;
-        for (int i = 0; i < 36; i++) {
-            if (mc.player.inventory.getStack(i).getItem() != item) continue;
-            if (i < 9) mc.player.inventory.selectedSlot = i;
-            else mc.interactionManager.clickSlot(mc.player.playerScreenHandler.syncId, i,
-                    mc.player.inventory.selectedSlot, SlotActionType.SWAP, mc.player);
-            return true;
-        }
-        status = "needs " + Registry.ITEM.getId(item);
-        return false;
+        return Hotbar.select(mc,item);
+    }
+
+    static boolean selectBuildingBlock(MinecraftClient mc,boolean pillar) {
+        Item[] options={Items.DIRT,Items.NETHERRACK,Items.BLACKSTONE,Items.CRACKED_POLISHED_BLACKSTONE_BRICKS,
+                Items.CHISELED_POLISHED_BLACKSTONE,Items.POLISHED_BLACKSTONE_BRICKS,Items.COBBLESTONE,Items.OAK_PLANKS};
+        for(Item option:options) if (count(mc,option)>0) return select(mc,option);
+        return pillar && count(mc,Items.GRAVEL)>0 && select(mc,Items.GRAVEL);
     }
 
     private static void finish(MinecraftClient mc, Step step) {
@@ -258,10 +259,9 @@ public final class Middle {
         // Naturally placed terrain already supports the crossing, but frame blocks must be obsidian.
         if (!current.getMaterial().isReplaceable() && wanted != Blocks.OBSIDIAN && wanted != Blocks.CRAFTING_TABLE) return true;
         Item building=item(s.value);
-        if (building==Items.NETHERRACK && count(mc,building)==0) {
-            building=count(mc,Items.DIRT)>0?Items.DIRT:Items.BLACKSTONE;
-        }
-        if (!select(mc,building)) return false;
+        if ((building==Items.NETHERRACK || building==Items.DIRT) && count(mc,building)==0) {
+            if (!selectBuildingBlock(mc,false)) return false;
+        } else if (!select(mc,building)) return false;
         for (Direction face : new Direction[]{Direction.UP,Direction.NORTH,Direction.SOUTH,Direction.WEST,Direction.EAST,Direction.DOWN}) {
             BlockPos support = s.target.offset(face.getOpposite());
             if (mc.world.getBlockState(support).getMaterial().isReplaceable()) continue;
@@ -276,7 +276,34 @@ public final class Middle {
         return false;
     }
 
+    private static boolean openTradingStairs(MinecraftClient mc) {
+        if(mc.world.getChunkManager().getChunk(-149>>4,118>>4,net.minecraft.world.chunk.ChunkStatus.FULL,false)==null) {
+            status="waiting for the native bastion stair chunk";
+            return true;
+        }
+        // Remove only the temporary east wall. The normal Y40 gilded-blackstone canopy stays in place.
+        for(int y=39;y>=37;y--) {
+            BlockPos dirt=new BlockPos(-149,y,118);
+            if(mc.world.getBlockState(dirt).getBlock()!=Blocks.DIRT) continue;
+            Vec3d shelf=new Vec3d(-150.65,39,118.57);
+            if(mc.player.getX()>-150.25 || mc.player.getY()<38.85 ||
+                    Math.hypot(mc.player.getX()-shelf.x,mc.player.getZ()-shelf.z)>.78) {
+                Race.aim(mc,new Vec3d(shelf.x,mc.player.getEyeY(),shelf.z));
+                approach(mc,shelf,false);
+                mc.options.keyJump.setPressed(mc.player.isOnGround() && mc.player.getY()<38.85);
+            } else {
+                mc.options.keySneak.setPressed(true);
+                if(count(mc,Items.GOLDEN_SHOVEL)>0)select(mc,Items.GOLDEN_SHOVEL);
+                mc.options.keyAttack.setPressed(aim(mc,dirt,null)!=null);
+            }
+            status="reopening the piglin stairs from the upper ledge";
+            return true;
+        }
+        return false;
+    }
+
     private static boolean mine(MinecraftClient mc, Step s) {
+        if (s.tick==2391 && openTradingStairs(mc)) return false;
         if (mc.world.getBlockState(s.target).getMaterial().isReplaceable()) return true;
         select(mc,Items.IRON_PICKAXE);
         if (s.tick==2419 || s.tick==2433) {
@@ -571,6 +598,24 @@ public final class Middle {
                     && drop.squaredDistanceTo(protectedSpot)<3.0 && age-entered>45) missed=drop;
         }
         if (pearls>=13) {
+            if (firstThirteen<0) firstThirteen=age;
+            if (pearls==13 && age-firstThirteen<126) {
+                int trading=0;
+                for(Entity e:mc.world.getEntities()) if(e instanceof PiglinEntity && e.isAlive()
+                        && e.squaredDistanceTo(protectedSpot)<36
+                        && ((PiglinEntity)e).getOffHandStack().getItem()==Items.GOLD_INGOT) trading++;
+                if (visible>pearls) {
+                    lowerShield(mc);
+                    collect(mc,Items.ENDER_PEARL,14);
+                    status="collecting an extra travel pearl";
+                    return false;
+                }
+                if (trading>=6) {
+                    shield(mc,true);
+                    status="waiting one barter cycle for the extra End pearl";
+                    return false;
+                }
+            }
             lowerShield(mc);
             return leaveTradingShaft(mc);
         }
@@ -580,10 +625,10 @@ public final class Middle {
             status="collecting the piglin pearl drops";
             return false;
         }
-        // Expose the shelf where the real ingots landed while the dirt above the player covers the shaft.
-        for(BlockPos lid:new BlockPos[]{new BlockPos(-156,37,119),new BlockPos(-157,37,119)}) {
-            if(mc.world.getBlockState(lid).isAir())continue;
-            status="opening the piglin drop shaft at "+lid.toShortString();
+        // Gold and barter drops fit under the near lintel. Adult piglins need two blocks of clearance.
+        BlockPos lid=new BlockPos(-157,37,119);
+        if(!mc.world.getBlockState(lid).isAir()) {
+            status="opening the far side of the piglin shelf at "+lid.toShortString();
             select(mc,Items.IRON_PICKAXE);
             mc.options.keyAttack.setPressed(aim(mc,lid,null)!=null);
             return false;
@@ -657,6 +702,40 @@ public final class Middle {
         return true;
     }
 
+    private static boolean refreshFireResistance(MinecraftClient mc) {
+        if (drinkingFireResistance) {
+            if (mc.player.isUsingItem()) {
+                Race.stop(mc); mc.options.keyUse.setPressed(true);
+                status="drinking the bartered fire resistance potion";
+                return true;
+            }
+            drinkingFireResistance=false;
+            mc.options.keyUse.setPressed(false);
+        }
+        net.minecraft.entity.effect.StatusEffectInstance effect=mc.player.getStatusEffect(net.minecraft.entity.effect.StatusEffects.FIRE_RESISTANCE);
+        if (mc.currentScreen!=null || (effect!=null && effect.getDuration()>300)) return false;
+        for (int i=0;i<36;i++) {
+            ItemStack stack=mc.player.inventory.getStack(i);
+            if (stack.getItem()!=Items.POTION) continue;
+            boolean fire=net.minecraft.potion.PotionUtil.getPotionEffects(stack).stream()
+                    .anyMatch(e->e.getEffectType()==net.minecraft.entity.effect.StatusEffects.FIRE_RESISTANCE);
+            if (!fire) continue;
+            if (mc.player.getMainHandStack()!=stack) {
+                if (i<9) mc.player.inventory.selectedSlot=i;
+                else mc.interactionManager.clickSlot(mc.player.playerScreenHandler.syncId,i,
+                        mc.player.inventory.selectedSlot,SlotActionType.SWAP,mc.player);
+                Race.stop(mc);
+                return true;
+            }
+            if (mc.interactionManager.interactItem(mc.player,mc.world,Hand.MAIN_HAND).isAccepted()) {
+                drinkingFireResistance=true;Race.stop(mc);mc.options.keyUse.setPressed(true);
+                status="drinking the bartered fire resistance potion";
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static boolean eat(MinecraftClient mc) {
         if (eating) {
             if (!mc.player.isUsingItem()) {
@@ -721,7 +800,8 @@ public final class Middle {
             default: yaw=mc.player.yaw; pitch=89.3;
         }
         Item wanted=s.kind.equals("drink") ? Items.SPLASH_POTION : Items.ENDER_PEARL;
-        if (!select(mc,wanted)) return wanted==Items.SPLASH_POTION;
+        if (!s.value.equals("pearl1") && !select(mc,wanted))
+            return wanted==Items.SPLASH_POTION && count(mc,wanted)==0;
         if (s.value.equals("pearl1")) {
             if (!TravelPearls.aimFirst(mc)) return false;
         } else if (s.value.equals("pearl2")) {
@@ -761,6 +841,7 @@ public final class Middle {
     public static boolean tick(MinecraftClient mc,int tick) {
         age++;
         if (mc.player==null || mc.world==null || mc.interactionManager==null) return false;
+        if (Hotbar.tick(mc)) return true;
         boolean nether=mc.world.getRegistryKey()==World.NETHER;
         if (!nether && mc.world.getRegistryKey()!=World.OVERWORLD) return false;
         if (!nether) {
@@ -772,9 +853,25 @@ public final class Middle {
             if (VisibleSlots.equip(mc)) equipAfterChest=false;
             else { status="equipping gold armor in inventory"; return true; }
         }
+        // This optional block above the chest is separate from the west stair we stand on.
+        // An admiring pig can prevent placement for two barter cycles while other pigs approach.
+        if(nether && tick>=2307 && next<steps.size() && steps.get(next).tick==2307) {
+            Step cover=steps.get(next);
+            Box occupied=new Box(cover.target);
+            for(Entity e:mc.world.getEntities()) if(e instanceof PiglinEntity && e.isAlive()
+                    && e.getBoundingBox().intersects(occupied)) {
+                finish(mc,cover);
+                break;
+            }
+        }
+        if(nether && next<steps.size() && steps.get(next).tick==2131){
+            if(BastionEgress.tick(mc)){status=BastionEgress.status;return true;}
+            if(BastionEgress.arrived){next++;entered=age;Race.advanceTo(2187);tick=2187;}
+        }
         boolean enteringShaft=nether && tick>=2418 && tick<2462;
         boolean lootingAcrossGap=nether && next<steps.size() && steps.get(next).tick==2089
                 && BastionApproach.onLootPerch(mc);
+        if(nether && next<steps.size() && steps.get(next).tick==2187 && BastionEgress.arrived)lootingAcrossGap=true;
         if (nether && tick>=2089 && tick<2548 && !enteringShaft && !lootingAcrossGap && protectFromPiglin(mc)) return true;
         if (enteringShaft && mc.currentScreen==null) {
             Vec3d center=new Vec3d(-154.49,36,119.50);
@@ -802,7 +899,16 @@ public final class Middle {
             if (mc.player.squaredDistanceTo(Race.stance(3388))<12) Race.advanceTo(3388);
             tick=Race.referenceTick();
         }
-        if (eat(mc)) return true;
+        if (nether && tick>=3500 && refreshFireResistance(mc)) return true;
+        // Two native repeats found primed creepers in this passage. Remaining
+        // stationary for a 32-tick meal let a 30-tick fuse finish at close range.
+        if (!nether && StrongholdEntry.creeperNearCorridor(mc,tick)) {
+            if (eating) {
+                mc.options.keyUse.setPressed(false);
+                mc.interactionManager.stopUsingItem(mc.player);
+                eating=false;
+            }
+        } else if (eat(mc)) return true;
         if (!nether && StrongholdEntry.tick(mc,tick)) { status=StrongholdEntry.status; return true; }
         if (nether && ReturnFrame.tick(mc,tick)) { status=ReturnFrame.status; return true; }
         if (nether && tick>=3490 && tick<5161 && Fortress.tick(mc,6)) {

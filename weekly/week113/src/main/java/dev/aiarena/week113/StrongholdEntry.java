@@ -4,16 +4,27 @@ import net.minecraft.block.BlockState;
 import net.minecraft.block.DoorBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.mob.CreeperEntity;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.tag.FluidTags;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RayTraceContext;
 
 /** Joins the lower corridor when the Nether return opens in the eastern stronghold cave. */
 public final class StrongholdEntry {
+    private static final BlockPos POOL = new BlockPos(-764, 39, 1275);
+    private static BlockPos waterSpot;
+    private static boolean poured;
+    private static int waterUseAge;
     private static final BlockPos SHAFT = new BlockPos(-679, 35, 1302);
     // Surveyed passable turns in the real corridor. It rises from Y31 to Y33 at the far end.
     private static final double[][] TURNS = {
@@ -31,7 +42,8 @@ public final class StrongholdEntry {
         {-718, 33, 1288, -717, 34, 1289, -1, 0, 5542},
         {-743, 39, 1275, -742, 40, 1276, -1, 0, 5673}
     };
-    private static int door = -1;
+    private static int door = -1, misses;
+    private static boolean returnToButton;
     private static boolean active, finished;
     private static int phase, point;
     public static String status = "leaving the eastern stronghold portal";
@@ -42,6 +54,11 @@ public final class StrongholdEntry {
         active = finished = false;
         phase = point = 0;
         door = -1;
+        misses = 0;
+        returnToButton = false;
+        waterSpot = null;
+        poured = false;
+        waterUseAge = -100;
     }
 
     private static boolean walk(MinecraftClient mc, double x, double z, boolean precision) {
@@ -90,6 +107,133 @@ public final class StrongholdEntry {
         return false;
     }
 
+    static boolean creeperNearCorridor(MinecraftClient mc, int reference) {
+        if (reference < 5542 || reference > 5688) return false;
+        for (Entity entity : mc.world.getEntities()) {
+            if (!(entity instanceof CreeperEntity)
+                    || !entity.isAlive()
+                    || mc.player.squaredDistanceTo(entity) > 9 * 9) continue;
+            CreeperEntity creeper = (CreeperEntity) entity;
+            if (mc.player.canSee(creeper) || creeper.getClientFuseTime(1) > .05f) return true;
+        }
+        return false;
+    }
+
+    private static BlockHitResult bucketRay(Entity player, RayTraceContext.FluidHandling fluids) {
+        Vec3d eye = player.getCameraPosVec(1);
+        return player.getEntityWorld()
+                .rayTrace(
+                        new RayTraceContext(
+                                eye,
+                                eye.add(player.getRotationVec(1).multiply(5)),
+                                RayTraceContext.ShapeType.OUTLINE,
+                                fluids,
+                                player));
+    }
+
+    /**
+     * Extinguish the runner directly, swim onto the adjacent obsidian the water creates and refill
+     * the same bucket from a stable position.
+     */
+    private static boolean coolPortalPool(MinecraftClient mc, int reference) {
+        if (reference < 5710
+                || reference > 5753
+                || mc.player.squaredDistanceTo(Vec3d.ofCenter(POOL)) > 23) return false;
+        if (waterSpot == null) {
+            if ((!mc.player.isInLava() && mc.player.getY() > 40.1)
+                    || Math.hypot(
+                                    mc.player.getX() - POOL.getX() - .5,
+                                    mc.player.getZ() - POOL.getZ() - .5)
+                            > .8
+                    || !mc.world.getFluidState(POOL).isIn(FluidTags.LAVA)
+                    || mc.player.inventory.count(Items.WATER_BUCKET) == 0) return false;
+            waterSpot = POOL;
+        }
+        Race.stop(mc);
+        mc.options.keyJump.setPressed(mc.player.isInLava() || mc.player.isTouchingWater());
+        ServerPlayerEntity server =
+                mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
+        if (server == null) return true;
+        if (!poured && server.getEntityWorld().getFluidState(waterSpot).isIn(FluidTags.WATER))
+            poured = true;
+        if (!poured) {
+            status = "extinguishing the runner in the portal-room lava";
+            if (!Hotbar.select(mc, Items.WATER_BUCKET)) return true;
+            if (Middle.aim(mc, waterSpot.down(), Direction.UP) != null
+                    && bucketRay(server, RayTraceContext.FluidHandling.NONE)
+                            .getBlockPos()
+                            .equals(waterSpot.down())
+                    && mc.player.age - waterUseAge >= 6) {
+                mc.interactionManager.interactItem(mc.player, mc.world, Hand.MAIN_HAND);
+                waterUseAge = mc.player.age;
+            }
+            return true;
+        }
+        if (!server.getEntityWorld().getFluidState(waterSpot).isIn(FluidTags.WATER)) {
+            waterSpot = null;
+            poured = false;
+            return false;
+        }
+        if (server.isOnFire() || server.isInLava()) {
+            status = "waiting in the extinguishing water";
+            return true;
+        }
+        // Get completely off the center block so the subsequent dirt placement
+        // can never collide with the runner, even if no fire resistance remains.
+        BlockPos ledge = POOL.east();
+        if (server.getEntityWorld()
+                .getBlockState(ledge)
+                .getCollisionShape(server.getEntityWorld(), ledge)
+                .isEmpty()) {
+            for (Direction d : Direction.Type.HORIZONTAL) {
+                BlockPos other = POOL.offset(d);
+                if (!server.getEntityWorld()
+                        .getBlockState(other)
+                        .getCollisionShape(server.getEntityWorld(), other)
+                        .isEmpty()) {
+                    ledge = other;
+                    break;
+                }
+            }
+        }
+        if (Math.hypot(mc.player.getX() - ledge.getX() - .5, mc.player.getZ() - ledge.getZ() - .5)
+                        > .43
+                || mc.player.getY() < 39.99) {
+            status = "swimming onto obsidian beside the portal";
+            walk(mc, ledge.getX() + .5, ledge.getZ() + .5, false);
+            mc.options.keyJump.setPressed(true);
+            return true;
+        }
+        status = "refilling the water bucket for the End landing";
+        if (!Hotbar.select(mc, Items.BUCKET)) return true;
+        Race.aim(mc, Vec3d.ofCenter(waterSpot).add(0, .34, 0));
+        if (bucketRay(mc.player, RayTraceContext.FluidHandling.SOURCE_ONLY)
+                        .getBlockPos()
+                        .equals(waterSpot)
+                && bucketRay(server, RayTraceContext.FluidHandling.SOURCE_ONLY)
+                        .getBlockPos()
+                        .equals(waterSpot)
+                && mc.player.age - waterUseAge >= 6) {
+            mc.interactionManager.interactItem(mc.player, mc.world, Hand.MAIN_HAND);
+            waterUseAge = mc.player.age;
+        }
+        return true;
+    }
+
+    private static boolean pastPanel(MinecraftClient mc, int[] d, BlockState state) {
+        BlockPos pos = new BlockPos(d[0], d[1], d[2]);
+        // Each closed door occupies only 3/16 of its block. Its real collision
+        // plane can be at either edge depending on the facing in this stronghold.
+        Box panel =
+                state.with(DoorBlock.OPEN, false)
+                        .getCollisionShape(mc.world, pos)
+                        .getBoundingBox()
+                        .offset(pos);
+        return (mc.player.getX() - panel.getCenter().x) * d[6]
+                        + (mc.player.getZ() - panel.getCenter().z) * d[7]
+                > .015;
+    }
+
     private static boolean doorPass(MinecraftClient mc, int reference) {
         if (mc.currentScreen != null) return false;
         if (door < 0)
@@ -97,12 +241,14 @@ public final class StrongholdEntry {
                 int[] d = DOORS[i];
                 if (reference <= d[8] || reference > d[8] + 52) continue;
                 double dx = mc.player.getX() - d[0] - .5, dz = mc.player.getZ() - d[2] - .5;
-                if (Math.abs(mc.player.getY() - d[1]) > 1.8
-                        || Math.hypot(dx, dz) > 2.3
-                        || dx * d[6] + dz * d[7] > .05) continue;
+                if (Math.abs(mc.player.getY() - d[1]) > 1.8 || Math.hypot(dx, dz) > 2.3) continue;
                 BlockState state = mc.world.getBlockState(new BlockPos(d[0], d[1], d[2]));
-                if (state.getBlock() instanceof DoorBlock && !state.get(DoorBlock.OPEN)) {
+                if (state.getBlock() instanceof DoorBlock
+                        && !state.get(DoorBlock.OPEN)
+                        && !pastPanel(mc, d, state)) {
                     door = i;
+                    misses = 0;
+                    returnToButton = false;
                     break;
                 }
             }
@@ -121,9 +267,19 @@ public final class StrongholdEntry {
         }
         Race.stop(mc);
         mc.options.keyAttack.setPressed(false);
-        if (state.get(DoorBlock.OPEN)) {
-            status = "walking through the open stronghold door";
+        if (state.get(DoorBlock.OPEN) || pastPanel(mc, d, state)) {
+            returnToButton = false;
+            misses = 0;
+            status = "walking through the stronghold doorway";
             walk(mc, x + d[6] * 1.2, z + d[7] * 1.2, false);
+            return true;
+        }
+        if (returnToButton) {
+            status = "stepping back to the visible side of the stone button";
+            if (walk(mc, x - d[6] * 2.05, z - d[7] * 2.05, false)) {
+                returnToButton = false;
+                misses = 0;
+            }
             return true;
         }
         status = "reopening the timed stronghold door";
@@ -144,12 +300,17 @@ public final class StrongholdEntry {
                                 mc.world,
                                 Hand.MAIN_HAND,
                                 (BlockHitResult) mc.crosshairTarget)
-                        .isAccepted()) mc.player.swingHand(Hand.MAIN_HAND);
+                        .isAccepted()) {
+            mc.player.swingHand(Hand.MAIN_HAND);
+            misses = 0;
+        } else if (++misses >= 6) {
+            returnToButton = true;
+        }
         return true;
     }
 
     public static boolean tick(MinecraftClient mc, int reference) {
-        if (doorPass(mc, reference)) return true;
+        if (coolPortalPool(mc, reference) || doorPass(mc, reference)) return true;
         if (finished) return false;
         if (!active) {
             // The first client frame following a dimension change can still

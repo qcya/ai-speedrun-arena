@@ -26,13 +26,16 @@ public final class Opening {
     private static final BlockPos TREASURE = new BlockPos(217, 49, 25);
     private static final Item[] SUPPLIES = {Items.IRON_INGOT, Items.DIAMOND, Items.TNT,
             Items.COOKED_SALMON, Items.COOKED_COD, Items.GOLD_INGOT};
-    private static boolean looted;
+    private static boolean looted,shieldOpening;
     private static int age;
     public static String status = "following coast";
 
     private Opening() {}
 
     public static void reset() {
+        net.minecraft.server.integrated.IntegratedServer server=MinecraftClient.getInstance().getServer();
+        shieldOpening=server!=null&&java.nio.file.Files.isRegularFile(
+                server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-opening-shield"));
         looted = false; doorAimAge=-1;previousDoor=null;doorFacingTicks=0;firstTree=0;shieldSwapAge=-30;landStep=0; blastAge=0; boatPoint=0; divePoint=0; castStep=0; castStarted=0; anchorTicks=0; bucketAimAge=-1;bucketUseAge=-30;bucketTicks=0;lastBucketGoal=null; boarded=false; launched=false; table=null; gravelPos=null; tableSupport=null;
         age = 0; extraSupportAge=-1;lowMold=false;inWell=false; stayBelow=false;riseFromWell=false;seekingAir=false; requestedRecipe=null; recipeAge=-30;
         status = "following coast";
@@ -232,6 +235,13 @@ public final class Opening {
     }
 
     private static boolean land(MinecraftClient mc,int tick) {
+        if(landStep==0&&!shieldOpening){
+            Race.cap(351);
+            if(tick<270)return false;
+            if(!craft(mc,"heavy_weighted_pressure_plate",Items.HEAVY_WEIGHTED_PRESSURE_PLATE,1,false,false))return true;
+            if(mc.currentScreen!=null)mc.player.closeHandledScreen();
+            landStep=1;
+        }
         if(landStep==0) {
             // One oak log yields a wooden trigger, preserving the iron for a shield.
             Race.cap(355);
@@ -271,8 +281,8 @@ public final class Opening {
         }
         if(landStep==2){
             Race.stop(mc);status="placing pressure plate";
-            if(mc.world.getBlockState(PLATE).getBlock()==Blocks.OAK_PRESSURE_PLATE)landStep++;
-            else place(mc,PLATE,Items.OAK_PRESSURE_PLATE);
+            if(mc.world.getBlockState(PLATE).getBlock()==(shieldOpening?Blocks.OAK_PRESSURE_PLATE:Blocks.HEAVY_WEIGHTED_PRESSURE_PLATE))landStep++;
+            else place(mc,PLATE,shieldOpening?Items.OAK_PRESSURE_PLATE:Items.HEAVY_WEIGHTED_PRESSURE_PLATE);
             return true;
         }
         if(landStep==3){
@@ -325,6 +335,10 @@ public final class Opening {
                 }
                 if(log!=null){walk(mc,log.getPos(),true);return true;}return false;
             }
+        }
+        if(landStep==17&&!shieldOpening){
+            if(mc.currentScreen!=null)mc.player.closeHandledScreen();
+            Race.advanceTo(644);landStep=19;
         }
         if(landStep>=6&&landStep<=18) {
             Race.cap(630);
@@ -783,14 +797,32 @@ public final class Opening {
             if(castStep==22){
                 BlockPos other=new BlockPos(116,9,-38);
                 if(mc.world.getBlockState(primary).getBlock()==Blocks.OAK_DOOR){
-                    net.minecraft.block.BlockState otherDoor=mc.world.getBlockState(other);
-                    if(otherDoor.getBlock()==Blocks.OAK_DOOR&&!otherDoor.get(net.minecraft.block.DoorBlock.OPEN)){
-                        status="opening second lower door";Race.stop(mc);mc.options.keySneak.setPressed(false);
-                        if(!mc.player.isSneaking()&&age%4==0)useBlock(mc,other.up());
-                        return true;
-                    }
                     if(mc.player.getZ()<-37.80){
-                        status="moving clear of first portal floor";align(mc,116.56,-37.53);return true;
+                        // Both adjacent doors can leave opposing thin panels along X.
+                        // Their common opening is then only 0.625 wide, for a 0.6 player.
+                        double left=.302,right=.698;
+                        for(BlockPos shaft:new BlockPos[]{primary,other}){
+                            net.minecraft.block.BlockState state=mc.world.getBlockState(shaft);
+                            if(state.getBlock()!=Blocks.OAK_DOOR)continue;
+                            net.minecraft.util.math.Box panel=state.getOutlineShape(mc.world,shaft).getBoundingBox();
+                            if(panel.maxZ-panel.minZ<.5 && (shaft.equals(primary)?panel.maxZ>.9:panel.minZ<.1)){
+                                status="rotating lower door away from passage";Race.stop(mc);
+                                if(!mc.player.isSneaking()&&age%4==0)useBlock(mc,shaft.up());
+                                return true;
+                            }
+                            if(panel.maxX<.5)left=Math.max(left,panel.maxX+.302);
+                            if(panel.minX>.5)right=Math.min(right,panel.minX-.302);
+                        }
+                        double x=mc.player.getX()-116;
+                        Race.stop(mc);Race.aim(mc,mc.player.getCameraPosVec(1).add(0,0,3));
+                        status="moving clear of first portal floor";
+                        mc.options.keySneak.setPressed(true);
+                        if(Math.abs(MathHelper.wrapDegrees(mc.player.yaw))<8){
+                            mc.options.keyLeft.setPressed(x<left+.002);
+                            mc.options.keyRight.setPressed(x>right-.002);
+                            mc.options.keyForward.setPressed(x>=left&&x<=right);
+                        }
+                        return true;
                     }
                     status="mining lower door support";Race.stop(mc);mc.options.keySneak.setPressed(true);
                     if(select(mc,Items.IRON_PICKAXE)&&target(mc,primary.down())!=null)mc.options.keyAttack.setPressed(true);

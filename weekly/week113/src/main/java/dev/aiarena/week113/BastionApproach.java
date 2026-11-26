@@ -42,7 +42,7 @@ public final class BastionApproach {
     private static void restoreJump(){
         if(originalAutoJump!=null){MinecraftClient.getInstance().options.autoJump=originalAutoJump;originalAutoJump=null;}
     }
-    private static boolean open(MinecraftClient m,BlockPos p){
+    static boolean open(MinecraftClient m,BlockPos p){
         return m.world.getBlockState(p).getCollisionShape(m.world,p).isEmpty();
     }
     private static boolean select(MinecraftClient m,Item... choices){
@@ -58,7 +58,7 @@ public final class BastionApproach {
         }
         return false;
     }
-    private static void move(MinecraftClient m,double x,double z,boolean sneak,boolean sprint){
+    static void move(MinecraftClient m,double x,double z,boolean sneak,boolean sprint){
         double dx=x-m.player.getX(),dz=z-m.player.getZ();
         double norm=Math.hypot(dx,dz);
         m.options.keySneak.setPressed(sneak);
@@ -69,7 +69,7 @@ public final class BastionApproach {
         m.options.keyLeft.setPressed(left>.3827);m.options.keyRight.setPressed(left<-.3827);
         m.options.keySprint.setPressed(sprint && forward>.8 && !sneak);
     }
-    private static boolean bridge(MinecraftClient m,BlockPos previous,BlockPos target){
+    static boolean bridge(MinecraftClient m,BlockPos previous,BlockPos target){
         BlockPos anchor=previous.down();int dx=target.getX()-previous.getX(),dz=target.getZ()-previous.getZ();
         Direction face=Direction.fromVector(dx,0,dz);
         m.options.keySneak.setPressed(true);
@@ -90,7 +90,7 @@ public final class BastionApproach {
         if(across<.69)move(m,center.x+dx*.69,center.z+dz*.69,across>.47,false);
         return false;
     }
-    private static BlockHitResult line(MinecraftClient m, Vec3d point){
+    static BlockHitResult line(MinecraftClient m, Vec3d point){
         Vec3d eye=m.player.getCameraPosVec(1);
         if(eye.squaredDistanceTo(point)>m.interactionManager.getReachDistance()*m.interactionManager.getReachDistance())return null;
         BlockHitResult hit=m.world.rayTrace(new RayTraceContext(eye,point,RayTraceContext.ShapeType.OUTLINE,RayTraceContext.FluidHandling.NONE,m.player));

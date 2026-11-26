@@ -10,7 +10,7 @@
 
 把本仓库链接发给本机 Codex，可用 `python render.py --check` 检查当前版本是否带有达标的完整场次。完整场次会放在一个压缩包 `weekly/week113/release/Astra-W113.zip` 里。校验通过后，`python render.py` 将它录下的同一局逐帧导出为中文第一人称 1080p60 MP4。开局样本与下方第 29 周的旧成绩单独保留。[本周配置、夏末的分段和复跑说明](weekly/week113/)
 
-希望在自己的电脑上继续挑战时，`python practice.py` 会从零开始实跑、封存达标场次并导出成片。[本机训练与自动封存](weekly/week113/PRACTICE.md)
+把项目链接交给本机 Codex 执行时，它会优先导出已封存的同一局。如果本机也承担挑战任务且当前版本还缺合格场次，它会按仓库根目录的说明调用 `python practice.py`，从出生点开始练习，直到达标、封存并导出成片。[本机训练与自动封存](weekly/week113/PRACTICE.md)
 
 ## 第 29 周生存挑战
 

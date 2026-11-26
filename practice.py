@@ -131,7 +131,12 @@ def inspect_world(world):
     rows.update()
     timer_file = world / 'speedrunigt/record.json'
     timer = read(timer_file) if timer_file.is_file() else {}
-    return {'observer_event': rows.last.get('event'), 'final_igt_ms': timer.get('final_igt'),
+    from compare_splits import compare
+    splits = compare(timer_file, WEEK / 'champion.json') if 'advancements' in timer else []
+    location = {name: rows.last[name] for name in ('dim', 'x', 'y', 'z', 'hp', 'reference_tick',
+                'opening_action', 'middle_action', 'end_action') if name in rows.last}
+    return {'last_state': location, 'comparison_ms': splits,
+            'observer_event': rows.last.get('event'), 'final_igt_ms': timer.get('final_igt'),
             'observer_rta_ms': rows.last.get('elapsed_ms'), 'native_completed': timer.get('is_completed') is True,
             'observed_credits': 'credits' in rows.events, 'death': 'death' in rows.events,
             'spawn_epoch_ms': rows.events.get('spawn', {}).get('epoch_ms')}
@@ -206,7 +211,7 @@ def select_skin(explicit, work):
     raise ValueError('Point --skin at the original local qcya_ovo.png, or put it in Downloads.')
 
 
-def prepare_attempt(prism_data, work, skin, deps):
+def prepare_attempt(prism_data, work, skin, deps, opening="fast"):
     token = str(uuid.uuid4())
     instance = Path(tempfile.mkdtemp(prefix='Astra-Practice-', dir=prism_data / 'instances'))
     game = instance / '.minecraft'
@@ -217,7 +222,7 @@ def prepare_attempt(prism_data, work, skin, deps):
     from types import SimpleNamespace
     setup = render.load_helper('prepare_weekly', WEEK / 'prepare.py')
     setup.prepare(SimpleNamespace(game_dir=game, world_name=WORLD, skin=None, ranked_jar=deps['ranked'],
-                                  replay_jar=deps['replaymod'], autostart=True))
+                                  replay_jar=deps['replaymod'], autostart=True, shield=opening=='shield'))
     film = render.load_helper('prepare_local_film', ROOT / 'presentation/prepare.py')
     film.prepare(game, skin, 'auto', 'nether', RULES, ROOT / 'presentation/astra-local-film.jar', work / 'split-history')
     config = game / 'config/replaymod.json'
@@ -225,7 +230,7 @@ def prepare_attempt(prism_data, work, skin, deps):
     switch = game / 'astra-practice'
     switch.mkdir()
     (switch / 'enabled.txt').write_text(token, encoding='utf-8')
-    return {'token': token, 'instance': str(instance), 'created_epoch_ms': round(time.time()*1000)}
+    return {'token': token, 'instance': str(instance), 'opening': opening, 'created_epoch_ms': round(time.time()*1000)}
 
 
 def finish_attempt(attempt, work, destination):
@@ -305,6 +310,7 @@ def practice(args):
             resources = None
             previous = work / 'active.json'
             number = 0
+            last_opening = work / 'last-opening.json'
             while not winner.exists() and (args.attempts == 0 or number < args.attempts):
                 number += 1
                 launch = None
@@ -314,7 +320,11 @@ def practice(args):
                 else:
                     if resources is None:
                         resources = recording_resources(args, work)
-                    attempt = prepare_attempt(data, work, *resources)
+                    opening = args.opening
+                    if opening == 'alternate':
+                        previous_lane = read(last_opening)['opening'] if last_opening.is_file() else None
+                        opening = 'shield' if previous_lane == 'fast' else 'fast'
+                    attempt = prepare_attempt(data, work, *resources, opening=opening)
                     write(previous, attempt)
                 instance = Path(attempt['instance'])
                 game = instance / '.minecraft'
@@ -334,6 +344,7 @@ def practice(args):
                     print('Requested normal Minecraft shutdown. Run the same command to resume.', flush=True)
                     return 130
                 finish_attempt(attempt, work, winner)
+                write(last_opening, {'opening': attempt.get('opening', 'fast')})
                 previous.unlink()
             if not winner.exists():
                 print(f'No qualifying take in {number} attempts. Private receipts: {work / "receipts"}')
@@ -354,6 +365,8 @@ if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--work',type=Path,default=Path.home()/'Astra-Practice-W113',help='Private campaign, resumable across launches')
     p.add_argument('--attempts',type=int,default=0,help='Number of attempts this invocation; zero continues until qualification')
+    p.add_argument('--opening', choices=['alternate', 'fast', 'shield'], default='alternate',
+                   help='Alternate the fast iron-trigger and shield openings across completed attempts, or select one lane')
     p.add_argument('--reset-pb',action='append',choices=['nether','end'],default=[],help='Optional strict reset when missing this campaign’s prior achieved split')
     p.add_argument('--skin',type=Path);p.add_argument('--music',type=Path)
     p.add_argument('--prism',type=Path);p.add_argument('--prism-data',type=Path);p.add_argument('--profile')

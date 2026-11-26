@@ -30,7 +30,7 @@ final class TravelPearls {
         BlockPos at = mc.player.getBlockPos();
         if (mc.player.isOnGround() && at.getY()>34 &&
                 !mc.world.getBlockState(at.down()).getCollisionShape(mc.world,at.down()).isEmpty()) return true;
-        if (!Middle.select(mc, Items.DIRT) && !Middle.select(mc,Items.BLACKSTONE)) return false;
+        if (!Middle.selectBuildingBlock(mc,false)) return false;
         if (mc.player.isInLava()) mc.options.keyJump.setPressed(true);
         // A pearl can strike a different brick or height on each attempt.
         for (int below=1;below<=3;below++) {
@@ -98,7 +98,7 @@ final class TravelPearls {
                 mc.options.keyJump.setPressed(false);
                 return false;
             }
-            if (!Middle.select(mc,Items.DIRT) && !Middle.select(mc,Items.NETHERRACK)) return false;
+            if (!Middle.selectBuildingBlock(mc,true)) return false;
             BlockPos top=new BlockPos(base.x,40,base.z);
             while (top.getY()>29 && mc.world.getBlockState(top).getMaterial().isReplaceable()) top=top.down();
             BlockHitResult hit=Middle.aim(mc,top,Direction.UP);

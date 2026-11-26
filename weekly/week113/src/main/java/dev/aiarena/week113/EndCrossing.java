@@ -9,12 +9,14 @@ import net.minecraft.util.math.*;
 /** Physical, supported route across both gaps when the stronghold leaves no Ender pearl. */
 final class EndCrossing {
     private static int stage, index;
+    private static boolean tookOff;
     static String status = "crossing the End arrival platform";
 
     private EndCrossing() {}
 
     static void reset() {
         stage = index = 0;
+        tookOff = false;
     }
 
     private static void advance() {
@@ -105,6 +107,25 @@ final class EndCrossing {
         move(m, -1, MathHelper.clamp(z + .5 - pz, -.15, .15), px < anchor.getX() - .035);
     }
 
+    private static boolean jumpToShelf(MinecraftClient m) {
+        double x = m.player.getX(), z = m.player.getZ();
+        if (x < 97.0 && z > 3.65 && m.player.isOnGround() && m.player.getY() >= 52.9) return true;
+        // The near corner of native end stone is X=97,Z=4. Follow the
+        // champion's diagonal from the 3-block pillar and jump at its lip.
+        double dx = 96.05 - x, dz = 4.48 - z;
+        if (x < 96.45 && z >= 3.92) {
+            dx = 84.6 - x;
+            dz = 4.48 - z;
+        }
+        Race.aim(m, new Vec3d(x + dx, m.player.getEyeY() - .48 * Math.hypot(dx, dz), z + dz));
+        move(m, dx, dz, false);
+        m.options.keySprint.setPressed(true);
+        if (!tookOff && m.player.isOnGround() && x < 98.12 && z > 2.73)
+            m.options.keyJump.setPressed(true);
+        if (!m.player.isOnGround() && m.player.getY() > 52.1) tookOff = true;
+        return false;
+    }
+
     static boolean tick(MinecraftClient m) {
         Race.stop(m);
         switch (stage) {
@@ -120,12 +141,12 @@ final class EndCrossing {
                 pillar(m);
                 break;
             case 2:
-                status = "bridging west to the first natural shelf";
-                west(m, 97, 93, 51, 2);
+                status = "sprint-jumping from the arrival pillar onto natural end stone";
+                if (jumpToShelf(m)) advance();
                 break;
             case 3:
-                status = "stepping onto the first End island";
-                if (go(m, 89.25, 3.42, .65, true) && m.player.getY() >= 52.9) advance();
+                status = "sprinting across the first End shelf";
+                if (go(m, 85.8, 4.5, .85, true)) advance();
                 break;
             case 4:
                 status = "lining up the main island crossing";

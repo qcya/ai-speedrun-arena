@@ -79,6 +79,25 @@ class PracticeLauncherTests(unittest.TestCase):
         result=practice.read(self.root/'receipts'/(self.attempt['token']+'.json'))
         self.assertEqual(result['verdict'],'capture_incomplete')
 
+    def test_campaign_alternates_openings_after_a_restart(self):
+        from types import SimpleNamespace
+        instances = self.root/'prism'/'instances'
+        instances.mkdir(parents=True)
+        args = SimpleNamespace(work=self.root/'campaign', inspect=None, prism=None, prism_data=instances.parent,
+                               attempts=1, opening='alternate', reset_pb=[], profile=None)
+        selected = []
+        def prepare(data, work, skin, deps, opening):
+            selected.append(opening)
+            return {'opening': opening, 'instance': str(self.instance), 'token': str(uuid.uuid4())}
+        def finish(attempt, work, destination):
+            return 'death'
+        with patch('render.find_prism'), patch('practice.recording_resources', return_value=(None, {})), \
+             patch('practice.prepare_attempt', side_effect=prepare), patch('practice.game_alive', return_value=True), \
+             patch('practice.watch'), patch('practice.finish_attempt', side_effect=finish):
+            for _ in range(3):
+                self.assertEqual(practice.practice(args),2)
+        self.assertEqual(selected,['fast','shield','fast'])
+
     def test_time_equality_goes_to_real_verifiers(self):
         self.rows([('spawn',0),('credits',335528)])
         self.capture()
