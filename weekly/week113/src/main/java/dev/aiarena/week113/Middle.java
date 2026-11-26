@@ -1,0 +1,904 @@
+package dev.aiarena.week113;
+
+import dev.aiarena.week29.VisibleSlots;
+import net.minecraft.block.*;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.ingame.InventoryScreen;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.mob.BlazeEntity;
+import net.minecraft.entity.mob.PiglinEntity;
+import net.minecraft.item.*;
+import net.minecraft.recipe.Recipe;
+import net.minecraft.screen.CraftingScreenHandler;
+import net.minecraft.screen.GenericContainerScreenHandler;
+import net.minecraft.screen.ScreenHandler;
+import net.minecraft.screen.slot.SlotActionType;
+import net.minecraft.util.*;
+import net.minecraft.util.hit.*;
+import net.minecraft.util.math.*;
+import net.minecraft.util.registry.Registry;
+import net.minecraft.world.RayTraceContext;
+import net.minecraft.world.World;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+/** Chest, bastion, fortress, return portal and stronghold controls for local survival. */
+public final class Middle {
+    private static final class Step {
+        final int tick;
+        final String kind, value;
+        final BlockPos target;
+        Step(String line) {
+            String[] f = line.split(",");
+            tick = Integer.parseInt(f[0]);
+            kind = f[1];
+            target = new BlockPos(Integer.parseInt(f[2]), Integer.parseInt(f[3]), Integer.parseInt(f[4]));
+            value = f[5];
+        }
+    }
+    private static final List<Step> steps = new ArrayList<>();
+    private static final List<Step> bowSteps = new ArrayList<>(4);
+    private static final BlockPos bowBench = new BlockPos(-9,57,120);
+    private static int bowStep, bowStarted, bowRetryAfter;
+    static {
+        try (BufferedReader in = new BufferedReader(new InputStreamReader(
+                Middle.class.getResourceAsStream("/middle-actions.csv"), StandardCharsets.UTF_8))) {
+            for (String line; (line = in.readLine()) != null;) {
+                if (!line.startsWith("#") && !line.isEmpty()) {
+                    Step step = new Step(line);
+                    steps.add(step);
+                    if (step.tick >= 4620 && step.tick <= 4671) bowSteps.add(step);
+                }
+            }
+        } catch (IOException e) { throw new ExceptionInInitializerError(e); }
+    }
+
+    private static final List<BlockPos> returnWalk=cells("fortress-return-walk.csv");
+    private static int cell, next, age, entered, lastUse, thirdThrow, originalDistance = -1;
+    private static boolean arrivedAtBastion, eating, equipAfterChest;
+    private static BlockPos pillar;
+    private static int barricade;
+    private static final Step[] eastCover={new Step("0,place,-149,37,118,dirt"),
+            new Step("0,place,-149,38,118,dirt"),new Step("0,place,-149,39,118,dirt")};
+    public static String status = "approaching bastion";
+    private Middle() {}
+
+    public static void reset() {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (originalDistance > 0 && mc != null && mc.options != null) mc.options.viewDistance = originalDistance;
+        originalDistance = -1;
+        next = age = entered = 0;
+        bowStep = -1;
+        bowStarted = bowRetryAfter = 0;
+        lastUse = thirdThrow = -1000;
+        arrivedAtBastion=false;
+        BastionApproach.reset();
+        Fortress.reset();
+        ReturnFrame.reset();
+        TravelPearls.reset();
+        StrongholdEntry.reset();
+        eating=false;
+        equipAfterChest=false;
+        pillar=null;
+        barricade=0;
+        cell=0;
+    }
+
+    private static int count(MinecraftClient mc, Item item) { return mc.player.inventory.count(item); }
+    private static Item item(String path) { return Registry.ITEM.get(new Identifier(path)); }
+
+    static boolean select(MinecraftClient mc, Item item) {
+        if (mc.player.getMainHandStack().getItem() == item) return true;
+        for (int i = 0; i < 36; i++) {
+            if (mc.player.inventory.getStack(i).getItem() != item) continue;
+            if (i < 9) mc.player.inventory.selectedSlot = i;
+            else mc.interactionManager.clickSlot(mc.player.playerScreenHandler.syncId, i,
+                    mc.player.inventory.selectedSlot, SlotActionType.SWAP, mc.player);
+            return true;
+        }
+        status = "needs " + Registry.ITEM.getId(item);
+        return false;
+    }
+
+    private static void finish(MinecraftClient mc, Step step) {
+        mc.options.keyAttack.setPressed(false);
+        mc.options.keyUse.setPressed(false);
+        mc.interactionManager.cancelBlockBreaking();
+        next++;
+        entered = age;
+        Race.advanceTo(step.tick);
+    }
+
+    /** First test visibility geometrically; the eventual interaction uses the player's own crosshair. */
+    static BlockHitResult aim(MinecraftClient mc, BlockPos pos, Direction required) {
+        Vec3d eye = mc.player.getCameraPosVec(1);
+        double reach = mc.interactionManager.getReachDistance();
+        Vec3d center = Vec3d.ofCenter(pos);
+        if (required != null) {
+            center = center.add(Vec3d.of(required.getVector()).multiply(.499));
+        } else {
+            net.minecraft.util.shape.VoxelShape outline = mc.world.getBlockState(pos).getOutlineShape(mc.world,pos);
+            if (!outline.isEmpty()) center = outline.getBoundingBox().offset(pos).getCenter();
+        }
+        for (double delta : new double[] {0, -.29, .29, -.477, .477}) {
+            Vec3d point = required == Direction.UP || required == Direction.DOWN
+                    ? center.add(delta, 0, delta) : center.add(0, delta, 0);
+            Vec3d end = eye.add(point.subtract(eye).normalize().multiply(reach));
+            BlockHitResult planned = mc.world.rayTrace(new RayTraceContext(eye, end,
+                    RayTraceContext.ShapeType.OUTLINE, RayTraceContext.FluidHandling.NONE, mc.player));
+            if (planned.getType() != HitResult.Type.BLOCK || !pos.equals(planned.getBlockPos())
+                    || required != null && planned.getSide() != required) continue;
+            Race.aim(mc, point);
+            mc.gameRenderer.updateTargetedEntity(1);
+            if (mc.crosshairTarget instanceof BlockHitResult && mc.crosshairTarget.getType() == HitResult.Type.BLOCK) {
+                BlockHitResult actual = (BlockHitResult) mc.crosshairTarget;
+                if (pos.equals(actual.getBlockPos()) && (required == null || required == actual.getSide())) return actual;
+            }
+            break;
+        }
+        return null;
+    }
+
+    static boolean use(MinecraftClient mc, BlockHitResult hit) {
+        if (hit == null || age - lastUse < 2) return false;
+        lastUse = age;
+        ActionResult result = mc.interactionManager.interactBlock(mc.player, mc.world, Hand.MAIN_HAND, hit);
+        if (result.isAccepted()) mc.player.swingHand(Hand.MAIN_HAND);
+        return result.isAccepted();
+    }
+
+    static void approach(MinecraftClient mc, Vec3d to, boolean sneak) {
+        double dx = to.x - mc.player.getX(), dz = to.z - mc.player.getZ(), length = Math.hypot(dx,dz);
+        if (length < .10) return;
+        double angle = Math.toRadians(mc.player.yaw);
+        double f = (-Math.sin(angle)*dx + Math.cos(angle)*dz)/length;
+        double l = (Math.cos(angle)*dx + Math.sin(angle)*dz)/length;
+        mc.options.keyForward.setPressed(f > .3827);
+        mc.options.keyBack.setPressed(f < -.3827);
+        mc.options.keyLeft.setPressed(l > .3827);
+        mc.options.keyRight.setPressed(l < -.3827);
+        mc.options.keySneak.setPressed(sneak);
+        mc.options.keyJump.setPressed(!sneak && mc.player.horizontalCollision);
+    }
+
+    private static List<BlockPos> cells(String name) {
+        List<BlockPos> out=new ArrayList<>();
+        try (BufferedReader reader=new BufferedReader(new InputStreamReader(
+                Middle.class.getResourceAsStream("/"+name),StandardCharsets.UTF_8))) {
+            for(String line;(line=reader.readLine())!=null;) {
+                if(line.startsWith("#")||line.isEmpty()) continue;
+                String[] xyz=line.split(",");
+                out.add(new BlockPos(Integer.parseInt(xyz[0]),Integer.parseInt(xyz[1]),Integer.parseInt(xyz[2])));
+            }
+        } catch(IOException e) { throw new ExceptionInInitializerError(e); }
+        return out;
+    }
+
+    private static boolean open(MinecraftClient mc,BlockPos p) {
+        return mc.world.getBlockState(p).getCollisionShape(mc.world,p).isEmpty();
+    }
+
+    private static boolean walkCells(MinecraftClient mc,List<BlockPos> list) {
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        if (cell>=list.size()) return true;
+        BlockPos target=list.get(cell);
+        Vec3d center=Vec3d.ofCenter(target);
+        double dx=center.x-mc.player.getX(),dz=center.z-mc.player.getZ();
+        double dy=target.getY()-mc.player.getY();
+        if (Math.hypot(dx,dz)<.26 && Math.abs(dy)<.32 && mc.player.isOnGround()) {
+            cell++;
+            return cell==list.size();
+        }
+        BlockPos floor=target.down();
+        if (open(mc,floor)) {
+            mc.options.keySneak.setPressed(true);
+            if (!select(mc,Items.DIRT) && !select(mc,Items.NETHERRACK) && !select(mc,Items.BLACKSTONE)) return false;
+            BlockPos previous=cell>0 ? list.get(cell-1) : mc.player.getBlockPos();
+            BlockPos anchor=previous.down();
+            int stepX=target.getX()-previous.getX(), stepZ=target.getZ()-previous.getZ();
+            Direction side=Direction.fromVector(stepX,0,stepZ);
+            if(side==null || Math.abs(stepX)+Math.abs(stepZ)!=1 || open(mc,anchor)) return false;
+            Vec3d facePoint=Vec3d.ofCenter(anchor).add(stepX*.499,.22,stepZ*.499);
+            Race.aim(mc,facePoint);
+            mc.gameRenderer.updateTargetedEntity(1);
+            if(mc.crosshairTarget instanceof BlockHitResult && mc.crosshairTarget.getType()==HitResult.Type.BLOCK) {
+                BlockHitResult hit=(BlockHitResult)mc.crosshairTarget;
+                if(anchor.equals(hit.getBlockPos()) && hit.getSide()==side && use(mc,hit)) return false;
+            }
+            double across=(mc.player.getX()-anchor.getX()-.5)*stepX+(mc.player.getZ()-anchor.getZ()-.5)*stepZ;
+            if(across<.55) approach(mc,new Vec3d(anchor.getX()+.5+stepX*.64,mc.player.getY(),
+                    anchor.getZ()+.5+stepZ*.64),true);
+            return false;
+        }
+        BlockPos overhead=mc.player.getBlockPos().up(2);
+        BlockPos blocked=dy>.60 && !open(mc,overhead) ? overhead :
+                !open(mc,target.up()) ? target.up() : !open(mc,target) ? target : null;
+        if (blocked!=null) {
+            select(mc,Items.IRON_PICKAXE);
+            if (aim(mc,blocked,null)!=null) mc.options.keyAttack.setPressed(true);
+            return false;
+        }
+        boolean protect=mc.world.getBlockState(floor).getBlock()==Blocks.MAGMA_BLOCK;
+        boolean nextGap=cell+1<list.size() && open(mc,list.get(cell+1).down());
+        if (!protect && !nextGap && cell+2<list.size() && Math.abs(dy)<.4) {
+            // Continue through consecutive collinear grounded cells without stop-start motion.
+            int end=cell;
+            while(end<Math.min(cell+4,list.size()-1)) {
+                BlockPos a=list.get(end),b=list.get(end+1);
+                if(b.getY()!=a.getY() || open(mc,b.down()) || !open(mc,b)||!open(mc,b.up())
+                        || mc.world.getBlockState(b.down()).getBlock()==Blocks.MAGMA_BLOCK) break;
+                if (Math.abs(dx)>.6 && (b.getZ()!=target.getZ() || (b.getX()-a.getX())*dx<=0)) break;
+                if (Math.abs(dz)>.6 && (b.getX()!=target.getX() || (b.getZ()-a.getZ())*dz<=0)) break;
+                if (Math.abs(dx)<=.6 && Math.abs(dz)<=.6) break;
+                end++;
+            }
+            if(end>cell) {
+                center=Vec3d.ofCenter(list.get(end));
+                if (mc.player.squaredDistanceTo(Vec3d.ofCenter(list.get(cell+1)))<
+                        mc.player.squaredDistanceTo(Vec3d.ofCenter(target))) cell++;
+            }
+        }
+        Race.aim(mc,new Vec3d(center.x,mc.player.getEyeY()-.2,center.z));
+        approach(mc,center,protect || (nextGap && dy<.35));
+        mc.options.keyJump.setPressed(dy>.46 || (!protect && mc.player.horizontalCollision && dy>-.3));
+        return false;
+    }
+
+    private static boolean place(MinecraftClient mc, Step s) {
+        if(s.tick==3290) return TravelPearls.catchWall(mc);
+        Block wanted = ((BlockItem)item(s.value)).getBlock();
+        BlockState current = mc.world.getBlockState(s.target);
+        if (current.getBlock() == wanted) return true;
+        if (s.tick==2397 && mc.player.isOnGround() && mc.player.getY()>s.target.getY()+1.8
+                && Math.hypot(mc.player.getX()-.5-s.target.getX(),mc.player.getZ()-.5-s.target.getZ())<1.4) return true;
+        // Naturally placed terrain already supports the crossing, but frame blocks must be obsidian.
+        if (!current.getMaterial().isReplaceable() && wanted != Blocks.OBSIDIAN && wanted != Blocks.CRAFTING_TABLE) return true;
+        Item building=item(s.value);
+        if (building==Items.NETHERRACK && count(mc,building)==0) {
+            building=count(mc,Items.DIRT)>0?Items.DIRT:Items.BLACKSTONE;
+        }
+        if (!select(mc,building)) return false;
+        for (Direction face : new Direction[]{Direction.UP,Direction.NORTH,Direction.SOUTH,Direction.WEST,Direction.EAST,Direction.DOWN}) {
+            BlockPos support = s.target.offset(face.getOpposite());
+            if (mc.world.getBlockState(support).getMaterial().isReplaceable()) continue;
+            if (use(mc,aim(mc,support,face))) return false;
+        }
+        if (age-entered > 7) {
+            Vec3d center = Vec3d.ofCenter(s.target);
+            if (mc.player.getBoundingBox().intersects(new Box(s.target)) && mc.player.getY() >= s.target.getY()-.1)
+                mc.options.keyJump.setPressed(true);
+            else approach(mc,center,true);
+        }
+        return false;
+    }
+
+    private static boolean mine(MinecraftClient mc, Step s) {
+        if (mc.world.getBlockState(s.target).getMaterial().isReplaceable()) return true;
+        select(mc,Items.IRON_PICKAXE);
+        if (s.tick==2419 || s.tick==2433) {
+            Race.stop(mc);
+            mc.player.pitch=90f;
+            mc.gameRenderer.updateTargetedEntity(1);
+            mc.options.keyAttack.setPressed(mc.crosshairTarget instanceof BlockHitResult
+                    && ((BlockHitResult)mc.crosshairTarget).getBlockPos().equals(s.target));
+            return false;
+        }
+        BlockHitResult hit = aim(mc,s.target,null);
+        if (hit == null) {
+            if (s.tick>=3711 && s.tick<=4353 && age-entered>6 && Fortress.clearToward(mc,s.target)) return false;
+            if (s.tick>=2476 && s.tick<=2774 && age-entered>14) {
+                Vec3d target=Vec3d.ofCenter(s.target);
+                Race.aim(mc,target);
+                mc.gameRenderer.updateTargetedEntity(1);
+                if (mc.crosshairTarget instanceof BlockHitResult && mc.crosshairTarget.getType()==HitResult.Type.BLOCK) {
+                    BlockPos obstruct=((BlockHitResult)mc.crosshairTarget).getBlockPos();
+                    String material=Registry.BLOCK.getId(mc.world.getBlockState(obstruct).getBlock()).getPath();
+                    if (material.contains("blackstone") && !obstruct.equals(mc.player.getBlockPos().down())) {
+                        mc.options.keyAttack.setPressed(true);
+                        return false;
+                    }
+                }
+            }
+            if (age-entered>6) {
+                Vec3d origin=Race.stance(s.tick);
+                if (mc.player.squaredDistanceTo(origin)>.45) {
+                    Race.aim(mc,new Vec3d(origin.x,mc.player.getEyeY(),origin.z));
+                    approach(mc,origin,false);
+                    mc.options.keyJump.setPressed(mc.player.horizontalCollision || origin.y>mc.player.getY()+.45);
+                }
+            }
+            return false;
+        }
+        mc.options.keyAttack.setPressed(true);
+        return false;
+    }
+
+    private static boolean loot(MinecraftClient mc, Step s) {
+        if (s.value.equals("ender_pearl") && count(mc,Items.ENDER_PEARL) >= 12) return true;
+        if (!(mc.player.currentScreenHandler instanceof GenericContainerScreenHandler)) {
+            if (s.value.contains("arrow")) {
+                // Opening the chest from maximum reach brakes the jump one block short of
+                // the raised dirt support, leaving the player on the floor with the piglins.
+                Vec3d landing=new Vec3d(-149.66,38,118.50);
+                if (Math.hypot(mc.player.getX()-landing.x,mc.player.getZ()-landing.z)>.43
+                        || mc.player.getY()<37.92) {
+                    Race.aim(mc,new Vec3d(landing.x,mc.player.getEyeY(),landing.z));
+                    approach(mc,landing,false);
+                    mc.options.keySprint.setPressed(true);
+                    mc.options.keyJump.setPressed(mc.player.isOnGround() && mc.player.getY()<37.98);
+                    return false;
+                }
+                if (barricade<eastCover.length) {
+                    if (place(mc,eastCover[barricade])) barricade++;
+                    status="covering the open side of the bastion ledge";
+                    return false;
+                }
+            }
+            use(mc,aim(mc,s.target,null));
+            if (age-entered>12 && !(s.tick==2089 && BastionApproach.onLootPerch(mc))
+                    && mc.player.getCameraPosVec(1).squaredDistanceTo(Vec3d.ofCenter(s.target))>15)
+                approach(mc,Vec3d.ofCenter(s.target),false);
+            return false;
+        }
+        List<String> wants=Arrays.asList(s.value.split("\\+"));
+        if (!VisibleSlots.loot(mc,stack->wants.contains(Registry.ITEM.getId(stack.getItem()).getPath()),false)) return false;
+        mc.player.closeHandledScreen();
+        if (s.value.contains("golden_helmet")) equipAfterChest=true;
+        return true;
+    }
+
+    public static boolean climbLedge(MinecraftClient mc,double targetY) {
+        if (pillar==null) {
+            if (!mc.player.isOnGround() || targetY<mc.player.getY()+1.45) return false;
+            BlockPos foot=mc.player.getBlockPos();
+            if (open(mc,foot.down()) || !open(mc,foot) || !open(mc,foot.up(2))) return false;
+            pillar=foot;
+        }
+        if (!open(mc,pillar) || Math.abs(mc.player.getX()-.5-pillar.getX())>1
+                || Math.abs(mc.player.getZ()-.5-pillar.getZ())>1) {
+            pillar=null;
+            return false;
+        }
+        if (!select(mc,Items.DIRT) && !select(mc,Items.NETHERRACK)) { pillar=null; return false; }
+        Race.stop(mc);
+        mc.options.keyJump.setPressed(true);
+        BlockHitResult top=aim(mc,pillar.down(),Direction.UP);
+        if (mc.player.getY()>=pillar.getY()+1 && top!=null) use(mc,top);
+        status="jumping up onto the bastion ledge";
+        return true;
+    }
+
+    /** Fill part of the spawner wait using the same survival crafting and placement steps. */
+    private static boolean earlyBow(MinecraftClient mc) {
+        if (count(mc,Items.BOW)>0) {
+            if (bowStep>=0 && mc.currentScreen!=null) mc.player.closeHandledScreen();
+            bowStep=-1;
+            return false;
+        }
+        if (bowStep<0) {
+            int rods=count(mc,Items.BLAZE_ROD);
+            if (age<bowRetryAfter || rods<2 || rods>=6 || count(mc,Items.STRING)<3
+                    || mc.currentScreen!=null || !mc.player.isOnGround() || mc.player.isUsingItem()
+                    || mc.player.getHealth()<12 || mc.player.getCameraPosVec(1).squaredDistanceTo(Vec3d.ofCenter(bowBench))>16)
+                return false;
+            boolean placed=mc.world.getBlockState(bowBench).getBlock()==Blocks.CRAFTING_TABLE;
+            if (!placed && (!mc.world.getBlockState(bowBench).getMaterial().isReplaceable()
+                    || mc.player.getBoundingBox().intersects(new Box(bowBench)))) return false;
+            if ((!placed && count(mc,Items.CRAFTING_TABLE)==0 && count(mc,Items.OAK_PLANKS)<4)
+                    || (count(mc,Items.STICK)<3 && count(mc,Items.OAK_PLANKS)<2)) return false;
+            bowStep=0;
+            bowStarted=age;
+        }
+        boolean unsafe=false;
+        for (Entity e:mc.world.getEntities()) {
+            if (e instanceof BlazeEntity && e.isAlive() && e.squaredDistanceTo(mc.player)<6*6 && mc.player.canSee(e)) {
+                unsafe=true;
+                break;
+            }
+        }
+        if (unsafe || age-bowStarted>60 || mc.player.getCameraPosVec(1).squaredDistanceTo(Vec3d.ofCenter(bowBench))>20) {
+            if (mc.currentScreen!=null) mc.player.closeHandledScreen();
+            bowStep=-1;
+            bowRetryAfter=age+20;
+            return false;
+        }
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        mc.interactionManager.cancelBlockBreaking();
+        Step step=bowSteps.get(bowStep);
+        status="crafting the bow between blaze spawns";
+        boolean placed=mc.world.getBlockState(bowBench).getBlock()==Blocks.CRAFTING_TABLE;
+        boolean done;
+        if (step.kind.equals("place")) done=placed || place(mc,step);
+        else done=(placed && step.value.equals("crafting_table")) || recipe(mc,step);
+        if (done && ++bowStep==bowSteps.size()) bowStep=-1;
+        return true;
+    }
+
+    private static boolean recipe(MinecraftClient mc, Step s) {
+        Item result=item(s.value);
+        int goal = result == Items.STICK ? 3 : result == Items.ENDER_EYE ? 11
+                : result == Items.BLAZE_POWDER ? 11 : result == Items.GOLD_INGOT ? 18 : 1;
+        if (count(mc,result)>=goal) {
+            if (mc.currentScreen!=null) mc.player.closeHandledScreen();
+            return true;
+        }
+        if (result == Items.BOW) {
+            if (!(mc.player.currentScreenHandler instanceof CraftingScreenHandler)) {
+                use(mc,aim(mc,s.target,null));
+                return false;
+            }
+        } else if (!(mc.currentScreen instanceof InventoryScreen)) {
+            mc.openScreen(new InventoryScreen(mc.player));
+            return false;
+        }
+        ScreenHandler sh=mc.player.currentScreenHandler;
+        if (age%3!=0) return false;
+        int needed=goal-count(mc,result);
+        int stagedPearls=0;
+        if (result==Items.ENDER_EYE) {
+            for (int i=1;i<=4;i++) {
+                ItemStack stack=sh.getSlot(i).getStack();
+                if (stack.getItem()==Items.ENDER_PEARL) stagedPearls+=stack.getCount();
+            }
+        }
+        boolean reserve=result==Items.ENDER_EYE && (count(mc,Items.ENDER_PEARL)+stagedPearls)>needed;
+        if (sh.getSlot(0).getStack().getItem()==result) {
+            if (reserve && stagedPearls<needed) {
+                mc.world.getRecipeManager().get(new Identifier("ender_eye")).ifPresent(
+                        r->mc.interactionManager.clickRecipe(sh.syncId,r,false));
+                return false;
+            }
+            mc.interactionManager.clickSlot(sh.syncId,0,0,SlotActionType.QUICK_MOVE,mc.player);
+            return false;
+        }
+        String path = result == Items.GOLD_INGOT ? "gold_ingot_from_gold_block" : s.value;
+        Optional<? extends Recipe<?>> r=mc.world.getRecipeManager().get(new Identifier(path));
+        if (r.isPresent() && mc.player.getRecipeBook().contains(r.get()))
+            mc.interactionManager.clickRecipe(sh.syncId,r.get(),result==Items.GOLD_INGOT || result==Items.BLAZE_POWDER || (result==Items.ENDER_EYE && !reserve));
+        return false;
+    }
+
+    private static boolean feed(MinecraftClient mc, Step s) {
+        if (count(mc,Items.GOLD_INGOT)==0) return true;
+        if (!select(mc,Items.GOLD_INGOT)) return false;
+        Vec3d origin=new Vec3d(-154.70,35,119.60);
+        if (mc.player.squaredDistanceTo(origin)>.12) { approach(mc,origin,true); return false; }
+        // The reference ingots leave the hand at eye level and travel west into the trap.
+        // Pointing at their spawn coordinate would put them on our own floor one block below the pigs.
+        double yaw=Math.toRadians(88.63),pitch=Math.toRadians(-10.78);
+        Vec3d direction=new Vec3d(-Math.sin(yaw)*Math.cos(pitch),-Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));
+        Race.aim(mc,mc.player.getCameraPosVec(1).add(direction.multiply(8)));
+        if (mc.player.getRotationVec(1).dotProduct(direction)>.99 && age-lastUse>=3) {
+            mc.player.dropSelectedItem(true);
+            lastUse=age;
+        }
+        return false;
+    }
+
+    private static boolean collect(MinecraftClient mc, Item item, int goal) {
+        if (count(mc,item)>=goal) return true;
+        ItemEntity closest=null;
+        for (Entity e:mc.world.getEntities()) {
+            if (!(e instanceof ItemEntity) || ((ItemEntity)e).getStack().getItem()!=item || e.squaredDistanceTo(mc.player)>81) continue;
+            if (closest==null || e.squaredDistanceTo(mc.player)<closest.squaredDistanceTo(mc.player)) closest=(ItemEntity)e;
+        }
+        if (closest!=null) approach(mc,closest.getPos(),false);
+        return false;
+    }
+
+    /** Keep outstanding ingots with the admiring pigs, and pillar straight up on our side. */
+    private static boolean leaveTradingShaft(MinecraftClient mc) {
+        BlockPos foot=mc.player.getBlockPos();
+        if (mc.player.getY()>=38.98 && mc.player.isOnGround()) {
+            while(next+1<steps.size() && steps.get(next+1).tick<=2976) next++;
+            Race.advanceTo(2976);
+            return true;
+        }
+        Vec3d column=new Vec3d(-154.50,mc.player.getY(),119.50);
+        if (Math.hypot(column.x-mc.player.getX(),column.z-mc.player.getZ())>.28) {
+            Race.aim(mc,new Vec3d(column.x,mc.player.getEyeY(),column.z));
+            approach(mc,column,false);
+            status="returning to the protected pillar with trade pearls";
+            return false;
+        }
+        BlockPos roof=new BlockPos(-155,38,119);
+        if (foot.getY()<38 && !open(mc,roof)) {
+            select(mc,Items.IRON_PICKAXE);
+            mc.options.keyAttack.setPressed(aim(mc,roof,null)!=null);
+            status="opening the top of the escape pillar";
+            return false;
+        }
+        mc.options.keyAttack.setPressed(false);
+        if (!select(mc,Items.DIRT) && !select(mc,Items.BLACKSTONE)) return false;
+        int floor=(int)Math.floor(mc.player.getY()-.001);
+        while (floor>33 && open(mc,new BlockPos(-155,floor,119))) floor--;
+        BlockPos base=new BlockPos(-155,floor,119);
+        BlockHitResult support=aim(mc,base,Direction.UP);
+        mc.options.keyJump.setPressed(true);
+        if (mc.player.getY()>=floor+2.002) use(mc,support);
+        status="pillaring above the piglins with trade pearls";
+        return false;
+    }
+
+    private static void lowerShield(MinecraftClient mc) {
+        if (mc.player.isUsingItem() && mc.player.getActiveItem().getItem()==Items.SHIELD) {
+            mc.options.keyUse.setPressed(false);
+            mc.interactionManager.stopUsingItem(mc.player);
+        }
+    }
+
+    /** Uses the real offhand item. The server applies its normal five-tick raise delay. */
+    private static boolean shield(MinecraftClient mc,boolean waiting) {
+        if (mc.currentScreen!=null || mc.player.getOffHandStack().getItem()!=Items.SHIELD) return false;
+        PiglinEntity threat=null;
+        double best=144;
+        for(Entity e:mc.world.getEntities()) {
+            if (!(e instanceof PiglinEntity) || !e.isAlive() || !mc.player.canSee(e)) continue;
+            PiglinEntity pig=(PiglinEntity)e;
+            double d=pig.squaredDistanceTo(mc.player);
+            PiglinEntity.Activity activity=pig.getActivity();
+            boolean melee=activity==PiglinEntity.Activity.ATTACKING_WITH_MELEE_WEAPON && d<12;
+            boolean bow=activity==PiglinEntity.Activity.CROSSBOW_CHARGE
+                    || (activity==PiglinEntity.Activity.CROSSBOW_HOLD && (waiting || mc.player.hurtTime>0));
+            if (!(bow || melee) || d>=best) continue;
+            best=d;threat=pig;
+        }
+        if (threat==null || (!waiting && age%31>=15)) { lowerShield(mc);return false; }
+        Race.stop(mc);mc.options.keyAttack.setPressed(false);
+        Race.aim(mc,threat.getBoundingBox().getCenter());
+        if (!mc.player.isUsingItem() && !mc.interactionManager.interactItem(mc.player,mc.world,Hand.OFF_HAND).isAccepted()) return false;
+        mc.options.keyUse.setPressed(true);
+        status="blocking an approaching piglin with the offhand shield";
+        return true;
+    }
+
+    private static boolean shelter(MinecraftClient mc,Step s) {
+        int pearls=count(mc,Items.ENDER_PEARL);
+        int visible=pearls;
+        Vec3d protectedSpot=new Vec3d(-154.70,35,119.60);
+        ItemEntity missed=null;
+        for (Entity entity:mc.world.getEntities()) {
+            if (!(entity instanceof ItemEntity) || !entity.isAlive()
+                    || entity.squaredDistanceTo(protectedSpot)>38) continue;
+            ItemEntity drop=(ItemEntity)entity;
+            if (drop.getStack().getItem()==Items.ENDER_PEARL) visible+=drop.getStack().getCount();
+            if (drop.getStack().getItem()==Items.GOLD_INGOT && drop.getY()<35.45
+                    && drop.squaredDistanceTo(protectedSpot)<3.0 && age-entered>45) missed=drop;
+        }
+        if (pearls>=13) {
+            lowerShield(mc);
+            return leaveTradingShaft(mc);
+        }
+        if (visible>=13) {
+            lowerShield(mc);
+            if (age-entered>45) collect(mc,Items.ENDER_PEARL,13);
+            status="collecting the piglin pearl drops";
+            return false;
+        }
+        // Expose the shelf where the real ingots landed while the dirt above the player covers the shaft.
+        for(BlockPos lid:new BlockPos[]{new BlockPos(-156,37,119),new BlockPos(-157,37,119)}) {
+            if(mc.world.getBlockState(lid).isAir())continue;
+            status="opening the piglin drop shaft at "+lid.toShortString();
+            select(mc,Items.IRON_PICKAXE);
+            mc.options.keyAttack.setPressed(aim(mc,lid,null)!=null);
+            return false;
+        }
+        mc.options.keyAttack.setPressed(false);
+        if (count(mc,Items.GOLD_BLOCK)>0 || mc.currentScreen instanceof InventoryScreen) {
+            if (!(mc.currentScreen instanceof InventoryScreen)) {
+                mc.openScreen(new InventoryScreen(mc.player));
+            } else {
+                ScreenHandler grid=mc.player.currentScreenHandler;
+                if (grid.getSlot(0).getStack().getItem()==Items.GOLD_INGOT) {
+                    mc.interactionManager.clickSlot(grid.syncId,0,0,SlotActionType.QUICK_MOVE,mc.player);
+                } else if (count(mc,Items.GOLD_BLOCK)==0) {
+                    mc.player.closeHandledScreen();
+                } else if (age%3==0) {
+                    mc.world.getRecipeManager().get(new Identifier("gold_ingot_from_gold_block"))
+                        .ifPresent(r->mc.interactionManager.clickRecipe(grid.syncId,r,true));
+                }
+            }
+            return false;
+        }
+        if (count(mc,Items.GOLD_INGOT)>0) {
+            lowerShield(mc);
+            feed(mc,s);
+            return false;
+        }
+        if (missed!=null) {
+            approach(mc,missed.getPos(),true);
+            status="retrieving ingots below the piglin shelf";
+        } else if (!shield(mc,true)) status="waiting under cover for piglin trades ("+visible+" pearls in reach)";
+        return false;
+    }
+
+    private static boolean protectFromPiglin(MinecraftClient mc) {
+        if (mc.currentScreen!=null) return false;
+        if (shield(mc,false)) return true;
+        PiglinEntity closest=null;
+        double nearest=3.5*3.5;
+        for (Entity e:mc.world.getEntities()) {
+            if (!(e instanceof PiglinEntity) || !e.isAlive() || !mc.player.canSee(e)) continue;
+            PiglinEntity pig=(PiglinEntity)e;
+            if (pig.getActivity()!=PiglinEntity.Activity.ATTACKING_WITH_MELEE_WEAPON) continue;
+            double range=pig.squaredDistanceTo(mc.player);
+            if (range<nearest) { closest=pig; nearest=range; }
+        }
+        if (closest==null) return false;
+        mc.options.keyAttack.setPressed(false);
+        Race.aim(mc,closest.getBoundingBox().getCenter());
+        mc.gameRenderer.updateTargetedEntity(1);
+        boolean barter=count(mc,Items.GOLD_INGOT)>0;
+        Item held=barter?Items.GOLD_INGOT:Items.DIAMOND_SWORD;
+        if (mc.player.getMainHandStack().getItem()!=held) {
+            select(mc,held);
+            return true;
+        }
+        if (!(mc.crosshairTarget instanceof EntityHitResult)) return true;
+        Entity target=((EntityHitResult)mc.crosshairTarget).getEntity();
+        if (!(target instanceof PiglinEntity) || ((PiglinEntity)target).getActivity()!=PiglinEntity.Activity.ATTACKING_WITH_MELEE_WEAPON) return true;
+        if (barter && age-lastUse>=3) {
+            lastUse=age;
+            if (mc.interactionManager.interactEntity(mc.player,target,Hand.MAIN_HAND).isAccepted()) {
+                mc.player.swingHand(Hand.MAIN_HAND);
+            } else {
+                mc.player.dropSelectedItem(false);
+            }
+        } else if (!barter && mc.player.getAttackCooldownProgress(.5f)>.91f) {
+            mc.interactionManager.attackEntity(mc.player,target);
+            mc.player.swingHand(Hand.MAIN_HAND);
+        }
+        status=barter?"giving an ingot to a nearby piglin":"defending with the drawn diamond sword";
+        return true;
+    }
+
+    private static boolean eat(MinecraftClient mc) {
+        if (eating) {
+            if (!mc.player.isUsingItem()) {
+                eating=false;
+                mc.options.keyUse.setPressed(false);
+                return false;
+            }
+        } else {
+            if (mc.currentScreen!=null || !mc.player.isOnGround() || mc.player.isInLava()) return false;
+            int hunger=mc.player.getHungerManager().getFoodLevel();
+            if (hunger>14 && (mc.player.getHealth()>=14 || hunger>=18)) return false;
+            Item food=null;
+            for (ItemStack s:mc.player.inventory.main) {
+                if (s.getItem()==Items.COOKED_SALMON || s.getItem()==Items.COOKED_COD || s.getItem()==Items.BREAD) {
+                    food=s.getItem();
+                    break;
+                }
+            }
+            Hand hand=Hand.MAIN_HAND;
+            if (food==null) {
+                Item offhand=mc.player.getOffHandStack().getItem();
+                if (offhand!=Items.COOKED_SALMON && offhand!=Items.COOKED_COD && offhand!=Items.BREAD) return false;
+                hand=Hand.OFF_HAND;
+            } else if (!select(mc,food)) return false;
+            if (!mc.interactionManager.interactItem(mc.player,mc.world,hand).isAccepted()) return false;
+            eating=true;
+        }
+        Race.stop(mc);
+        mc.options.keyUse.setPressed(true);
+        status="eating to restore hunger";
+        return true;
+    }
+
+    private static boolean fight(MinecraftClient mc, Step s) {
+        int goal=Integer.parseInt(s.value);
+        if (count(mc,Items.BLAZE_ROD)>=goal) return true;
+        BlazeEntity best=null;
+        for (Entity e:mc.world.getEntities()) if(e instanceof BlazeEntity && e.isAlive()
+                && e.squaredDistanceTo(mc.player)<18*18 && (best==null || e.squaredDistanceTo(mc.player)<best.squaredDistanceTo(mc.player))) best=(BlazeEntity)e;
+        if (best==null || best.squaredDistanceTo(mc.player)>14) {
+            collect(mc,Items.BLAZE_ROD,goal);
+            if (best!=null && best.squaredDistanceTo(mc.player)>14) approach(mc,best.getPos(),false);
+            return false;
+        }
+        select(mc,Items.DIAMOND_SWORD);
+        Race.aim(mc,best.getBoundingBox().getCenter());
+        mc.gameRenderer.updateTargetedEntity(1);
+        if (mc.crosshairTarget instanceof EntityHitResult && ((EntityHitResult)mc.crosshairTarget).getEntity()==best
+                && mc.player.getAttackCooldownProgress(.5f)>.94f) {
+            mc.interactionManager.attackEntity(mc.player,best);
+            mc.player.swingHand(Hand.MAIN_HAND);
+        }
+        return false;
+    }
+
+    private static boolean launch(MinecraftClient mc, Step s) {
+        double yaw, pitch;
+        switch(s.value) {
+            case "pearl1": yaw=-54.78; pitch=-36.09; break;
+            case "pearl2": yaw=-116.78; pitch=-26.17; break;
+            case "pearl3": yaw=79.23; pitch=-40.68; break;
+            default: yaw=mc.player.yaw; pitch=89.3;
+        }
+        Item wanted=s.kind.equals("drink") ? Items.SPLASH_POTION : Items.ENDER_PEARL;
+        if (!select(mc,wanted)) return wanted==Items.SPLASH_POTION;
+        if (s.value.equals("pearl1")) {
+            if (!TravelPearls.aimFirst(mc)) return false;
+        } else if (s.value.equals("pearl2")) {
+            if (!TravelPearls.aimSecond(mc)) return false;
+        } else {
+        double y=Math.toRadians(yaw), p=Math.toRadians(pitch);
+        Race.aim(mc,mc.player.getCameraPosVec(1).add(-Math.sin(y)*Math.cos(p)*10,-Math.sin(p)*10,Math.cos(y)*Math.cos(p)*10));
+        if (Math.abs(MathHelper.wrapDegrees(mc.player.yaw-(float)yaw))>1 || Math.abs(mc.player.pitch-(float)pitch)>1) return false;
+        }
+        if (mc.player.getItemCooldownManager().isCoolingDown(wanted)) return false;
+        if (wanted==Items.ENDER_PEARL && mc.player.isOnGround()) { mc.options.keyJump.setPressed(true); return false; }
+        if (mc.interactionManager.interactItem(mc.player,mc.world,Hand.MAIN_HAND).isAccepted()) {
+            mc.player.swingHand(Hand.MAIN_HAND);
+            if (s.value.equals("pearl1")) Race.advanceTo(3267);
+            if (s.value.equals("pearl3")) thirdThrow=age;
+            return true;
+        }
+        return false;
+    }
+
+    private static void distance(MinecraftClient mc, int chunks) {
+        if (mc.options.viewDistance==chunks) return;
+        if (originalDistance<0) originalDistance=mc.options.viewDistance;
+        mc.options.viewDistance=chunks;
+        mc.options.onPlayerModelPartChange(); // vanilla settings packet, including requested distance
+    }
+
+    private static void manageStasis(MinecraftClient mc,int tick) {
+        if (thirdThrow<0 || mc.world.getRegistryKey()!=World.NETHER) return;
+        int flight=age-thirdThrow;
+        if (tick>=5131) distance(mc,12);
+        else if (tick>=3621) distance(mc,3);
+        else if (flight>=48) distance(mc,5);
+        else if (flight>=27) distance(mc,2);
+    }
+
+    public static boolean tick(MinecraftClient mc,int tick) {
+        age++;
+        if (mc.player==null || mc.world==null || mc.interactionManager==null) return false;
+        boolean nether=mc.world.getRegistryKey()==World.NETHER;
+        if (!nether && mc.world.getRegistryKey()!=World.OVERWORLD) return false;
+        if (!nether) {
+            while(next<steps.size() && steps.get(next).tick<5412) next++;
+            if (originalDistance>0) { distance(mc,originalDistance); originalDistance=-1; }
+        }
+        if (equipAfterChest) {
+            Race.stop(mc);
+            if (VisibleSlots.equip(mc)) equipAfterChest=false;
+            else { status="equipping gold armor in inventory"; return true; }
+        }
+        boolean enteringShaft=nether && tick>=2418 && tick<2462;
+        boolean lootingAcrossGap=nether && next<steps.size() && steps.get(next).tick==2089
+                && BastionApproach.onLootPerch(mc);
+        if (nether && tick>=2089 && tick<2548 && !enteringShaft && !lootingAcrossGap && protectFromPiglin(mc)) return true;
+        if (enteringShaft && mc.currentScreen==null) {
+            Vec3d center=new Vec3d(-154.49,36,119.50);
+            double offset=Math.hypot(mc.player.getX()-center.x,mc.player.getZ()-center.z);
+            if (mc.player.getY()>36.1 && offset>.19) {
+                Race.stop(mc);
+                Race.aim(mc,new Vec3d(center.x,mc.player.getEyeY()-.65,center.z));
+                approach(mc,center,offset<.58);
+                mc.options.keyJump.setPressed(false);
+                status="centering above the gold shaft";
+                return true;
+            }
+        }
+        if (nether && tick>=3267 && tick<3290 && next<steps.size() && steps.get(next).tick==3290) {
+            Race.stop(mc); Race.advanceTo(3290); tick=3290;
+        }
+        if (nether && tick>=3290 && tick<3314 && next<steps.size() && steps.get(next).tick==3314) {
+            Race.advanceTo(3314); tick=3314;
+        }
+        if (nether && tick>=3314 && tick<3391 && next<steps.size() && steps.get(next).tick==3348 && mc.player.getX()<=-39) {
+            Race.stop(mc);return true;
+        }
+        if (nether && tick>=3314 && tick<3391 && mc.player.getX()>-39 && mc.player.getY()>=55 && next<steps.size() && steps.get(next).tick==3348) {
+            next++; entered=age; Race.advanceTo(3350);
+            if (mc.player.squaredDistanceTo(Race.stance(3388))<12) Race.advanceTo(3388);
+            tick=Race.referenceTick();
+        }
+        if (eat(mc)) return true;
+        if (!nether && StrongholdEntry.tick(mc,tick)) { status=StrongholdEntry.status; return true; }
+        if (nether && ReturnFrame.tick(mc,tick)) { status=ReturnFrame.status; return true; }
+        if (nether && tick>=3490 && tick<5161 && Fortress.tick(mc,6)) {
+            status=Fortress.status;
+            return true;
+        }
+        if (nether && tick>=3780 && tick<4620 && earlyBow(mc)) return true;
+        if (nether && !arrivedAtBastion && tick<2090) {
+            status=BastionApproach.status;
+            Race.cap(2089);
+            if(BastionApproach.tick(mc)) {
+                arrivedAtBastion=true;
+                cell=0;
+                while(next<steps.size() && steps.get(next).tick<2089) next++;
+                Race.advanceTo(2089);
+            }
+            return true;
+        }
+        if (next>=steps.size()) return false;
+        if (nether && tick>=3700 && tick<5161 && mc.currentScreen==null) {
+            if (count(mc,Items.BLAZE_ROD)>=6) {
+                int resume=count(mc,Items.BOW)>0 ? 5161 : 4620;
+                if (steps.get(next).tick<resume) {
+                    while (next<steps.size() && steps.get(next).tick<resume) next++;
+                    entered=age;
+                    if (resume==5161) {
+                        distance(mc,12);
+                        Race.advanceTo(5161);
+                        tick=5161;
+                    } else {
+                        // Walk the remaining metres to the crafting site using the usual inputs.
+                        Race.advanceTo(4615);
+                        tick=4615;
+                    }
+                }
+            }
+        }
+        manageStasis(mc,tick);
+        Step s=steps.get(next);
+        if (nether && s.tick>=5412) return false;
+        if (nether && s.kind.equals("mine") && tick<s.tick && s.tick-tick<=64
+                && Race.distanceToReference(mc,s.tick)<1.7) {
+            Vec3d eye=mc.player.getCameraPosVec(1);
+            Vec3d block=Vec3d.ofCenter(s.target);
+            if (eye.squaredDistanceTo(block)<16) {
+                BlockHitResult visible=mc.world.rayTrace(new RayTraceContext(eye,block,
+                        RayTraceContext.ShapeType.OUTLINE,RayTraceContext.FluidHandling.NONE,mc.player));
+                if (visible.getType()==HitResult.Type.BLOCK && visible.getBlockPos().equals(s.target)) {
+                    Race.advanceTo(s.tick);
+                    tick=s.tick;
+                }
+            }
+        }
+        // Every frame is in reach from the two blocks placed in the portal room.
+        // Once Astra has crafted the eyes, the block-state acknowledgements pace the insertion.
+        if (!nether && s.kind.equals("eye") && mc.player.getCameraPosVec(1).squaredDistanceTo(Vec3d.ofCenter(s.target))<17) {
+            Race.advanceTo(s.tick);
+            tick=s.tick;
+        }
+        Race.cap(s.tick);
+        if (tick<s.tick) { entered=age; return false; }
+        Race.stop(mc);
+        status=s.kind+" "+s.value+" at "+s.target.toShortString();
+        boolean done=false;
+        switch(s.kind) {
+            case "place": done=place(mc,s); break;
+            case "mine": done=mine(mc,s); break;
+            case "use": done=use(mc,aim(mc,s.target,null)); break;
+            case "chest": done=loot(mc,s); break;
+            case "craft": done=recipe(mc,s); break;
+            case "barter": done=feed(mc,s); break;
+            case "shelter": done=shelter(mc,s); break;
+            case "pearls":
+                done=collect(mc,Items.ENDER_PEARL,14) || (count(mc,Items.ENDER_PEARL)>=13 && age-entered>=24);
+                break;
+            case "fight": done=fight(mc,s); break;
+            case "drink": case "throw": done=launch(mc,s); break;
+            case "stasis":
+                done=mc.player.getY()>68 && mc.player.squaredDistanceTo(Vec3d.ofCenter(s.target))<121;
+                if(!done && age-entered>50) {
+                    status="walking from the fortress to the return portal: "+cell+"/"+returnWalk.size();
+                    done=walkCells(mc,returnWalk);
+                }
+                break;
+            case "ignite":
+                done=mc.world.getBlockState(s.target).getBlock()==Blocks.NETHER_PORTAL;
+                if (!done && select(mc,Items.FLINT_AND_STEEL)) use(mc,aim(mc,s.target.down(),Direction.UP));
+                break;
+            case "eye":
+                BlockState frame=mc.world.getBlockState(s.target);
+                done=frame.getBlock() instanceof EndPortalFrameBlock && frame.get(EndPortalFrameBlock.EYE);
+                if (!done && select(mc,Items.ENDER_EYE)) use(mc,aim(mc,s.target,null));
+                break;
+            default: throw new IllegalStateException("Unknown middle action: "+s.kind);
+        }
+        if (done) finish(mc,s);
+        return true;
+    }
+}

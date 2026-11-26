@@ -13,7 +13,8 @@ final class RouteMovement {
     private final MinecraftClient mc;
     private final Map<BlockPos, Cell> cells = new HashMap<>();
     private final Deque<BlockPos> path = new ArrayDeque<>();
-    private BlockPos goal, breaking;
+    private BlockPos goal, breaking, lastOpenedDoor;
+    private long lastDoorUse;
     private int ticksAtNode, lastPlan;
     private final LinkedHashMap<BlockPos, Integer> penalties = new LinkedHashMap<>();
 
@@ -97,7 +98,49 @@ final class RouteMovement {
         return null;
     }
 
+    private boolean openDoor(BlockPos door) {
+        BlockState state = mc.world.getBlockState(door);
+        if (!woodenDoor(state) || state.get(DoorBlock.OPEN)) return false;
+        BlockPos bottom = woodenDoor(mc.world.getBlockState(door.down())) ? door.down() : door;
+        long now = mc.world.getTime();
+        if (bottom.equals(lastOpenedDoor) && now >= lastDoorUse && now - lastDoorUse < 5) return true;
+        if (!use(door) && !use(bottom.equals(door) ? door.up() : bottom)) return false;
+        lastOpenedDoor = bottom;
+        lastDoorUse = now;
+        return true;
+    }
+
+    /** Enter through a nearby door before considering mining an obstruction to a chest or bed. */
+    boolean enterRoom(BlockPos target) {
+        BlockPos best = null;
+        double nearest = Double.POSITIVE_INFINITY;
+        for (int dx = -4; dx <= 4; dx++) for (int dz = -4; dz <= 4; dz++) for (int dy = -1; dy <= 1; dy++) {
+            BlockPos door = target.add(dx, dy, dz);
+            BlockState state = mc.world.getBlockState(door);
+            if (!woodenDoor(state) || woodenDoor(mc.world.getBlockState(door.down()))) continue;
+            Direction normal = state.get(DoorBlock.FACING);
+            int nx = normal.getOffsetX(), nz = normal.getOffsetZ();
+            int inside = (target.getX() - door.getX()) * nx + (target.getZ() - door.getZ()) * nz;
+            double side = (mc.player.getX() - door.getX() - .5) * nx
+                    + (mc.player.getZ() - door.getZ() - .5) * nz;
+            if (inside == 0 || side * Integer.signum(inside) > .15) continue;
+            BlockPos entrance = door.offset(inside > 0 ? normal : normal.getOpposite());
+            double distance = horizontal(door);
+            if (distance < 6 && distance < nearest && walkable(entrance)) {
+                nearest = distance;
+                best = entrance;
+            }
+        }
+        if (best == null) return false;
+        travel(best, .50, false);
+        return true;
+    }
+
     boolean mine(BlockPos target) {
+        if (woodenDoor(mc.world.getBlockState(target))) {
+            cancelBreak();
+            return openDoor(target);
+        }
         BlockHitResult hit = visibleFace(target);
         if (hit == null) return false;
         if (!target.equals(breaking)) {
@@ -325,9 +368,8 @@ final class RouteMovement {
         }
         if (path.isEmpty()) return false;
         BlockPos next = path.peekFirst();
+        if (openDoor(next) || openDoor(next.up())) return false;
         BlockPos obstacle = null;
-        BlockState door = mc.world.getBlockState(next);
-        if (woodenDoor(door) && !door.get(DoorBlock.OPEN) && use(next)) return false;
         if (allowMine) {
             cells.remove(next);
             cells.remove(next.up());

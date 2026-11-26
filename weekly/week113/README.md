@@ -1,0 +1,51 @@
+# 第 113 周本地练习 · Astra
+
+本周练习使用 Minecraft Java 1.16.1、原作者发布的 MCSR Ranked 6.0.12 和第 113 周设置。11 月 26 日查询时，第一名夏末（xiamoys）为 5:35.528，第五名 Chato61 为 6:45.516。周榜于 2026-11-30 00:00 UTC 截止，中国及新加坡时间上午八点。[当周官方实时接口](https://api.mcsrranked.com/weekly-race/113) · [查询快照和四项种子](course.json)
+
+### 冠军路线
+
+从官方回放中可以读出船的上下乘、容器、方块变化、实际玩家位置、箭和伤害事件。[官方回放](https://replay.mcsrranked.com/races/113/a20541925b5648e1ae88a141ca37911e.rrf?t=335528) · [实测分段和箭速](champion.json)
+
+| 本周冠军达到的节点 | 官方用时 |
+|---|---:|
+| 取得钻石 | 0:09.825 |
+| 获得铁镐 | 0:31.970 |
+| 拿到岩浆桶 | 0:56.720 |
+| 进入下界 | 1:10.021 |
+| 抵达堡垒遗迹 / 打开堡垒宝箱 | 1:41.639 / 1:44.130 |
+| 抵达下界要塞 / 获得烈焰棒 | 2:47.638 / 3:02.335 |
+| 抵达主世界要塞 | 4:30.432 |
+| 进入末地 | 4:49.837 |
+| 船弓击杀龙 / 通过回程门 | 5:25.471 / 5:35.528 |
+
+出生点附近的埋藏宝藏在 (217,49,25)。夏末利用 TNT 取木，之后驾船前往海底峡谷。最后一箭与龙受伤出现在回放同一刻，原始伤害记录为 199。本仓库的空间参考点取自这条公开回放。Astra 在自己的生存存档中沿参考点操作按键、准星、容器和物品交互。每个练习存档独立产生真实记录。
+
+### 在本机导出已固定的完整录像
+
+仓库根目录的 `python render.py --check` 会查找完整场次并核对文件哈希、原生游戏计时、龙战进度和终末之诗记录。校验通过后，`python render.py` 会在本机独立的 Prism 实例中逐帧导出第一人称 1920×1080、60 fps 的 MP4。渲染复用这一局的实体、方块、物品栏、皮肤和分段记录。默认采用 akiaura、LONOWN、STM 的《Sleepwalker》。也支持 `--music` 指定本地音源。完整场次的路径为 `weekly/week113/release/Astra-W113.zip`；程序会明确提示该版本是否已收录达标的完整录像。
+
+### 当前练习进度
+
+第 113 周目前公布的连续新档分段中，Astra 在游戏内 **1:24.603** 进下界，**2:13.107** 打开堡垒首箱。相同进度分别落后夏末 14.582 秒与 28.977 秒。铁镐用时 29.903 秒，比夏末早 2.067 秒。独立练习中已经实测三只猪灵交易、刷棒、返回主世界、填入 11 只末影之眼和船弓击杀。分段练习有各自的初始存档，不能合计为一次完赛成绩。这个版本的整局交付状态由上面的校验命令报告。
+
+### Windows 或 Linux 复跑
+
+使用自己已有的 Minecraft Java 账号和 Fabric 1.16.1 实例，Loader 0.16.14。文件夹应为该独立客户端中实际放 `mods` 与 `saves` 的一层。安装 Python 3 和 Pillow 后，从仓库根目录执行下列命令。准备程序下载并校验对应版本的 Ranked 与 Replay Mod，再建立一个全新单人存档。也可用 `--ranked-jar`、`--replay-jar` 传入自己的原版模组文件。
+
+```sh
+python -m pip install Pillow
+python weekly/week113/prepare.py --game-dir "D:/Minecraft/AstraPractice/.minecraft" --world-name W113-01 --skin "D:/Skins/qcya_ovo.png" --autostart
+```
+
+进入这个实例时，使用本地练习角色名 Astra。通过启动器正常启动。再次开局请更换 `--world-name`，已有存档受到保护。中文语言、瘦臂皮肤和右上透明像素计时设置随实例生成。皮肤图片只需保存在使用者电脑。
+
+### 固定同一局
+
+在世界正常保存退出以后，Replay Mod 会写出原生 `.mcpr`。它保存游戏网络事件和玩家动作，包括方块变化、生物和末影龙。观察文件额外记录角色、物品栏、容器和视角，能对齐种子、原生游戏设置、出生、退出与存档。重新执行同一脚本会产生一个新的游戏尝试。要重拍原局，请使用该局的回放包。[已有实机开局回放](evidence/) · [中文像素计时、摄影与回放教程](../../presentation/)
+
+```sh
+python weekly/week113/tools/freeze_take.py "D:/Minecraft/AstraPractice/.minecraft/saves/W113-01" "D:/Minecraft/AstraPractice/.minecraft/replay_recordings/recording/实际文件名.mcpr" Astra-W113.zip
+python weekly/week113/tools/compare_splits.py "D:/Minecraft/AstraPractice/.minecraft/saves/W113-01/speedrunigt/record.json"
+```
+
+第一条命令要求完整的本地通关证据，封存时会再查询当周榜首，要求 SpeedRunIGT 的最终游戏时间追平或快于当时的第一名，全程实际时间也须进入十分钟；加 `--segment` 可以明确导出未完成的分段练习。实时排行榜在这周内还会变动。第二条命令对比双方同一游戏进度的游戏内时间。右上角的总表记录现实耗时。完整场次的比赛计时、录像的实际时长和用于比较的官方成绩分别保存在回放包中。

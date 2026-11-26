@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "astra113",
+  "version": "0.1.0",
+  "name": "Astra Week 113 local practice",
+  "environment": "client",
+  "mixins": [
+    "astra113.mixins.json",
+    "astra113-slots.mixins.json"
+  ],
+  "depends": {
+    "minecraft": "1.16.1",
+    "fabricloader": ">=0.16.14",
+    "mcsrranked": "6.0.12"
+  }
+}

@@ -1,0 +1,23 @@
+plugins {
+    id 'fabric-loom' version '1.8.13'
+}
+
+version = '0.1.0'
+group = 'dev.aiarena'
+
+dependencies {
+    minecraft 'com.mojang:minecraft:1.16.1'
+    mappings 'net.fabricmc:yarn:1.16.1+build.21:v2'
+    modImplementation 'net.fabricmc:fabric-loader:0.16.14'
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 8
+}
+loom.mixin.defaultRefmapName = 'astra-film-refmap.json'

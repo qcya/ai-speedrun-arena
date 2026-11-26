@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"astra_local_film","version":"0.1.0","name":"Astra Local Film","environment":"client","license":"MIT","mixins":["astra-film.mixins.json"],"depends":{"fabricloader":">=0.16.14","minecraft":"1.16.1","java":">=8"}}

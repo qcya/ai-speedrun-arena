@@ -1,0 +1,153 @@
+{
+  "source": "https://replay.mcsrranked.com/races/113/a20541925b5648e1ae88a141ca37911e.rrf?t=335528",
+  "sha256": "ff4c9b5906fac14ee1b34b02ef09d41839ebb3190f1a0713519b71454a83faa1",
+  "player": "xiamoys",
+  "week": 113,
+  "result_igt_ms": 335528,
+  "timelines_ms": {
+    "story.mine_diamond": 9825,
+    "story.smelt_iron": 9828,
+    "story.iron_tools": 31970,
+    "story.lava_bucket": 56720,
+    "story.mine_stone": 66423,
+    "story.enter_the_nether": 70021,
+    "nether.find_bastion": 101639,
+    "nether.loot_bastion": 104130,
+    "story.form_obsidian": 109736,
+    "nether.obtain_crying_obsidian": 135538,
+    "nether.find_fortress": 167638,
+    "adventure.kill_a_mob": 181880,
+    "nether.obtain_blaze_rod": 182335,
+    "story.follow_ender_eye": 270432,
+    "story.enter_the_end": 289837,
+    "end.kill_dragon": 325471,
+    "adventure.shoot_arrow": 325471
+  },
+  "nether_entry_xyz": [
+    4.432,
+    33.0,
+    3.5
+  ],
+  "overworld_return_xyz": [
+    -703.5,
+    36.0,
+    1309.7
+  ],
+  "end_entry_xyz": [
+    100,
+    49,
+    0
+  ],
+  "final_arrow": {
+    "tick": 6519,
+    "origin_xyz": [
+      5.271398,
+      88.248611,
+      0.358003
+    ],
+    "velocity_xyz": [
+      547.083721,
+      3.268585,
+      -469.645914
+    ],
+    "damage_reported": 199.0
+  },
+  "reference_tick_note": "Replay ticks are event ordering. All times in timelines_ms are official IGT from timelines.json, not ticks multiplied by fifty.",
+  "ravine_cast_observations": {
+    "dimension": "overworld",
+    "source": "recording data from the public replay above",
+    "bucket_slot": 40,
+    "bucket_slot_name": "offhand",
+    "primary_feet_xyz": [
+      116.982,
+      11.0,
+      -38.49
+    ],
+    "second_feet_xyz": [
+      117.113,
+      11.0,
+      -38.512
+    ],
+    "shelf_events": [
+      {
+        "break_tick": 1133,
+        "removed_block_xyz": [
+          116,
+          10,
+          -39
+        ],
+        "scoop_tick": 1135,
+        "lava_source_xyz": [
+          116,
+          9,
+          -39
+        ],
+        "lava_bucket_slot_update_tick": 1136
+      },
+      {
+        "break_tick": 1158,
+        "removed_block_xyz": [
+          116,
+          10,
+          -39
+        ],
+        "scoop_tick": 1160,
+        "lava_source_xyz": [
+          115,
+          9,
+          -39
+        ],
+        "lava_bucket_slot_update_tick": 1161
+      },
+      {
+        "break_tick": 1176,
+        "removed_block_xyz": [
+          116,
+          10,
+          -38
+        ],
+        "scoop_tick": 1177,
+        "lava_source_xyz": [
+          116,
+          9,
+          -38
+        ],
+        "lava_bucket_slot_update_tick": 1178
+      },
+      {
+        "break_tick": 1204,
+        "removed_block_xyz": [
+          116,
+          9,
+          -39
+        ],
+        "scoop_tick": 1205,
+        "lava_source_xyz": [
+          115,
+          9,
+          -40
+        ],
+        "lava_bucket_slot_update_tick": 1206
+      }
+    ],
+    "first_shaft_plug": {
+      "block": "dirt",
+      "xyz": [
+        116,
+        10,
+        -39
+      ],
+      "placed_tick": 1140
+    },
+    "second_shaft_door": {
+      "block": "oak_door",
+      "lower_xyz": [
+        116,
+        9,
+        -38
+      ],
+      "placed_tick": 1182
+    },
+    "note": "A scoop tick is the recorded removal of a source block. The next tick updates the offhand inventory to a lava bucket. These are observations of xiamoys, independently of any local controller run."
+  }
+}

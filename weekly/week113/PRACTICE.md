@@ -1,0 +1,32 @@
+# 在本机自动练第 113 周
+
+已有合格录像时，在仓库根目录运行 `python render.py` 就能导出原场次。如果你希望让 Astra 亲自重新跑图，在同一目录运行下面的命令。每次都会创建一个新的 Prism 实例和单人生存世界。
+
+```powershell
+python practice.py
+```
+
+所需程序是 Python 3.10 或以上、Pillow、Prism Launcher 10 或以上、可运行 Minecraft Java 版的本机正版账号，以及能从终端调用的 FFmpeg 和 FFprobe。先在 Prism 中完成账号与 Java 配置。在本机缺少 Pillow 时可运行 `python -m pip install Pillow`。脚本通过 Prism 的 `--offline Astra` 在单机世界使用 Astra 这个名字。启动器按自己的正常流程管理游戏运行文件和账号。[Prism 命令行实现](https://github.com/PrismLauncher/PrismLauncher/blob/develop/launcher/Application.cpp)
+
+仓库内已附 Astra 使用的原始 64×64 瘦臂皮肤，程序会自动读取。指定其他本地文件可用 `--skin`。给音乐传入本机的原版《Sleepwalker》文件，就能在自动导出时使用你选的版本。
+
+```powershell
+python practice.py --skin "D:\MC\qcya_ovo.png" --music "D:\Music\Sleepwalker.mp3"
+```
+
+程序在每次启动前校验本周世界模板、路由模组和原生录制模组。游戏从出生开始写行为日志，ReplayMod 同时录制原始数据包。角色死亡、总耗时达到十分钟或错过主动开启的分段门槛时，程序请求该次游戏正常关闭，等 Minecraft 写完存档和回放，再开新世界。每次尝试都保留在自己的 Prism 实例中，可以逐一检查。长时间训练会持续占用磁盘空间。
+
+角色进入结算后，程序保留 18 秒原始结算画面，校验 SpeedRunIGT、完整路线、地图、录像起止时间及文件完整性。成功场次须达到封存时官方公布的本周第一名 IGT，允许同成绩，并且实际连续用时少于十分钟。官方服务暂不可用时，保留该场次，在网络恢复后运行原命令即可继续校验。若周榜已经换图，本周第一名的发布判定会停止。未达标的场次只留下练习记录。取得合格成绩所需的尝试次数取决于路线和游戏内实际发生的事件。
+
+默认工作目录是用户主目录中的 `Astra-Practice-W113`。其中 `receipts` 保存每次尝试的结束原因、原生时间和回放路径，`split-history` 保存原生分段。成功时会先写入 `Astra-W113.zip`，随后调用原录像导出器在当前目录生成 `Astra-W113-practice-1080p60.mp4`。所有文件都在本机生成。按 Ctrl+C 可以请求游戏正常关闭。随后运行同一条命令即可接续这个训练目录。
+
+| 目的 | 命令 |
+| --- | --- |
+| 最多尝试五次，先只封存合格录像 | `python practice.py --attempts 5 --freeze-only` |
+| 错过自己曾经实际达成的最快进下界时间就重开 | `python practice.py --reset-pb nether` |
+| 同时考察进下界、进末地两个分段 | `python practice.py --reset-pb nether --reset-pb end` |
+| 单独指定训练目录和最终视频路径 | `python practice.py --work "D:\Astra训练" --output "D:\视频\Astra.mp4"` |
+| 检查旧练习的结局和两个计时 | `python practice.py --inspect "D:\Prism\instances\示例\.minecraft\saves\Astra-W113"` |
+| 再次导出已经在本机封存的那一局 | `python render.py --take "D:\Astra训练\Astra-W113.zip" --output "D:\视频\Astra.mp4"` |
+
+`--reset-pb` 只比较相同地图、模式和规则下此前真正完成的分段。首次尝试没有历史成绩，该项自然跳过。默认会让任何仍有机会达标的尝试继续。可用 `--prism`、`--prism-data`、`--profile` 指定现有启动器和本机账号，或用 `--ranked-jar`、`--replay-jar` 提供本机已有的对应版本模组。指定的模组仍须通过固定哈希校验。

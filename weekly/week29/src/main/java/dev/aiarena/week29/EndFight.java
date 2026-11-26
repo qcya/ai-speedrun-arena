@@ -15,6 +15,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.*;
 import net.minecraft.util.math.*;
 import net.minecraft.world.GameMode;
+import net.minecraft.world.RayTraceContext;
 import net.minecraft.world.World;
 
 import java.util.Locale;
@@ -68,24 +69,19 @@ public final class EndFight {
         }
         tick++;
         clear();
-        if (mc.currentScreen != null || !player.isAlive()) {
-            action = "screen or respawn";
+        if (!player.isAlive()) {
+            action = "respawn";
             return true;
         }
+        if (VisibleSlots.equipping(mc) || (mc.currentScreen == null && tick % 4 == 1 && tick < 100)) {
+            if (!VisibleSlots.equip(mc)) {
+                action = VisibleSlots.status;
+                return true;
+            }
+        }
+        if (mc.currentScreen != null) return true;
         px = player.getX();
         pz = player.getZ();
-        if (tick % 4 == 1
-                && tick < 100
-                && select(
-                        stack ->
-                                stack.getItem() instanceof ArmorItem
-                                        && player.getEquippedStack(
-                                                        ((ArmorItem) stack.getItem()).getSlotType())
-                                                .isEmpty())) {
-            mc.interactionManager.interactItem(player, world, Hand.MAIN_HAND);
-            action = "equipping armor";
-            return true;
-        }
         previousYaw = player.yaw;
         previousPitch = player.pitch;
         if (fountain < 0 && (tick % 10 == 0 || tick == 1)) {
@@ -185,7 +181,7 @@ public final class EndFight {
                     action = "waiting clear of fountain, " + phase;
                     return true;
                 }
-                watchDragon(dragon);
+                watchFountain();
                 action = "waiting for dragon to land, " + phase;
                 return true;
             }
@@ -234,6 +230,7 @@ public final class EndFight {
             return true;
         }
         if (placed) {
+            BlockHitResult trigger = bedTrigger(foot);
             if (tick <= nextUse || dragon == null) return true;
             Vec3d h = dragon.partHead.getPos(), boom = Vec3d.ofCenter(head);
             double d = h.distanceTo(boom);
@@ -252,21 +249,12 @@ public final class EndFight {
                                             .getCurrent()
                                             .isSittingOrHovering()))) {
                 if (tick - lastBlast < 11) return true;
-                // Click the exposed foot from behind the indestructible pillar.
-                for (double x : new double[] {-.86, -.52, -.12})
-                    for (double z : new double[] {.04, .17, .45}) {
-                        double[] target = point(x, z);
-                        BlockHitResult hit =
-                                aimAt(foot, new Vec3d(target[0], foot.getY() + .40, target[1]));
-                        if (hit != null) {
-                            use(hit);
-                            nextUse = tick + 4;
-                            return true;
-                        }
-                    }
-                action = "bed occluded at blast position";
-            } else {
-                watchDragon(dragon);
+                if (trigger != null) {
+                    use(trigger);
+                    nextUse = tick + 4;
+                } else {
+                    action = "lining up with exposed bed foot";
+                }
             }
             return true;
         }
@@ -352,9 +340,19 @@ public final class EndFight {
         return false;
     }
 
-    private static void watchDragon(EnderDragonEntity dragon) {
-        aim(dragon.partHead.getBoundingBox().getCenter());
-        avoidEndermanGaze();
+    private static void watchFountain() {
+        double[] side = point(-.002, .74);
+        aim(new Vec3d(side[0], fountain + 3.36, side[1]));
+    }
+
+    private static BlockHitResult bedTrigger(BlockPos foot) {
+        for (double x : new double[] {-.86, -.52, -.12})
+            for (double z : new double[] {.04, .17, .45}) {
+                double[] p = point(x, z);
+                Vec3d target = new Vec3d(p[0], foot.getY() + .40, p[1]);
+                if (visible(foot, target)) return turnAndTrace(foot, target);
+            }
+        return null;
     }
 
     private static void avoidEndermanGaze() {
@@ -371,7 +369,7 @@ public final class EndFight {
             double d = head.length();
             if (d < 1.25
                     || d < 65 && look.dotProduct(head.normalize()) > 1.0 - .24 / Math.max(1, d)) {
-                player.pitch = 76;
+                turn(player.yaw, 76);
                 return;
             }
         }
@@ -379,7 +377,7 @@ public final class EndFight {
 
     private static void melee(EnderDragonEntity dragon) {
         if (!dragon.getPhaseManager().getCurrent().isSittingOrHovering()) {
-            watchDragon(dragon);
+            if (fountain >= 0) watchFountain();
             return;
         }
         Box head = dragon.partHead.getBoundingBox();
@@ -530,14 +528,26 @@ public final class EndFight {
 
     private static void walk(double x, double z, boolean jump, boolean forcedSneak) {
         double dx = x - px, dz = z - pz, d = Math.hypot(dx, dz);
-        player.yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
-        player.pitch = 35;
-        avoidEndermanGaze();
         boolean sneak = forcedSneak || d < 1.15;
         mc.options.keySneak.setPressed(sneak);
-        mc.options.keyForward.setPressed(d > (sneak ? .07 : .14));
+        if (d < (sneak ? .07 : .14)) return;
+        if (fountain >= 0 && Math.hypot(px - .5, pz - .5) < 7.0) {
+            watchFountain();
+        } else {
+            turn((float) Math.toDegrees(Math.atan2(-dx, dz)), 35);
+            avoidEndermanGaze();
+        }
+        // Project the movement onto the current camera axes. Small changes of position
+        // around the post use strafe/back keys while the crosshair stays on the fountain.
+        double angle = Math.toRadians(player.yaw);
+        double forward = (-Math.sin(angle) * dx + Math.cos(angle) * dz) / d;
+        double left = (Math.cos(angle) * dx + Math.sin(angle) * dz) / d;
+        mc.options.keyForward.setPressed(forward > .3827);
+        mc.options.keyBack.setPressed(forward < -.3827);
+        mc.options.keyLeft.setPressed(left > .3827);
+        mc.options.keyRight.setPressed(left < -.3827);
         mc.options.keyJump.setPressed(jump);
-        mc.options.keySprint.setPressed(d > 5.0 && !sneak);
+        mc.options.keySprint.setPressed(forward > .3827 && d > 5 && !sneak);
     }
 
     private static void clear() {
@@ -581,11 +591,28 @@ public final class EndFight {
 
     private static void aim(Vec3d target) {
         Vec3d d = target.subtract(eye());
-        player.yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
-        player.pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.hypot(d.x, d.z)));
+        turn((float) Math.toDegrees(Math.atan2(-d.x, d.z)),
+                (float) -Math.toDegrees(Math.atan2(d.y, Math.hypot(d.x, d.z))));
+    }
+
+    private static void turn(float yaw, float pitch) {
+        player.yaw = previousYaw + MathHelper.clamp(MathHelper.wrapDegrees(yaw - previousYaw), -12f, 12f);
+        player.pitch = previousPitch + MathHelper.clamp(pitch - previousPitch, -8f, 8f);
+    }
+
+    private static boolean visible(BlockPos wanted, Vec3d target) {
+        Vec3d eye = eye();
+        Vec3d end = eye.add(target.subtract(eye).normalize().multiply(mc.interactionManager.getReachDistance()));
+        BlockHitResult geometric = world.rayTrace(new RayTraceContext(eye, end,
+                RayTraceContext.ShapeType.OUTLINE, RayTraceContext.FluidHandling.NONE, player));
+        return geometric.getType() == HitResult.Type.BLOCK && geometric.getBlockPos().equals(wanted);
     }
 
     private static BlockHitResult aimAt(BlockPos wanted, Vec3d target) {
+        return visible(wanted, target) ? turnAndTrace(wanted, target) : null;
+    }
+
+    private static BlockHitResult turnAndTrace(BlockPos wanted, Vec3d target) {
         aim(target);
         HitResult ray = player.rayTrace(mc.interactionManager.getReachDistance(), 1.0f, false);
         if (ray instanceof BlockHitResult

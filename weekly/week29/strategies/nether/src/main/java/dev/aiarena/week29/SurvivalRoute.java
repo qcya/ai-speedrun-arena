@@ -317,7 +317,7 @@ public final class SurvivalRoute {
             return false;
         }
         tool(target);
-        if (!nav.mine(target) && !nav.clearSight(target)) nav.travel(approach(target), .25, true);
+        if (!nav.mine(target) && !nav.enterRoom(target) && !nav.clearSight(target)) nav.travel(approach(target), .25, true);
         return false;
     }
 
@@ -575,10 +575,10 @@ public final class SurvivalRoute {
             return false;
         }
         if (op.equals("loot")) {
-            if (!flag(o, "all", false) && count(str(o, "item", "")) >= num(o, "count", 1)) {
-                if (mc.currentScreen instanceof HandledScreen) mc.player.closeHandledScreen();
-                return true;
-            }
+            boolean all = flag(o, "all", false);
+            String filter = str(o, "item", "");
+            boolean enough = !all && count(filter) >= num(o, "count", 1);
+            if (enough && mc.player.currentScreenHandler == mc.player.playerScreenHandler) return true;
             if (mc.player.currentScreenHandler == mc.player.playerScreenHandler) {
                 if (target == null)
                     target = o.has("x") ? coordinate(o) : nearest("chest", num(o, "radius", 12), 6);
@@ -586,47 +586,22 @@ public final class SurvivalRoute {
                     state = "approaching chest " + target.toShortString();
                     if (nav.visibleFace(target) != null) {
                         if (age % 4 == 0) nav.use(target);
-                    } else if (!nav.clearSight(target)) nav.travel(approach(target), .3, true);
+                    } else if (!nav.enterRoom(target) && !nav.clearSight(target)) nav.travel(approach(target), .3, true);
                 }
                 return false;
             }
-            ScreenHandler sh = mc.player.currentScreenHandler;
-            if (age % 3 != 0) return false;
-            for (int i = 0; i < sh.slots.size() - 36; i++) {
-                ItemStack stack = sh.getSlot(i).getStack();
-                if (!stack.isEmpty() && matches(id(stack.getItem()), str(o, "item", ""))) {
-                    mc.interactionManager.clickSlot(
-                            sh.syncId, i, 0, SlotActionType.QUICK_MOVE, mc.player);
-                    state = "looting " + str(o, "item", "");
-                    return false;
-                }
-            }
-            if (flag(o, "all", false)) {
+            boolean done = VisibleSlots.loot(mc, stack -> matches(id(stack.getItem()), filter), enough);
+            state = VisibleSlots.status;
+            if (done && (all || enough)) {
                 mc.player.closeHandledScreen();
                 return true;
             }
             return false;
         }
         if (op.equals("armor")) {
-            if (mc.player.currentScreenHandler != mc.player.playerScreenHandler) return false;
-            if (age % 3 != 0) return false;
-            for (int i = 0; i < 36; i++) {
-                ItemStack stack = mc.player.inventory.main.get(i);
-                if (stack.getItem() instanceof ArmorItem) {
-                    ArmorItem armor = (ArmorItem) stack.getItem();
-                    if (mc.player.getEquippedStack(armor.getSlotType()).isEmpty()) {
-                        mc.interactionManager.clickSlot(
-                                mc.player.playerScreenHandler.syncId,
-                                i < 9 ? 36 + i : i,
-                                0,
-                                SlotActionType.QUICK_MOVE,
-                                mc.player);
-                        state = "equipping " + id(armor);
-                        return false;
-                    }
-                }
-            }
-            return true;
+            boolean done = VisibleSlots.equip(mc);
+            state = VisibleSlots.status;
+            return done;
         }
         if (op.equals("select")) return select(str(o, "item", ""));
         if (op.equals("locate")) {

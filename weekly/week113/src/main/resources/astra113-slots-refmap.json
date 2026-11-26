@@ -1,0 +1,16 @@
+{
+  "mappings": {
+    "dev/aiarena/week29/mixin/HandledScreenPosition": {
+      "x": "field_2776:I",
+      "y": "field_2800:I"
+    }
+  },
+  "data": {
+    "named:intermediary": {
+      "dev/aiarena/week29/mixin/HandledScreenPosition": {
+        "x": "field_2776:I",
+        "y": "field_2800:I"
+      }
+    }
+  }
+}
