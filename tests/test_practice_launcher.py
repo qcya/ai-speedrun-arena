@@ -1,3 +1,4 @@
+import gzip
 import json
 from pathlib import Path
 import struct
@@ -11,6 +12,25 @@ import zipfile
 import zlib
 
 import practice
+
+
+def stasis_fixture(restore=16):
+    def state(tick, pearls=3, rods=0, pos=(-30.5,57.8,167.5)):
+        return dict(event="state", dim="nether", run_tick=tick, elapsed_ms=100*tick,
+                    reference_tick=3393, middle_action="throw pearl3 at 0, 0, 0", hotbar_slot=0,
+                    screen="", x=pos[0], y=pos[1], z=pos[2],
+                    inventory=[[0,"minecraft:ender_pearl",pearls],[1,"minecraft:blaze_rod",rods]])
+
+    def keys(row, start, end):
+        step = 1 if end > start else -1
+        return [dict(row, event="render_distance_shortcut", before=v, after=v+step,
+                     shortcut="F3+F" if step==1 else "Shift+F3+F") for v in range(start,end,step)]
+
+    launch = state(1)
+    cage = state(3, 2, 6, (-8,57,158))
+    ledge = state(5, 2, 6, (-82,74,175))
+    return [launch, *keys(state(1,2),16,2), state(2,2,5), cage,
+            *keys(cage,2,restore), dict(cage,run_tick=4,elapsed_ms=400), ledge]
 
 
 class PracticeLauncherTests(unittest.TestCase):
@@ -203,6 +223,81 @@ class PracticeLauncherTests(unittest.TestCase):
         self.assertIsNone(stasis_shortcuts([lower,cage,raise_distance,dict(ledge,run_tick=8)]))
         self.assertIsNone(stasis_shortcuts([lower,cage,raise_distance,dict(ledge,x=-9,y=57,z=160)]))
 
+    def test_standard_stasis_requires_the_same_thrown_pearl_and_full_native_distance(self):
+        from world_evidence import require_standard_stasis
+        proof=require_standard_stasis(stasis_fixture())
+        self.assertEqual((proof["initial_distance"],proof["minimum_distance"],proof["recall_distance"]),(16,2,16))
+        self.assertEqual(proof["recorded_key_changes"],28)
+        self.assertEqual(proof["ledge_arrival_ms"],500)
+
+        good=stasis_fixture()
+        same_count=[dict(q,inventory=good[0]["inventory"]) if q is good[1] else q for q in good]
+        wrong_target=[dict(q,middle_action="throw pearl2 at 0, 0, 0") for q in good]
+        extra_throw=[dict(q,inventory=[[0,"minecraft:ender_pearl",1],[1,"minecraft:blaze_rod",6]])
+                     if q is good[-2] else q for q in good]
+        already_six=[dict(q,inventory=[q["inventory"][0],[1,"minecraft:blaze_rod",6]]) for q in good]
+        six_too_late=[dict(q,inventory=[q["inventory"][0],[1,"minecraft:blaze_rod",5]])
+                      if q["event"]=="state" and q["run_tick"]==3 else q for q in good]
+        for label, rows in {
+                "no stasis":[], "partial restoration":stasis_fixture(8), "missing key":good[:6]+good[7:],
+                "no pearl consumed":same_count, "wrong launch":wrong_target, "already held six":already_six,
+                "second pearl":extra_throw,
+                "wrong shortcut":[dict(q,shortcut="F3+F") if q is good[2] else q for q in good],
+                "never reached ledge":good[:-1], "observer gap":good[:-2]+[good[-1]],
+                "restore after landing":good[:-3]+[good[-2],good[-1],good[-3]],
+                "sixteen before six":six_too_late,
+                }.items():
+            with self.subTest(label=label), self.assertRaisesRegex(ValueError,"16→2→16"):
+                require_standard_stasis(rows)
+
+    def test_native_distance_changes_after_ledge_do_not_invalidate_recall(self):
+        from world_evidence import require_standard_stasis
+        rows=stasis_fixture()
+        arrived=rows[-1]
+        later_key=dict(arrived,event="render_distance_shortcut",before=16,after=15,shortcut="Shift+F3+F")
+        self.assertEqual(require_standard_stasis(rows+[later_key]),require_standard_stasis(rows))
+
+    def test_campaign_preserves_fast_nonstandard_finishes_and_starts_the_next_attempt(self):
+        from types import SimpleNamespace
+        from world_evidence import MissingStandardStasis
+        self.rows([("spawn",0),("credits",610000)])
+        capture=self.capture()
+        practice.write(self.world/"speedrunigt/record.json",dict(is_completed=True,final_igt=330000))
+        instances=self.root/"prism"/"instances"
+        instances.mkdir(parents=True)
+        work=self.root/"campaign"
+        args=SimpleNamespace(work=work,inspect=None,prism=None,prism_data=instances.parent,attempts=2,
+                             opening="fast",wait_for_piglins=False,initial_view_distance=16,reset_pb=[],
+                             reset_after_rta_seconds=None,profile=None)
+        def prepare(*args,**kwargs):
+            return dict(self.attempt,token=str(uuid.uuid4()),reason="credits")
+        with patch("render.find_prism"), patch("practice.recording_resources",return_value=(None,{})), \
+             patch("practice.prepare_attempt",side_effect=prepare) as fresh, patch("practice.watch"), \
+             patch("freeze_take.pack",side_effect=MissingStandardStasis("missing the required 16→2→16 recall")), \
+             patch("render.verify_take") as export:
+            self.assertEqual(practice.practice(args),2)
+        self.assertEqual(fresh.call_count,2)
+        export.assert_not_called()
+        receipts=[practice.read(p) for p in (work/"receipts").glob("*.json")]
+        self.assertEqual(len(receipts),2)
+        for receipt in receipts:
+            self.assertEqual(receipt["verdict"],"missing_standard_stasis")
+            self.assertEqual(receipt["lead_ms"],5528)
+            self.assertEqual(receipt["replay"],str(capture))
+            self.assertIn("16→2→16",receipt["route_error"])
+
+    def test_unrelated_freeze_failure_still_stops_the_attempt(self):
+        self.rows([("spawn",0),("credits",610000)])
+        self.capture()
+        self.attempt["reason"]="credits"
+        practice.write(self.world/"speedrunigt/record.json",dict(is_completed=True,final_igt=330000))
+        for error in (ValueError("invalid packet stream"),OSError("failed to read replay")):
+            with self.subTest(error=error),patch("freeze_take.pack",side_effect=error), \
+                 self.assertRaises(type(error)) as caught:
+                practice.finish_attempt(self.attempt,self.root,self.dest)
+            self.assertIs(caught.exception,error)
+        self.assertFalse(self.dest.exists())
+
     def test_fixed_strict_igt_in_practice(self):
         self.rows([('spawn',0),('credits',610000)])
         self.capture()
@@ -231,12 +326,13 @@ class PracticeLauncherTests(unittest.TestCase):
         player = uuid.uuid4()
         state = dict(event='spawn', run_tick=0, reference_tick=0, elapsed_ms=0, epoch_ms=5000,
                      dim='overworld', x=207.5, y=64, z=11.5, hp=20, inventory=[])
-        rows=[state]
-        for i, (event, dim) in enumerate([('enter_nether','nether'),('return_overworld','overworld'),
-                                          ('enter_end','end')],1):
-            row=dict(state,event=event,run_tick=i,elapsed_ms=1000*i,dim=dim)
-            rows.extend((row,dict(row,event='state')))
-        rows.append(dict(rows[-1],event='credits',elapsed_ms=610000))
+        rows=[state,dict(state,event="enter_nether",dim="nether",run_tick=1,elapsed_ms=100)]
+        rows.extend(stasis_fixture())
+        rows.append(dict(rows[-1],event="render_distance_shortcut",before=16,after=15,shortcut="Shift+F3+F"))
+        for i, (event, dim) in enumerate([("return_overworld","overworld"),("enter_end","end")],6):
+            row=dict(state,event=event,run_tick=i,elapsed_ms=100*i,dim=dim)
+            rows.extend((row,dict(row,event="state")))
+        rows.append(dict(rows[-1],event="credits",elapsed_ms=610000))
         self.log.write_text(''.join(json.dumps(row)+'\n' for row in rows))
         (self.world/'astra-113.local').touch()
         (self.world/'astra-film-attempt.txt').write_text(str(player))
@@ -268,15 +364,41 @@ class PracticeLauncherTests(unittest.TestCase):
                 with self.subTest(result=result), self.assertRaisesRegex(ValueError,'strictly faster'):
                     freeze_take.pack(self.world,replay,self.dest,False)
             practice.write(timer_path,dict(timer,final_igt=335527))
+            full_log=self.log.read_bytes()
+            without_recall=[q for q in rows if q["event"]!="render_distance_shortcut"]
+            only_eight=[q for q in rows if q["event"]!="render_distance_shortcut"
+                        or q["after"]<=q["before"] or q["after"]<=8]
+            for invalid in (without_recall, only_eight):
+                self.log.write_text("".join(json.dumps(q)+"\n" for q in invalid))
+                with self.assertRaisesRegex(ValueError,"16→2→16"):
+                    freeze_take.pack(self.world,replay,self.dest,False)
+            practice_take=self.root/"practice.zip"
+            freeze_take.pack(self.world,replay,practice_take,True)
+            self.assertEqual(render.verify_take(practice_take,True)[0]["kind"],"practice_segment")
+            self.log.write_bytes(full_log)
             freeze_take.pack(self.world,replay,self.dest,False)
         meta,_ = render.verify_take(self.dest,False)
         self.assertEqual(meta['lead_ms'],1)
         self.assertEqual(meta['last_observed_ms'],610000)
-        self.assertIsNone(meta['native_route']['stasis_shortcuts'])
+        self.assertEqual(meta['native_route']['stasis_shortcuts']['recall_distance'],16)
 
         # An older bundle's self-reported qualifying metadata cannot relax the export check.
         with zipfile.ZipFile(self.dest) as bundle:
             entries={name:bundle.read(name) for name in bundle.namelist() if name!='SHA256SUMS'}
+        # Recompute from the observer even when metadata and all package checksums claim success.
+        for label, invalid, error in (("no-recall",without_recall,"16→2→16"),
+                                      ("restored-eight",only_eight,"16→2→16"),
+                                      ("checkpoint-only",stasis_fixture(),"natural spawn")):
+            old_bundle=self.root/(label+".zip")
+            old_entries=dict(entries)
+            old_entries["observer.jsonl.gz"]=gzip.compress("".join(json.dumps(q)+"\n" for q in invalid).encode())
+            with zipfile.ZipFile(old_bundle,"w") as z:
+                for name,blob in old_entries.items():
+                    z.writestr(name,blob)
+                z.writestr("SHA256SUMS","".join(f"{freeze_take.sha(blob)}  {name}\n" for name,blob in old_entries.items()))
+            with self.subTest(label=label), self.assertRaisesRegex(ValueError,error):
+                render.verify_take(old_bundle,False)
+            self.assertTrue(render.verify_take(old_bundle,True)[0]["native_completed"])
         for result in (335528,335529):
             entries['native-timer.json']=json.dumps(dict(timer,final_igt=result)).encode()
             entries['take.json']=json.dumps(dict(meta,native_speedrunigt_ms=result)).encode()

@@ -67,6 +67,8 @@ def prepare(args):
             (staged/"astra-bastion-upper").touch()
         if getattr(args,"wait_for_piglins",False):
             (staged/"astra-bastion-wait").touch()
+        if getattr(args,"eastern",False):
+            (staged/"astra-opening-east").touch()
         if getattr(args,"save_gold",False):
             (staged/"astra-opening-save-gold").touch()
         if getattr(args,"shield",False):

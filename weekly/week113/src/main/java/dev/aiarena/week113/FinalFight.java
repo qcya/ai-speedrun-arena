@@ -29,7 +29,7 @@ public final class FinalFight {
     private static long pearlThrownAt;
     private static boolean waterPlaced, landed, killed, pearlAttempted, pearlLanded, eating;
     private static boolean crossingChosen, keepPearl;
-    private static double lastDragonDistance;
+    private static double lastDragonDistance, lastDragonY;
     public static String status = "end approach";
 
     static {
@@ -63,6 +63,7 @@ public final class FinalFight {
         waterPlaced = landed = killed = false;
         launchServerSpeed = 0;
         lastDragonDistance = Double.POSITIVE_INFINITY;
+        lastDragonY = Double.NaN;
         status = "end approach";
     }
 
@@ -635,10 +636,14 @@ public final class FinalFight {
         double dist = Math.hypot(dx, dz);
         boolean approaching =
                 Double.isFinite(lastDragonDistance) && dist < lastDragonDistance - .08;
+        double height = dragon.getY() - SEAT.y;
+        boolean descendingOverhead = dist < 4.5 && height >= 0 && height < 3.5
+                && dragon.getY() < lastDragonY - .08;
         lastDragonDistance = dist;
-        // At actual dismount the recorded dragon origin was 7.0 blocks away,
-        // approaching across the rider's side of the platform, at Y 85.88.
-        return approaching && dist <= 8.1 && dist >= 4.5 && Math.abs(dragon.getY() - SEAT.y) < 3.5;
+        lastDragonY = dragon.getY();
+        // The reference pass is nearly level. An already charged rider can also dismount
+        // when a dragon drops directly over the boat and misses the horizontal approach window.
+        return descendingOverhead || (approaching && dist <= 8.1 && dist >= 4.5 && Math.abs(height) < 3.5);
     }
 
     private static void sightAlongPass(MinecraftClient mc, EnderDragonEntity dragon) {
@@ -782,6 +787,7 @@ public final class FinalFight {
                 if (seat(m)) {
                     phase = 3;
                     lastDragonDistance = Double.POSITIVE_INFINITY;
+                    lastDragonY = Double.NaN;
                 }
                 break;
             case 3:

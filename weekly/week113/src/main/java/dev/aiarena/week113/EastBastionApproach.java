@@ -12,15 +12,51 @@ final class EastBastionApproach {
     private static final List<BlockPos> first=Middle.cells("east-first.csv");
     private static final List<BlockPos> escape=Middle.cells("east-escape.csv");
     private static int phase,index,aimTicks,flight;
-    private static boolean offeredGold;
+    private static boolean offeredGold, lowFallback;
+    private static int highPoint, nextPad, slowTicks;
+    private static double checkX, checkZ;
+    private static final double[][] HIGH = {
+        {32.0,.15},{29.25,6.24},{27.12,11.45},{25.50,16.72},{23.84,22.00},
+        {21.73,27.56},{20.21,32.88},{19.27,37.01},{18.51,39.73},{17.46,42.15},
+        {16.34,44.83},{14.98,47.36},{13.24,49.58},{11.31,51.46},{10.00,55.05},
+        {6.67,55.10},{4.23,55.46},{1.50,56.50}
+    };
+    private static final BlockPos[] PADS={new BlockPos(17,40,42),new BlockPos(16,41,45),new BlockPos(13,41,48)};
+    private static boolean leftPortal, selectedExit;
+    private static double exitX,exitZ;
     static String status="";
 
-    static void reset(){phase=0;index=0;aimTicks=0;flight=0;offeredGold=false;}
+    static void reset(){phase=0;index=0;aimTicks=0;flight=0;offeredGold=false;leftPortal=false;selectedExit=false;lowFallback=false;highPoint=nextPad=slowTicks=0;checkX=checkZ=0;}
     static boolean shouldHandle(MinecraftClient m){
-        if(phase==0)phase=m.player.getX()>20?1:5;
+        if(phase==0){if(m.currentScreen!=null || m.player.getY()>57)return false;phase=m.player.getX()>20?1:5;}
         return phase<5;
     }
 
+    private static boolean leavePortal(MinecraftClient m) {
+        if(leftPortal)return true;
+        if(!selectedExit){
+            BlockPos feet=m.player.getBlockPos(),closest=null;double best=25;
+            for(int x=-3;x<=3;x++)for(int z=-3;z<=3;z++){
+                BlockPos point=feet.add(x,0,z);
+                if(m.world.getBlockState(point).getBlock()!=net.minecraft.block.Blocks.NETHER_PORTAL)continue;
+                double dist=m.player.squaredDistanceTo(point.getX()+.5,m.player.getY(),point.getZ()+.5);
+                if(dist<best){best=dist;closest=point;}
+            }
+            if(closest==null){leftPortal=true;return true;}
+            boolean alongX=m.world.getBlockState(closest).get(net.minecraft.block.NetherPortalBlock.AXIS)==net.minecraft.util.math.Direction.Axis.X;
+            exitX=alongX?closest.getX()+.5:closest.getX()-1.2;
+            exitZ=alongX?closest.getZ()+2.2:closest.getZ()+.5;
+            selectedExit=true;
+        }
+        if(Math.hypot(m.player.getX()-exitX,m.player.getZ()-exitZ)<.40){
+            leftPortal=true;index=3;return true;
+        }
+        Race.aim(m,new Vec3d(exitX,m.player.getEyeY(),exitZ));
+        BastionApproach.move(m,exitX,exitZ,false,false);
+        m.options.keyJump.setPressed(m.player.horizontalCollision);
+        status="leaving the eastern portal on its open face";
+        return false;
+    }
     private static boolean walk(MinecraftClient m,List<BlockPos> cells) {
         // A sprint through a diagonal turn can bypass a cell center even though
         // the player is already standing on a later safe foot cell.
@@ -66,9 +102,84 @@ final class EastBastionApproach {
         return false;
     }
 
+    // The registered soul sand anchors are solid; clicking their genuine top faces
+    // adds three full-height, ordinary sprint-jump landing surfaces.
+    private static boolean aimAtPad(MinecraftClient m,BlockPos pad) {
+        if(!Middle.selectBuildingBlock(m,false))return false;
+        if(m.currentScreen!=null || m.getServer()==null)return false;
+        net.minecraft.server.network.ServerPlayerEntity self=m.getServer().getPlayerManager().getPlayer(m.player.getUuid());
+        if(self==null || self.getMainHandStack().getItem()!=m.player.getMainHandStack().getItem())return false;
+        BlockPos base=pad.down();
+        net.minecraft.util.shape.VoxelShape shape=m.world.getBlockState(base).getOutlineShape(m.world,base);
+        if(shape.isEmpty())return false;
+        for(double x:new double[]{.50,.17,.83})for(double z:new double[]{.50,.17,.83}) {
+            Vec3d point=new Vec3d(base.getX()+x,base.getY()+shape.getBoundingBox().maxY-.002,base.getZ()+z);
+            net.minecraft.util.hit.BlockHitResult planned=BastionApproach.line(m,point);
+            if(planned==null || !planned.getBlockPos().equals(base)
+                    || planned.getSide()!=net.minecraft.util.math.Direction.UP)continue;
+            Race.aim(m,point);
+            m.gameRenderer.updateTargetedEntity(1);
+            if(m.crosshairTarget instanceof net.minecraft.util.hit.BlockHitResult) {
+                net.minecraft.util.hit.BlockHitResult h=(net.minecraft.util.hit.BlockHitResult)m.crosshairTarget;
+                if(h.getType()==net.minecraft.util.hit.HitResult.Type.BLOCK && h.getBlockPos().equals(base)
+                        && h.getSide()==net.minecraft.util.math.Direction.UP
+                        && m.interactionManager.interactBlock(m.player,m.world,Hand.MAIN_HAND,h).isAccepted())
+                    m.player.swingHand(Hand.MAIN_HAND);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private static boolean highShore(MinecraftClient m) {
+        if(lowFallback)return walk(m,first);
+        double x=m.player.getX(), z=m.player.getZ();
+        // The portal's obsidian posts run east-west. Leave through the open south
+        // face before trying to sprint-jump beneath the frame's upper crossbar.
+        if(z<-.90 && x>30.0) {
+            Race.aim(m,new Vec3d(32.85,m.player.getEyeY(),.45));
+            BastionApproach.move(m,32.85,.45,false,true);
+            m.options.keyJump.setPressed(false);
+            status="leaving the eastern Nether portal through its south face";
+            return false;
+        }
+        if(++slowTicks>=40) {
+            boolean stalled=highPoint>1 && Math.hypot(x-checkX,z-checkZ)<.65;
+            checkX=x;checkZ=z;slowTicks=0;
+            if(stalled || m.player.getY()<38.5) {
+                lowFallback=true;
+                index=nearest(first,m,0,first.size()-1);
+                return walk(m,first);
+            }
+        }
+        while(highPoint<HIGH.length-1) {
+            double[] here=HIGH[highPoint],next=HIGH[highPoint+1];
+            double dx=x-here[0],dz=z-here[1],sx=next[0]-here[0],sz=next[1]-here[1];
+            if(Math.hypot(dx,dz)>1.05 && dx*sx+dz*sz<0)break;
+            highPoint++;
+        }
+        double[] goal=HIGH[highPoint];
+        if(highPoint==HIGH.length-1 && Math.hypot(x-goal[0],z-goal[1])<.5
+                && Math.abs(m.player.getY()-41)<1.15)return true;
+        while(nextPad<PADS.length && (!BastionApproach.open(m,PADS[nextPad])
+                || z>PADS[nextPad].getZ()+1.1))nextPad++;
+        boolean placing=false;
+        if(nextPad<PADS.length) {
+            BlockPos pad=PADS[nextPad];
+            if(Math.hypot(x-pad.getX()-.5,z-pad.getZ()-.5)<4.4)placing=aimAtPad(m,pad);
+        }
+        if(!placing)Race.aim(m,new Vec3d(goal[0],m.player.getEyeY()-.1,goal[1]));
+        BastionApproach.move(m,goal[0],goal[1],false,true);
+        boolean nearLaunch=Math.hypot(x-1.5,z-56.5)<3.2;
+        m.options.keyJump.setPressed(m.player.isOnGround() && !nearLaunch);
+        status="sprint-jumping along the upper eastern shore "+highPoint+"/"+HIGH.length;
+        return false;
+    }
+
     static int tick(MinecraftClient m,List<BlockPos> low){
         if(phase==1){
-            if(!walk(m,first))return -1;
+            if(!leavePortal(m))return -1;
+            if(!highShore(m))return -1;
             index=0;phase=m.player.inventory.count(Items.ENDER_PEARL)>0?2:4;
         }
         if(phase==2){

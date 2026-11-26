@@ -95,6 +95,7 @@ public final class Middle {
         pillar=null;
         barricade=0;
         pearlWalk=0;
+        chestPearlStep=-1; pendingWestPearls=false;
         collectingAbove=false;
         escapingFirstFloor=false;rushingWest=false;northRoofStarted=-1;
         retreatingToShaft=false;offeredPig=-1;offerStart=-1;offerRetry=0;
@@ -615,9 +616,10 @@ public final class Middle {
             return true;
         }
         Vec3d column=new Vec3d(-154.50,mc.player.getY(),119.50);
-        if (Math.hypot(column.x-mc.player.getX(),column.z-mc.player.getZ())>.28) {
+        // Keep the full 0.6-block player width inside the shaft before jumping.
+        if (Math.hypot(column.x-mc.player.getX(),column.z-mc.player.getZ())>.13) {
             Race.aim(mc,new Vec3d(column.x,mc.player.getEyeY(),column.z));
-            approach(mc,column,false);
+            approach(mc,column,true);
             status="returning to the protected pillar with trade pearls";
             return false;
         }
@@ -787,9 +789,83 @@ public final class Middle {
         return true;
     }
 
+    private static final BlockPos CHEST_PEARL=new BlockPos(-149,36,117);
+    private static final BlockPos[] CHEST_STAIRS={
+            new BlockPos(-151,39,118),new BlockPos(-150,38,118),new BlockPos(-149,37,118),CHEST_PEARL,
+            new BlockPos(-149,37,118),new BlockPos(-150,38,118),new BlockPos(-151,39,118),
+            new BlockPos(-152,40,118),new BlockPos(-153,40,118),new BlockPos(-153,40,119),
+            new BlockPos(-154,40,119),new BlockPos(-155,39,119)};
+    private static int chestPearlStep=-1, chestPearlBefore;
+    private static boolean pendingWestPearls;
+
+    /** Follow the existing south-side stairs when a barter rolls into the lower chest chamber. */
+    private static boolean chestPearlStairs(MinecraftClient mc,int pearls,boolean eastDrop,boolean westDrop) {
+        double x=mc.player.getX(),y=mc.player.getY(),z=mc.player.getZ();
+        if(pendingWestPearls) {
+            if(!westDrop || pearls>=13)pendingWestPearls=false;
+            else {
+                Race.stop(mc);mc.options.keyAttack.setPressed(false);
+                if(y>35.1)descendTradingShaft(mc);
+                else {
+                    Vec3d pickup=new Vec3d(-155.43,35,119.51);
+                    Race.aim(mc,pickup.add(0,1.05,0));approach(mc,pickup,false);
+                    status="collecting the western pearl stack beside the trading pillar";
+                }
+                return true;
+            }
+        }
+        boolean aboveChest=Math.abs(x+148.5)<.47 && Math.abs(z-117.5)<.47 && y>39.9 && y<43.2;
+        if(chestPearlStep<0) {
+            if(!eastDrop || pearls>=13)return false;
+            boolean atStairs=collectingAbove && pearlWalk>=pearlLedges.length
+                    && mc.player.squaredDistanceTo(-150.66,39.6,118.55)<2.0;
+            if(!aboveChest && !atStairs)return false;
+            chestPearlBefore=pearls;
+            chestPearlStep=aboveChest?3:0;
+        }
+
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        if(chestPearlStep<=3 && (pearls>chestPearlBefore || !eastDrop))chestPearlStep=4;
+        if(chestPearlStep==3 && aboveChest) {
+            // Recover a runner already above the chest. The two roof blocks only cover air
+            // and a verified solid landing at Y35. Never drill below the pocket floor.
+            double dx=x+148.5,dz=z-117.5;
+            if(Math.abs(dx)>.19 || Math.abs(dz)>.19) {
+                Vec3d center=new Vec3d(-148.5,y,117.5);
+                Race.aim(mc,center.add(0,1.0,0));approach(mc,center,true);
+            } else if(mc.player.isOnGround()) {
+                BlockPos roof=new BlockPos(-149,Math.floor(y-.02),117);
+                if(roof.getY()>=40 && roof.getY()<=41 && mc.world.getBlockState(roof).getBlock()==Blocks.BLACKSTONE
+                        && select(mc,Items.IRON_PICKAXE))
+                    mc.options.keyAttack.setPressed(aim(mc,roof,Direction.UP)!=null);
+            }
+            status="opening the two-block roof over the lower chest pearls";
+            return true;
+        }
+
+        BlockPos p=CHEST_STAIRS[chestPearlStep];
+        Vec3d to=new Vec3d(p.getX()+.5,p.getY(),p.getZ()+.5);
+        double distance=Math.hypot(x-to.x,z-to.z);
+        if(distance<.32 && Math.abs(y-to.y)<.38 && mc.player.isOnGround()) {
+            if(chestPearlStep==3)return true;
+            if(++chestPearlStep==CHEST_STAIRS.length) {
+                // Resume the original downward dig beneath the protected trading pillar.
+                chestPearlStep=-1;pendingWestPearls=westDrop && pearls<13;collectingAbove=false;pearlWalk=0;
+            }
+            return true;
+        }
+        Race.aim(mc,new Vec3d(to.x,mc.player.getEyeY()-.24,to.z));
+        approach(mc,to,false);
+        if(mc.player.isOnGround() && distance<1.5 && to.y>y+.42)mc.options.keyJump.setPressed(true);
+        status="following the lower chest stair to the barter pearls "+chestPearlStep;
+        return true;
+    }
+
     private static boolean shelter(MinecraftClient mc,Step s) {
         int pearls=count(mc,Items.ENDER_PEARL);
         if (shelterBowStart>0 && craftWhileBartering(mc)) return false;
+        boolean eastDrop=false,westDrop=false;
         int visible=pearls;
         int settledPearls=pearls, lowerPearls=pearls;
         ItemEntity nearest=null;
@@ -801,6 +877,8 @@ public final class Middle {
             if (drop.getStack().getItem()==Items.ENDER_PEARL && drop.getX()>=-159 && drop.getX()<=-146
                     && drop.getY()>=34 && drop.getY()<=42 && drop.getZ()>=115 && drop.getZ()<=123) {
                 if (drop.isOnGround()) settledPearls+=drop.getStack().getCount();
+                if(drop.isOnGround() && drop.getBlockPos().equals(CHEST_PEARL))eastDrop=true;
+                if(drop.isOnGround() && drop.getBlockPos().equals(new BlockPos(-157,36,119)))westDrop=true;
                 if (drop.squaredDistanceTo(protectedSpot)<=38 && drop.getY()<37.6) lowerPearls+=drop.getStack().getCount();
                 if (nearest==null || drop.squaredDistanceTo(mc.player)<nearest.squaredDistanceTo(mc.player)) nearest=drop;
             }
@@ -814,6 +892,7 @@ public final class Middle {
             mc.player.closeHandledScreen();
             return false;
         }
+        if(chestPearlStairs(mc,pearls,eastDrop,westDrop))return false;
         if (pearls<13 && lowerPearls>=13 && mc.player.getY()>35.1) {
             collectingAbove=false;
             pearlWalk=0;

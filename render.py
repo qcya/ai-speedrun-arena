@@ -16,6 +16,7 @@ import time
 import zipfile
 
 from weekly.week113.tools.compare_splits import beats_xiamoys
+from weekly.week113.tools.world_evidence import observed_route
 
 ROOT=Path(__file__).resolve().parent
 WEEK=ROOT/"weekly/week113"
@@ -64,9 +65,12 @@ def verify_take(path, allow_segment):
         if meta.get("course")!=113 or course["week"]!=113:raise ValueError("Unexpected course")
         if not allow_segment and not (meta.get("kind")=="local_full_run" and meta.get("native_completed") is True and
                 data.get("is_completed") is True and meta["last_observed_ms"]>0 and beats_xiamoys(data.get("final_igt")) and
-                meta.get("native_speedrunigt_ms")==data["final_igt"] and meta.get("native_route") and
+                meta.get("native_speedrunigt_ms")==data["final_igt"] and isinstance(meta.get("native_route"),dict) and meta["native_route"] and
                 meta.get("native_world",{}).get("seen_credits") is True):
             raise ValueError("This take must contain a verified original Week 113 finish strictly faster than xiamoys (5:35.528 native IGT)")
+        if not allow_segment:
+            with z.open("observer.jsonl.gz") as compressed, gzip.GzipFile(fileobj=compressed) as log:
+                meta["native_route"].update(observed_route([json.loads(line) for line in log]))
         return meta,course
 
 def copy_member(z,name,path):

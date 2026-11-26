@@ -31,6 +31,7 @@ public final class Opening {
     private static final BlockPos TREASURE = new BlockPos(217, 49, 25);
     private static final Item[] SUPPLIES = {Items.IRON_INGOT, Items.DIAMOND, Items.TNT,
             Items.COOKED_SALMON, Items.COOKED_COD, Items.GOLD_INGOT};
+    private static boolean eastern;
     private static boolean looted,shieldOpening,ravineInventory,preparedGold;
     private static int age;
     private static Item shovel=Items.GOLDEN_SHOVEL;
@@ -40,17 +41,19 @@ public final class Opening {
 
     public static void reset() {
         net.minecraft.server.integrated.IntegratedServer server=MinecraftClient.getInstance().getServer();
+        eastern=server!=null && java.nio.file.Files.isRegularFile(
+                server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-opening-east"));
         shieldOpening=server!=null&&java.nio.file.Files.isRegularFile(
                 server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-opening-shield"));
         shovel=server!=null && java.nio.file.Files.isRegularFile(
                 server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-opening-save-gold"))
                 ? Items.WOODEN_SHOVEL : Items.GOLDEN_SHOVEL;
-        looted = false; ravineInventory=false; preparedGold=false; doorAimAge=-1;previousDoor=null;doorFacingTicks=0;firstTree=0;shieldSwapAge=-30;landStep=0; blastAge=0; boatPoint=0; divePoint=0; castStep=0; castStarted=0; anchorTicks=0; bucketAimAge=-1;bucketUseAge=-30;bucketTicks=0;lastBucketGoal=null; boarded=false; launched=false; table=null; gravelPos=null; tableSupport=null;
+        EasternOpening.reset();looted = false; ravineInventory=false; preparedGold=false; doorAimAge=-1;previousDoor=null;doorFacingTicks=0;firstTree=0;shieldSwapAge=-30;landStep=0; blastAge=0; boatPoint=0; divePoint=0; castStep=0; castStarted=0; anchorTicks=0; bucketAimAge=-1;bucketUseAge=-30;bucketTicks=0;lastBucketGoal=null; boarded=false; launched=false; table=null; gravelPos=null; tableSupport=null;
         age = 0; extraSupportAge=-1;lowMold=false;inWell=false; stayBelow=false;riseFromWell=false;seekingAir=false; requestedRecipe=null; recipeAge=-30;
         status = "following coast";
     }
 
-    private static BlockHitResult target(MinecraftClient mc, BlockPos pos) {
+    static BlockHitResult target(MinecraftClient mc, BlockPos pos) {
         Vec3d eye=mc.player.getCameraPosVec(1),point=Vec3d.ofCenter(pos);
         BlockHitResult initial=mc.world.rayTrace(new net.minecraft.world.RayTraceContext(eye,point,
             net.minecraft.world.RayTraceContext.ShapeType.OUTLINE,net.minecraft.world.RayTraceContext.FluidHandling.NONE,mc.player));
@@ -89,7 +92,7 @@ public final class Opening {
     private static boolean boarded, launched;
     private static BlockPos table, gravelPos, tableSupport;
 
-    private static boolean select(MinecraftClient mc, Item item) {
+    static boolean select(MinecraftClient mc, Item item) {
         if(ravineInventory) {
             int slot=item==Items.OAK_DOOR?5:item==Items.DIRT?6:item==Items.IRON_PICKAXE?1:
                     item==Items.FLINT_AND_STEEL?4:item==shovel?3:7;
@@ -105,7 +108,7 @@ public final class Opening {
         return false;
     }
 
-    private static boolean hitFace(MinecraftClient mc,BlockPos support,Direction side,Vec3d exact) {
+    static boolean hitFace(MinecraftClient mc,BlockPos support,Direction side,Vec3d exact) {
         if(mc.player.getCameraPosVec(1).squaredDistanceTo(exact)>20.15)return false;
         Race.aim(mc,exact);mc.gameRenderer.updateTargetedEntity(1);
         if(!(mc.crosshairTarget instanceof BlockHitResult)||mc.crosshairTarget.getType()!=HitResult.Type.BLOCK)return false;
@@ -114,11 +117,11 @@ public final class Opening {
         mc.interactionManager.interactBlock(mc.player,mc.world,Hand.MAIN_HAND,hit);mc.player.swingHand(Hand.MAIN_HAND);
         return true;
     }
-    private static boolean place(MinecraftClient mc,BlockPos to,Item item) {
+    static boolean place(MinecraftClient mc,BlockPos to,Item item) {
         return placeOnVisibleFace(mc,to,item,false);
     }
 
-    private static boolean placeOnVisibleFace(MinecraftClient mc,BlockPos to,Item item,boolean bucket) {
+    static boolean placeOnVisibleFace(MinecraftClient mc,BlockPos to,Item item,boolean bucket) {
         if(!select(mc,item))return false;
         Vec3d eye=mc.player.getCameraPosVec(1);
         final double[] edge={.50,.14,.86};
@@ -188,7 +191,7 @@ public final class Opening {
         }
         return hitFace(mc,support,Direction.UP,best);
     }
-    private static boolean useBlock(MinecraftClient mc,BlockPos pos) {
+    static boolean useBlock(MinecraftClient mc,BlockPos pos) {
         BlockHitResult hit=target(mc,pos);
         if(hit==null)return false;
         mc.interactionManager.interactBlock(mc.player,mc.world,Hand.MAIN_HAND,hit);
@@ -388,7 +391,7 @@ public final class Opening {
             case 10:ok=craft(mc,"iron_pickaxe",Items.IRON_PICKAXE,1,true,false);break;
             case 11:ok=craft(mc,"bucket",Items.BUCKET,1,true,false);break;
             case 12:ok=craft(mc,"oak_boat",Items.OAK_BOAT,1,true,false);break;
-            case 13:ok=craft(mc,"oak_door",Items.OAK_DOOR,6,true,false);break;
+            case 13:ok=eastern || craft(mc,"oak_door",Items.OAK_DOOR,6,true,false);break;
             case 14:ok=craft(mc,"stick",Items.STICK,7,true,false);break;
             case 15:ok=craft(mc,"diamond_sword",Items.DIAMOND_SWORD,1,true,false);break;
             case 16:ok=craft(mc,shovel==Items.WOODEN_SHOVEL?"wooden_shovel":"golden_shovel",shovel,1,true,false);break;
@@ -489,7 +492,16 @@ public final class Opening {
                     if(entity instanceof net.minecraft.entity.ItemEntity && entity.isAlive()
                             && ((net.minecraft.entity.ItemEntity)entity).getStack().getItem()==Items.CRAFTING_TABLE
                             && mc.player.squaredDistanceTo(entity)<64) {
-                        walk(mc,entity.getPos(),false);
+                        if(table!=null && entity.getBlockPos().equals(table)
+                                && mc.player.getY()>entity.getY()+.55) {
+                            // The drop can rest against a corner one block below the rim.
+                            // Stand over the empty column so the player's feet can descend.
+                            Vec3d center=Vec3d.ofCenter(table);
+                            Race.aim(mc,new Vec3d(center.x,mc.player.getEyeY(),center.z));
+                            BastionApproach.move(mc,center.x,center.z,false,false);
+                        } else {
+                            walk(mc,entity.getPos(),false);
+                        }
                         break;
                     }
                 }
@@ -648,13 +660,13 @@ public final class Opening {
         lastBucketYaw=mc.player.yaw;lastBucketPitch=mc.player.pitch;
         return bucketTicks>=3;
     }
-    private static BlockHitResult fluidRay(MinecraftClient mc){
+    static BlockHitResult fluidRay(MinecraftClient mc){
         Vec3d eye=mc.player.getCameraPosVec(1);
         return mc.world.rayTrace(new net.minecraft.world.RayTraceContext(eye,eye.add(mc.player.getRotationVec(1).multiply(4.5)),
             net.minecraft.world.RayTraceContext.ShapeType.OUTLINE,net.minecraft.world.RayTraceContext.FluidHandling.SOURCE_ONLY,mc.player));
     }
 
-    private static Vec3d sourcePoint(MinecraftClient mc,BlockPos pos,boolean lava) {
+    static Vec3d sourcePoint(MinecraftClient mc,BlockPos pos,boolean lava) {
         net.minecraft.fluid.FluidState original=mc.world.getFluidState(pos);
         if(!original.isStill()||!original.isIn(lava?net.minecraft.tag.FluidTags.LAVA:net.minecraft.tag.FluidTags.WATER))return null;
         Vec3d eye=mc.player.getCameraPosVec(1);
@@ -1020,6 +1032,12 @@ public final class Opening {
         if (mc.player == null || mc.world == null || mc.interactionManager == null
                 || mc.world.getRegistryKey() != World.OVERWORLD) return false;
         mc.options.keyAttack.setPressed(false);
+        if(eastern && looted && landStep>=21) {
+            ravineInventory=true;
+            boolean controlled=EasternOpening.tick(mc);
+            status=EasternOpening.status;
+            return controlled;
+        }
         if (looted) {
             if(landStep>=21 && tick>=986 && tick<1405) {
                 ravineInventory=true;
