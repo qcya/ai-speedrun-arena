@@ -32,7 +32,7 @@ public final class Fortress {
     private static int previousEnemy, swordTicks, jumpingAt = -1, jumpTicks;
     private static int lastSwing = -20;
     private static boolean ownsInventory, fighting;
-    private static int pocketRods = -1, exitStep;
+    private static int pocketRods = -1, exitStep, observedCageRod = -1;
     public static String status = "approaching the fortress spawner";
 
     private Fortress() {}
@@ -41,7 +41,7 @@ public final class Fortress {
         excavating = guardingBridge = false;
         bridgeSwing = -20;
         previousEnemy = -1;
-        pocketRods = -1;
+        pocketRods = observedCageRod = -1;
         exitStep = 0;
         swordTicks = 0;
         jumpingAt = -1;
@@ -362,6 +362,21 @@ public final class Fortress {
             return false;
         }
         if (exitStep == 0 && mc.player.getZ() >= 120.15) exitStep++;
+        if (exitStep == 1 && mc.player.getZ() < 121.13
+                && mc.player.getZ() >= 120.12 && Math.abs(mc.player.getX() + 10.51) < .75) {
+            // The pocket ends against a natural netherrack wall in some original runs.
+            // Open clearance for the player and for the one-block step just beyond it.
+            for (int y : new int[]{58, 57, 59}) {
+                BlockPos wall = new BlockPos(-11, y, 121);
+                if (mc.world.getBlockState(wall).getBlock() != Blocks.NETHERRACK) continue;
+                takeControls(mc);
+                if (Middle.select(mc, Items.IRON_PICKAXE))
+                    mc.options.keyAttack.setPressed(Middle.aim(mc, wall, null) != null);
+                status = "mining the netherrack at the exit from the rod pocket";
+                return true;
+            }
+            mc.options.keyAttack.setPressed(false);
+        }
         if (exitStep == 1 && mc.player.getZ() >= 121.13) exitStep++;
         if (exitStep >= 2 && mc.player.getX() > -8.28) {
             pocketRods = -1;
@@ -386,10 +401,99 @@ public final class Fortress {
         return true;
     }
 
+    private static final Vec3d[] CAGE_CORNERS = {
+        new Vec3d(-8.46,59,114.54),new Vec3d(-6.54,59,114.54),
+        new Vec3d(-6.54,59,116.46),new Vec3d(-8.46,59,116.46)
+    };
+
+    private static boolean onCageFloor(Vec3d p) {
+        return p.y>=58.95 && p.y<59.30 && p.x>=-9.95 && p.x< -4.95 && p.z>=113 && p.z<118.95;
+    }
+
+    /** Check the full width of the player's body and a supported dry floor along each leg. */
+    private static boolean cageFloorLine(MinecraftClient mc, Vec3d from, Vec3d to) {
+        int steps=Math.max(1,(int)Math.ceil(Math.hypot(to.x-from.x,to.z-from.z)/.20));
+        for(int i=0;i<=steps;i++){
+            double part=(double)i/steps,x=from.x+(to.x-from.x)*part,z=from.z+(to.z-from.z)*part;
+            for(double dx:new double[]{-.299,.299})for(double dz:new double[]{-.299,.299}){
+                BlockPos feet=new BlockPos(x+dx,59,z+dz);
+                if(mc.world.getBlockState(feet.down()).getBlock()!=Blocks.NETHER_BRICKS)return false;
+                for(int h=0;h<2;h++){
+                    BlockPos body=feet.up(h);Block b=mc.world.getBlockState(body).getBlock();
+                    if(!clear(mc,body) || !mc.world.getFluidState(body).isEmpty()
+                            || b==Blocks.FIRE || b==Blocks.SOUL_FIRE)return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private static Vec3d cagePickupFoot(MinecraftClient mc, Vec3d player,Vec3d rod) {
+        if(rod.y<58.95 || rod.y>61.18 || rod.x< -10.4 || rod.x> -4.4 || rod.z<112.4 || rod.z>119)return null;
+        Vec3d goal=null;double best=Double.POSITIVE_INFINITY;
+        for(double dx:new double[]{-.94,0,.94})for(double dz:new double[]{-.94,0,.94}){
+            Vec3d next=new Vec3d(rod.x+dx,59,rod.z+dz);
+            double dist=player.squaredDistanceTo(next);
+            if(dist<best && cageFloorLine(mc,next,next)){best=dist;goal=next;}
+        }
+        return goal;
+    }
+
+    private static Vec3d landingFromSpawner(MinecraftClient mc,Vec3d player,Vec3d goal) {
+        if(player.y<59.3 || player.y>61.35 || Math.abs(player.x+7.5)>1.3 || Math.abs(player.z-115.5)>1.3)return null;
+        if(mc.world.getBlockState(new BlockPos(-8,60,115)).getBlock()!=Blocks.SPAWNER)return null;
+        Vec3d best=null;double cost=Double.POSITIVE_INFINITY;
+        for(int[] offset:new int[][]{{0,-1},{1,0},{0,1},{-1,0}}){
+            Vec3d landing=new Vec3d(-7.5+offset[0]*1.03,59,115.5+offset[1]*1.03);
+            if(!cageFloorLine(mc,landing,landing))continue;
+            // A vertical two-block descent must remain unobstructed above the hollow cage floor.
+            BlockPos feet=new BlockPos(landing);
+            if(!clear(mc,feet.up(2)) || !clear(mc,feet.up(3)))continue;
+            double length=player.distanceTo(landing)+landing.distanceTo(goal);
+            if(length<cost){best=landing;cost=length;}
+        }
+        return best;
+    }
+
+    private static Vec3d rodCorner(MinecraftClient mc, Vec3d start,Vec3d target) {
+        if(cageFloorLine(mc,start,target))return null;
+        double best=Double.POSITIVE_INFINITY;Vec3d next=null;
+        for(int i=0;i<CAGE_CORNERS.length;i++){
+            Vec3d corner=CAGE_CORNERS[i];
+            double first=start.distanceTo(corner);
+            if(first<.10 || !cageFloorLine(mc,start,corner)) continue;
+            for(int step=-1;step<=1;step++){
+                Vec3d last=CAGE_CORNERS[(i+step+4)%4];
+                double distance=first+corner.distanceTo(last)+last.distanceTo(target);
+                if(distance>=best || !cageFloorLine(mc,last,target)
+                        || step!=0 && !cageFloorLine(mc,corner,last))continue;
+                best=distance;next=corner;
+            }
+        }
+        return next;
+    }
+
     private static void takeRod(MinecraftClient mc, ItemEntity rod) {
         status = "collecting a dropped blaze rod";
         previousEnemy = -1;
         Vec3d p = rod.getPos();
+        Vec3d player=mc.player.getPos();
+        Vec3d goal=cagePickupFoot(mc,player,p);
+        if(goal!=null && Math.abs(player.x+7.5)<3.4 && Math.abs(player.z-115.5)<4.1) {
+            observedCageRod=rod.getEntityId();
+            Vec3d next=landingFromSpawner(mc,player,goal);
+            if(next!=null) status="stepping from the spawner onto the clear pickup floor";
+            else if(onCageFloor(player)){
+                if(cageFloorLine(mc,player,goal))next=goal;
+                else next=rodCorner(mc,player,goal);
+                if(next!=null)status="walking around the spawner base to the observed rod";
+            }
+            if(next!=null){
+                Race.aim(mc,new Vec3d(next.x,mc.player.getEyeY(),next.z));
+                BastionApproach.move(mc,next.x,next.z,false,false);
+                return;
+            }
+        }
         Race.aim(mc, p.add(0, .25, 0));
         BlockPos landing = lowerRodFloor(mc, rod);
         if (landing != null
@@ -500,7 +604,8 @@ public final class Fortress {
                 blazesAtSpawner = true;
             if (e instanceof ItemEntity
                     && ((ItemEntity) e).getStack().getItem() == Items.BLAZE_ROD) {
-                if (range < rodRange && mc.player.canSee(e)) {
+                if (range < rodRange && (mc.player.canSee(e) || e.getEntityId()==observedCageRod
+                        && onCageFloor(mc.player.getPos()) && e.getY()>=58.95 && e.getY()<=61.18)) {
                     rod = (ItemEntity) e;
                     rodRange = range;
                 }

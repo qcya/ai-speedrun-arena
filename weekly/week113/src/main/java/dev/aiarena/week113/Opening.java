@@ -504,7 +504,12 @@ public final class Opening {
         }
         if(landStep==20){
             if(!craft(mc,"flint_and_steel",Items.FLINT_AND_STEEL,1,false,false))return true;
-            if(mc.currentScreen!=null)mc.player.closeHandledScreen();
+            if(mc.currentScreen!=null){
+                mc.player.closeHandledScreen();
+                // Vanilla resets its inventory attack cooldown on the first released tick.
+                mc.options.keyAttack.setPressed(false);
+                return true;
+            }
             if(count(mc,Items.OAK_PLANKS)<4 && count(mc,Items.CRAFTING_TABLE)==0) {
                 // A shield spends six planks. Carry the existing workbench when the
                 // remaining planks cannot supply a second one for the fortress bow.

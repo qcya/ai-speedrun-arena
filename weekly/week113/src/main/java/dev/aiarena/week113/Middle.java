@@ -1080,7 +1080,7 @@ public final class Middle {
             lowerShield(mc);
             Vec3d goal=best.getPos();
             BlockPos pocket=best.getBlockPos();
-            if (best.isOnGround() && mc.player.getY()>goal.y+1.8 && mc.player.getY()<goal.y+4.2
+            if (best.isOnGround() && mc.player.getY()>goal.y+.80 && mc.player.getY()<goal.y+4.2
                     && mc.player.squaredDistanceTo(best)<24 && !open(mc,pocket.down())
                     && open(mc,pocket) && open(mc,pocket.up()) && open(mc,pocket.up(2))) {
                 // A dropped item may rest against the lip while the player's wider feet
