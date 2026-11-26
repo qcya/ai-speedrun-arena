@@ -1,18 +1,17 @@
 package dev.aiarena.week113;
 
 import java.util.List;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
-/** Walk the high eastern shore, then use the overworld Enderman pearl if one was obtained. */
+/** Walk the eastern shore so the fortress return is the third Nether throw. */
 final class EastBastionApproach {
     private static final List<BlockPos> first=Middle.cells("east-first.csv");
     private static final List<BlockPos> escape=Middle.cells("east-escape.csv");
-    private static int phase,index,aimTicks,flight;
-    private static boolean offeredGold, lowFallback;
+    private static int phase,index;
+    private static boolean lowFallback;
     private static int highPoint, nextPad, slowTicks;
     private static double checkX, checkZ;
     private static final double[][] HIGH = {
@@ -26,7 +25,7 @@ final class EastBastionApproach {
     private static double exitX,exitZ;
     static String status="";
 
-    static void reset(){phase=0;index=0;aimTicks=0;flight=0;offeredGold=false;leftPortal=false;selectedExit=false;lowFallback=false;highPoint=nextPad=slowTicks=0;checkX=checkZ=0;}
+    static void reset(){phase=0;index=0;leftPortal=false;selectedExit=false;lowFallback=false;highPoint=nextPad=slowTicks=0;checkX=checkZ=0;}
     static boolean shouldHandle(MinecraftClient m){
         if(phase==0){if(m.currentScreen!=null || m.player.getY()>57)return false;phase=m.player.getX()>20?1:5;}
         return phase<5;
@@ -180,66 +179,7 @@ final class EastBastionApproach {
         if(phase==1){
             if(!leavePortal(m))return -1;
             if(!highShore(m))return -1;
-            index=0;phase=m.player.inventory.count(Items.ENDER_PEARL)>0?2:4;
-        }
-        if(phase==2){
-            final double bx=1.5,bz=56.5;
-            double dist=Math.hypot(m.player.getX()-bx,m.player.getZ()-bz);
-            if(dist>.18){
-                Race.aim(m,new Vec3d(bx,m.player.getEyeY()-.1,bz));
-                BastionApproach.move(m,bx,bz,dist<1.0,false);
-                status="centering for the cave Enderman pearl";
-                return -1;
-            }
-            if(!Middle.select(m,Items.ENDER_PEARL))return -1;
-            double yaw=Math.toRadians(56),pitch=Math.toRadians(-33);
-            Vec3d dir=new Vec3d(-Math.sin(yaw)*Math.cos(pitch),-Math.sin(pitch),Math.cos(yaw)*Math.cos(pitch));
-            Race.aim(m,m.player.getCameraPosVec(1).add(dir.multiply(10)));
-            status="throwing the bonus pearl across the bastion approach";
-            if(m.player.getRotationVec(1).dotProduct(dir)<.9998 || Math.hypot(m.player.getVelocity().x,m.player.getVelocity().z)>.045){aimTicks=0;return -1;}
-            if(++aimTicks<4)return -1;
-            if(m.player.isOnGround()){m.options.keyJump.setPressed(true);return -1;}
-            if(m.player.getVelocity().y<.32)return -1;
-            if(m.interactionManager.interactItem(m.player,m.world,Hand.MAIN_HAND).isAccepted()){
-                m.player.swingHand(Hand.MAIN_HAND);phase=3;flight=0;index=0;
-            }
-            return -1;
-        }
-        if(phase==3){
-            status="waiting for the cave Enderman pearl to land";
-            if(m.player.getX() < -35 && m.player.isOnGround()){
-                int pos=nearest(low,m,96,151);phase=5;return pos;
-            }
-            if(m.player.getX()>-12){
-                walk(m,escape);
-                for(net.minecraft.entity.Entity e:m.world.getEntities()){
-                    if(!(e instanceof net.minecraft.entity.mob.PiglinEntity) || !e.isAlive()
-                            || e.squaredDistanceTo(m.player)>12 || !m.player.canSee(e))continue;
-                    net.minecraft.entity.mob.PiglinEntity pig=(net.minecraft.entity.mob.PiglinEntity)e;
-                    if(pig.isBaby() || pig.getActivity()!=net.minecraft.entity.mob.PiglinEntity.Activity.ATTACKING_WITH_MELEE_WEAPON)continue;
-                    Race.aim(m,pig.getBoundingBox().getCenter());
-                    m.gameRenderer.updateTargetedEntity(1);
-                    boolean aimed=m.crosshairTarget instanceof net.minecraft.util.hit.EntityHitResult
-                            && ((net.minecraft.util.hit.EntityHitResult)m.crosshairTarget).getEntity()==pig;
-                    if(!offeredGold && m.player.inventory.count(Items.GOLD_INGOT)>0){
-                        if(Middle.select(m,Items.GOLD_INGOT) && aimed &&
-                              m.interactionManager.interactEntity(m.player,pig,Hand.MAIN_HAND).isAccepted())offeredGold=true;
-                    } else if(m.player.getOffHandStack().getItem()==Items.SHIELD) {
-                        if(!m.player.isUsingItem())m.interactionManager.interactItem(m.player,m.world,Hand.OFF_HAND);
-                        m.options.keyUse.setPressed(true);
-                    } else if(Middle.select(m,Items.DIAMOND_SWORD) && aimed && m.player.getAttackCooldownProgress(.5f)>.9f) {
-                        m.interactionManager.attackEntity(m.player,pig);m.player.swingHand(Hand.MAIN_HAND);
-                    }
-                    if(index<escape.size()){
-                        BlockPos destination=escape.get(index);
-                        BastionApproach.move(m,destination.getX()+.5,destination.getZ()+.5,false,false);
-                    }
-                    break;
-                }
-                status="moving to cover during the bonus pearl flight";
-            }
-            if(++flight>150 && m.player.getX()>-8){phase=4;index=0;}
-            return -1;
+            index=0;phase=4;
         }
         if(!walk(m,escape))return -1;
         phase=5;return nearest(low,m,70,89);

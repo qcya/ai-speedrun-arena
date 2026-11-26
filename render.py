@@ -16,7 +16,7 @@ import time
 import zipfile
 
 from weekly.week113.tools.compare_splits import beats_xiamoys
-from weekly.week113.tools.world_evidence import observed_route
+from weekly.week113.tools.world_evidence import observed_route, replay_pearl_ordinal
 
 ROOT=Path(__file__).resolve().parent
 WEEK=ROOT/"weekly/week113"
@@ -70,7 +70,11 @@ def verify_take(path, allow_segment):
             raise ValueError("This take must contain a verified original Week 113 finish strictly faster than xiamoys (5:35.528 native IGT)")
         if not allow_segment:
             with z.open("observer.jsonl.gz") as compressed, gzip.GzipFile(fileobj=compressed) as log:
-                meta["native_route"].update(observed_route([json.loads(line) for line in log]))
+                rows = [json.loads(line) for line in log]
+            meta["native_route"].update(observed_route(rows))
+            stasis = meta["native_route"]["stasis_shortcuts"]
+            with z.open("Astra.mcpr") as replay:
+                stasis.update(replay_pearl_ordinal(replay, rows, stasis))
         return meta,course
 
 def copy_member(z,name,path):

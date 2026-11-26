@@ -5,6 +5,7 @@ import json
 import math
 import struct
 import uuid
+import zipfile
 
 
 def read_level(path):
@@ -182,6 +183,61 @@ def require_standard_stasis(rows):
                                 "recall_displacement_blocks": round(displacement, 2), "recorded_key_changes": changes}
             previous = row
     raise MissingStandardStasis("Missing observed third-pearl 16→2→16 shortcut sequence, six rods and high-ledge recall")
+
+
+def replay_pearl_ordinal(replay, rows, stasis):
+    """Count unique thrown pearls in protocol 736, aligning the stasis throw to its observed position."""
+    launch_ms = stasis["third_pearl_used_ms"]
+    launch = next(r for r in rows if r["event"] == "render_distance_shortcut"
+                  and r["elapsed_ms"] == launch_ms and r["before"] == 16 and r["after"] == 15)
+    eye = (launch["x"], launch["y"] + launch.get("eye_height", 1.62) - 0.1, launch["z"])
+    entry_ms = next(r["elapsed_ms"] for r in rows if r["event"] == "enter_nether")
+    projectiles = {}
+    with zipfile.ZipFile(replay) as capture:
+        meta = json.loads(capture.read("metaData.json"))
+        if meta.get("protocol") != 736 or meta.get("singleplayer") is not True:
+            raise ValueError("Expected a protocol 736 singleplayer recording")
+        offset = rows[0]["epoch_ms"] - meta["date"]
+        if not -1000 <= offset <= 15000:
+            raise ValueError("Replay and observer have mismatched starts")
+        with capture.open("recording.tmcpr") as stream:
+            while header := stream.read(8):
+                if len(header) != 8:
+                    raise ValueError("Truncated MCPR packet header")
+                ms, size = struct.unpack(">II", header)
+                ms -= offset
+                if ms > stasis["ledge_arrival_ms"] + 1500:
+                    break
+                if not 0 < size <= 16777216:
+                    raise ValueError("Invalid MCPR packet size")
+                packet = stream.read(size)
+                if len(packet) != size:
+                    raise ValueError("Truncated MCPR packet")
+                if ms < entry_ms or packet[0] != 0:
+                    continue
+                # Spawn Entity starts with the entity's VarInt ID, then UUID and registry ID.
+                start = next((i + 1 for i in range(1, min(6, size)) if packet[i] < 128), None)
+                if start is None or start + 16 >= size:
+                    raise ValueError("Truncated Spawn Entity packet")
+                if packet[start + 16] != 84:  # minecraft:ender_pearl in protocol 736
+                    continue
+                if size != start + 17 + 36:
+                    raise ValueError("Invalid thrown pearl packet")
+                identifier = uuid.UUID(bytes=packet[start:start + 16])
+                point = struct.unpack_from(">ddd", packet, start + 17)
+                # Reloading a stasis chunk announces the original UUID again.
+                projectiles.setdefault(identifier, (ms, point))
+
+    matches = [(index, identifier, ms) for index, (identifier, (ms, point))
+               in enumerate(projectiles.items(), 1)
+               if abs(ms - launch_ms) <= 1500 and math.dist(eye, point) <= 3]
+    if len(matches) != 1 or matches[0][0] != 3:
+        observed = matches[0][0] if len(matches) == 1 else "unconfirmed"
+        raise MissingStandardStasis(f"Stasis requires Nether pearl 3, original replay shows {observed}")
+    _, identifier, ms = matches[0]
+    if any(first < stasis["ledge_arrival_ms"] for first, _ in list(projectiles.values())[3:]):
+        raise MissingStandardStasis("Another Nether pearl was thrown before the high-ledge recall")
+    return {"nether_throw_ordinal": 3, "projectile_uuid": str(identifier), "projectile_spawn_ms": ms}
 
 
 def observed_route(rows):

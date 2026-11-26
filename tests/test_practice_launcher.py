@@ -353,7 +353,19 @@ class PracticeLauncherTests(unittest.TestCase):
         with zipfile.ZipFile(replay,'w') as z:
             z.writestr('metaData.json',json.dumps({'protocol':736,'singleplayer':True,'serverName':'Week 113',
                                                    'date':5000,'duration':610000}))
-            z.writestr('recording.tmcpr',struct.pack('>IIcIIc',0,1,b'a',610000,1,b'b'))
+            stream = bytearray()
+            def packet(ms, payload):
+                stream.extend(struct.pack('>II', ms, len(payload)) + payload)
+            def pearl(ms, entity, pos):
+                payload = bytes([0, entity]) + uuid.UUID(int=entity).bytes + bytes([84])
+                packet(ms, payload + struct.pack('>dddBBihhh', *pos, 0, 0, 0, 0, 0, 0))
+            packet(0, b'a')
+            pearl(100, 31, (-105.5, 43.5, 148.5))
+            pearl(100, 32, (-74, 76.5, 172.7))
+            pearl(100, 33, (-30.5, 59.3, 167.5))
+            pearl(495, 33, (-66, 85.5, 172.7))
+            packet(610000, b'b')
+            z.writestr('recording.tmcpr',stream)
         timer_path=self.world/'speedrunigt/record.json'
         timer={'mc_version':'1.16.1','default_gamemode':0,'is_cheat_allowed':False,'is_completed':True}
         with patch('freeze_take.verify', return_value={'seen_credits':True}), \
@@ -378,6 +390,31 @@ class PracticeLauncherTests(unittest.TestCase):
             self.log.write_bytes(full_log)
             freeze_take.pack(self.world,replay,self.dest,False)
         meta,_ = render.verify_take(self.dest,False)
+        self.assertEqual(meta['native_route']['stasis_shortcuts']['nether_throw_ordinal'], 3)
+        # A prior cave pearl in the Nether changes the ordinal with an identical observer.
+        early = bytes([0, 25]) + uuid.UUID(int=25).bytes + bytes([84])
+        early += struct.pack('>dddBBihhh', 1.5, 42.94, 56.5, 0, 0, 0, 0, 0, 0)
+        wrong_replay = self.root/'fourth.mcpr'
+        with zipfile.ZipFile(replay) as original, zipfile.ZipFile(wrong_replay, 'w') as wrong:
+            wrong.writestr('metaData.json', original.read('metaData.json'))
+            raw = original.read('recording.tmcpr')
+            wrong.writestr('recording.tmcpr', raw[:9] + struct.pack('>II',100,len(early)) + early + raw[9:])
+        wrong_bundle = self.root/'fourth.zip'
+        with zipfile.ZipFile(self.dest) as source, zipfile.ZipFile(wrong_bundle, 'w') as bundle:
+            members = {name: source.read(name) for name in source.namelist() if name != 'SHA256SUMS'}
+            members['Astra.mcpr'] = wrong_replay.read_bytes()
+            for name, value in members.items():
+                bundle.writestr(name, value)
+            bundle.writestr('SHA256SUMS', ''.join(f'{freeze_take.sha(value)}  {name}\n' for name, value in members.items()))
+        with self.assertRaisesRegex(ValueError, 'original replay shows 4'):
+            render.verify_take(wrong_bundle, False)
+        with patch('freeze_take.verify', return_value={'seen_credits': True}), \
+             patch('world_evidence.read_level', return_value={'Player': {'UUID': player.bytes}}), \
+             self.assertRaisesRegex(ValueError, 'original replay shows 4'):
+            freeze_take.pack(self.world, wrong_replay, self.root/'bad-take.zip', False)
+        from world_evidence import replay_pearl_ordinal, MissingStandardStasis
+        with self.assertRaisesRegex(MissingStandardStasis, 'original replay shows 4'):
+            replay_pearl_ordinal(wrong_replay, rows, meta['native_route']['stasis_shortcuts'])
         self.assertEqual(meta['lead_ms'],1)
         self.assertEqual(meta['last_observed_ms'],610000)
         self.assertEqual(meta['native_route']['stasis_shortcuts']['recall_distance'],16)

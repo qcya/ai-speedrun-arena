@@ -90,8 +90,10 @@ def pack(world, replay, destination, segment):
             "packet_count":count,"first_packet_ms":lo,"last_packet_ms":hi,"replay_duration_ms":meta["duration"],
             "native_replay_sha256":sha(replay.read_bytes()),"observer_source_sha256":sha(log)}
     if complete and not segment:
-        from world_evidence import verify_route
+        from world_evidence import replay_pearl_ordinal, verify_route
         checks["native_route"]=verify_route(world,rows)
+        stasis = checks["native_route"]["stasis_shortcuts"]
+        stasis.update(replay_pearl_ordinal(replay, rows, stasis))
         checks["lead_ms"]=XIAMOYS_IGT_MS-native_igt
     if not segment:
         checks["recording_mods"] = mod_versions(world)
