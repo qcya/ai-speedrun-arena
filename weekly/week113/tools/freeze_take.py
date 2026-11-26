@@ -10,7 +10,7 @@ from pathlib import Path
 import struct
 import tempfile
 import zipfile
-from compare_splits import XIAMOYS_IGT_MS, beats_xiamoys
+from compare_splits import TIME_LIMIT_MS, finish_fits_film, under_time_limit
 from world_evidence import verify
 
 COURSE = Path(__file__).resolve().parents[1] / "course.json"
@@ -80,12 +80,12 @@ def pack(world, replay, destination, segment):
     if delta is not None and complete and hi<delta+last["elapsed_ms"]-150:
         raise ValueError("Replay ends before the native finish")
     native_igt = timing.get("final_igt", 0)
-    if not segment and (not complete or last["elapsed_ms"] <= 0 or not beats_xiamoys(native_igt)):
-        raise ValueError("A complete original Week 113 run strictly faster than xiamoys (5:35.528 native IGT) is required")
+    if not segment and (not complete or not finish_fits_film(last["elapsed_ms"]) or not under_time_limit(native_igt)):
+        raise ValueError("The complete original run and uncut film through credits must fit under seven minutes")
     checks={"kind":"practice_segment" if segment else "local_full_run","course":113,
-            "timing":"Local uncut RTA and native SpeedRunIGT compared to xiamoys",
+            "timing":"Local uncut RTA and native SpeedRunIGT",
             "native_completed":complete,"last_observed_ms":last["elapsed_ms"],"last_reference_tick":last["reference_tick"],
-            "benchmark":{"player":"xiamoys","time_ms":XIAMOYS_IGT_MS,"comparison":"<"},
+            "benchmark":{"time_ms":TIME_LIMIT_MS,"comparison":"<"},
             "native_speedrunigt_ms":native_igt,"native_world":native,"replay_date_ms":meta["date"],"spawn_minus_replay_start_ms":delta,
             "packet_count":count,"first_packet_ms":lo,"last_packet_ms":hi,"replay_duration_ms":meta["duration"],
             "native_replay_sha256":sha(replay.read_bytes()),"observer_source_sha256":sha(log)}
@@ -94,7 +94,7 @@ def pack(world, replay, destination, segment):
         checks["native_route"]=verify_route(world,rows)
         stasis = checks["native_route"]["stasis_shortcuts"]
         stasis.update(replay_pearl_ordinal(replay, rows, stasis))
-        checks["lead_ms"]=XIAMOYS_IGT_MS-native_igt
+        checks["lead_ms"]=TIME_LIMIT_MS-native_igt
     if not segment:
         checks["recording_mods"] = mod_versions(world)
     files={"Astra.mcpr":replay.read_bytes(),"observer.jsonl.gz":gzip.compress(log,mtime=0),

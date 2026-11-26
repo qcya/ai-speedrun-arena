@@ -83,3 +83,24 @@ def artist_source(destination):
     if abs(duration(destination) - TRACK_SECONDS) >= 1:
         raise ValueError('The file returned by the artist does not match the selected original recording')
     return destination
+
+
+def mux(video, track, output, frames, has_game_audio):
+    """Keep the recorded video intact and play the selected music at most twice."""
+    seconds = frames / 60
+    one_play = duration(track)
+    # The archived Week 29 film has already looped the song. Only its first
+    # original-length pass can be used as a repeatable source.
+    if track.suffix.lower() == '.mp4' and digest(track) == WEEK29_SHA256:
+        one_play = TRACK_SECONDS
+    if one_play <= 0 or seconds > 2 * one_play:
+        raise ValueError("The complete video must fit within two plays of the selected music")
+
+    audio = (f'[1:a:0]atrim=duration={one_play:.8f},asetpts=PTS-STARTPTS,asplit[one][two];'
+             f'[one][two]concat=n=2:v=0:a=1,atrim=duration={seconds:.8f},volume=-10dB')
+    if has_game_audio:
+        audio += '[music];[0:a:0][music]amix=inputs=2:duration=longest:normalize=0'
+    subprocess.run(['ffmpeg', '-v', 'error', '-nostdin', '-n', '-i', str(video), '-i', str(track),
+                    '-filter_complex', audio + '[mix]', '-map', '0:v:0', '-map', '[mix]',
+                    '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-t', f'{seconds:.8f}',
+                    '-movflags', '+faststart', str(output)], check=True)

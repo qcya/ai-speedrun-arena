@@ -260,7 +260,7 @@ class PracticeLauncherTests(unittest.TestCase):
     def test_campaign_preserves_fast_nonstandard_finishes_and_starts_the_next_attempt(self):
         from types import SimpleNamespace
         from world_evidence import MissingStandardStasis
-        self.rows([("spawn",0),("credits",610000)])
+        self.rows([("spawn",0),("credits",410000)])
         capture=self.capture()
         practice.write(self.world/"speedrunigt/record.json",dict(is_completed=True,final_igt=330000))
         instances=self.root/"prism"/"instances"
@@ -282,12 +282,12 @@ class PracticeLauncherTests(unittest.TestCase):
         self.assertEqual(len(receipts),2)
         for receipt in receipts:
             self.assertEqual(receipt["verdict"],"missing_standard_stasis")
-            self.assertEqual(receipt["lead_ms"],5528)
+            self.assertEqual(receipt["lead_ms"],90000)
             self.assertEqual(receipt["replay"],str(capture))
             self.assertIn("16→2→16",receipt["route_error"])
 
     def test_unrelated_freeze_failure_still_stops_the_attempt(self):
-        self.rows([("spawn",0),("credits",610000)])
+        self.rows([("spawn",0),("credits",410000)])
         self.capture()
         self.attempt["reason"]="credits"
         practice.write(self.world/"speedrunigt/record.json",dict(is_completed=True,final_igt=330000))
@@ -299,11 +299,11 @@ class PracticeLauncherTests(unittest.TestCase):
         self.assertFalse(self.dest.exists())
 
     def test_fixed_strict_igt_in_practice(self):
-        self.rows([('spawn',0),('credits',610000)])
+        self.rows([('spawn',0),('credits',410000)])
         self.capture()
         self.attempt['reason']='credits'
-        for result, expected in [(328357,'qualified'),(335527,'qualified'),(335528,'did_not_beat_xiamoys'),
-                                 (335529,'did_not_beat_xiamoys')]:
+        for result, expected in [(328357,'qualified'),(335527,'qualified'),(335528,'qualified'), (419999,'qualified'),
+                                 (420000,'over_time_limit'), (420001,'over_time_limit')]:
             practice.write(self.world/'speedrunigt/record.json',{'is_completed':True,'final_igt':result})
             with self.subTest(result=result), patch('official_board.urlopen', side_effect=AssertionError('offline')), \
                  patch('freeze_take.pack') as pack, patch('render.verify_take') as verify:
@@ -315,10 +315,19 @@ class PracticeLauncherTests(unittest.TestCase):
                     pack.assert_not_called()
                     verify.assert_not_called()
             receipt=practice.read(self.root/'receipts'/(self.attempt['token']+'.json'))
-            self.assertEqual(receipt['benchmark'],{'player':'xiamoys','time_ms':335528,'comparison':'<'})
-            self.assertEqual(receipt['lead_ms'],335528-result)
+            self.assertEqual(receipt['benchmark'],{'time_ms':420000,'comparison':'<'})
+            self.assertEqual(receipt['lead_ms'],420000-result)
 
-    def test_freeze_and_export_compare_native_timer_to_xiamoys_without_live_rank(self):
+    def test_long_wall_clock_finish_continues_campaign(self):
+        self.rows([('spawn',0),('credits',420500)])
+        self.capture()
+        self.attempt['reason']='credits'
+        practice.write(self.world/'speedrunigt/record.json',{'is_completed':True,'final_igt':405000})
+        with patch('freeze_take.pack') as pack:
+            self.assertEqual(practice.finish_attempt(self.attempt,self.root,self.dest),'film_over_time_limit')
+            pack.assert_not_called()
+
+    def test_freeze_and_export_enforce_seven_minutes_without_live_rank(self):
         import freeze_take
         import render
         from compare_splits import XIAMOYS_IGT_MS
@@ -332,7 +341,7 @@ class PracticeLauncherTests(unittest.TestCase):
         for i, (event, dim) in enumerate([("return_overworld","overworld"),("enter_end","end")],6):
             row=dict(state,event=event,run_tick=i,elapsed_ms=100*i,dim=dim)
             rows.extend((row,dict(row,event="state")))
-        rows.append(dict(rows[-1],event="credits",elapsed_ms=610000))
+        rows.append(dict(rows[-1],event="credits",elapsed_ms=410000))
         self.log.write_text(''.join(json.dumps(row)+'\n' for row in rows))
         (self.world/'astra-113.local').touch()
         (self.world/'astra-film-attempt.txt').write_text(str(player))
@@ -352,7 +361,7 @@ class PracticeLauncherTests(unittest.TestCase):
         replay=self.root/'test.mcpr'
         with zipfile.ZipFile(replay,'w') as z:
             z.writestr('metaData.json',json.dumps({'protocol':736,'singleplayer':True,'serverName':'Week 113',
-                                                   'date':5000,'duration':610000}))
+                                                   'date':5000,'duration':410000}))
             stream = bytearray()
             def packet(ms, payload):
                 stream.extend(struct.pack('>II', ms, len(payload)) + payload)
@@ -364,18 +373,18 @@ class PracticeLauncherTests(unittest.TestCase):
             pearl(100, 32, (-74, 76.5, 172.7))
             pearl(100, 33, (-30.5, 59.3, 167.5))
             pearl(495, 33, (-66, 85.5, 172.7))
-            packet(610000, b'b')
+            packet(410000, b'b')
             z.writestr('recording.tmcpr',stream)
         timer_path=self.world/'speedrunigt/record.json'
         timer={'mc_version':'1.16.1','default_gamemode':0,'is_cheat_allowed':False,'is_completed':True}
         with patch('freeze_take.verify', return_value={'seen_credits':True}), \
              patch('world_evidence.read_level',return_value={'Player':{'UUID':player.bytes}}), \
              patch('official_board.urlopen',side_effect=AssertionError('offline')):
-            for result in (335528,335529):
+            for result in (420000,420001):
                 practice.write(timer_path,dict(timer,final_igt=result))
-                with self.subTest(result=result), self.assertRaisesRegex(ValueError,'strictly faster'):
+                with self.subTest(result=result), self.assertRaisesRegex(ValueError,'seven minutes'):
                     freeze_take.pack(self.world,replay,self.dest,False)
-            practice.write(timer_path,dict(timer,final_igt=335527))
+            practice.write(timer_path,dict(timer,final_igt=419999))
             full_log=self.log.read_bytes()
             without_recall=[q for q in rows if q["event"]!="render_distance_shortcut"]
             only_eight=[q for q in rows if q["event"]!="render_distance_shortcut"
@@ -416,7 +425,7 @@ class PracticeLauncherTests(unittest.TestCase):
         with self.assertRaisesRegex(MissingStandardStasis, 'original replay shows 4'):
             replay_pearl_ordinal(wrong_replay, rows, meta['native_route']['stasis_shortcuts'])
         self.assertEqual(meta['lead_ms'],1)
-        self.assertEqual(meta['last_observed_ms'],610000)
+        self.assertEqual(meta['last_observed_ms'],410000)
         self.assertEqual(meta['native_route']['stasis_shortcuts']['recall_distance'],16)
 
         # An older bundle's self-reported qualifying metadata cannot relax the export check.
@@ -436,7 +445,7 @@ class PracticeLauncherTests(unittest.TestCase):
             with self.subTest(label=label), self.assertRaisesRegex(ValueError,error):
                 render.verify_take(old_bundle,False)
             self.assertTrue(render.verify_take(old_bundle,True)[0]["native_completed"])
-        for result in (335528,335529):
+        for result in (420000,420001):
             entries['native-timer.json']=json.dumps(dict(timer,final_igt=result)).encode()
             entries['take.json']=json.dumps(dict(meta,native_speedrunigt_ms=result)).encode()
             forged_course=json.loads(entries['course.json'])
@@ -447,5 +456,5 @@ class PracticeLauncherTests(unittest.TestCase):
                 for name,data in entries.items():
                     z.writestr(name,data)
                 z.writestr('SHA256SUMS',''.join(f'{freeze_take.sha(data)}  {name}\n' for name,data in entries.items()))
-            with self.subTest(result=result), self.assertRaisesRegex(ValueError,'strictly faster'):
+            with self.subTest(result=result), self.assertRaisesRegex(ValueError,'seven minutes'):
                 render.verify_take(forged_path,False)

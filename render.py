@@ -15,7 +15,7 @@ import tempfile
 import time
 import zipfile
 
-from weekly.week113.tools.compare_splits import beats_xiamoys
+from weekly.week113.tools.compare_splits import MAX_MOVIE_FRAMES, finish_fits_film, under_time_limit
 from weekly.week113.tools.world_evidence import observed_route, replay_pearl_ordinal
 
 ROOT=Path(__file__).resolve().parent
@@ -43,7 +43,7 @@ def appdata_dir():
 
 def verify_take(path, allow_segment):
     if not path.is_file():
-        raise ValueError(f"The repository contains no verified complete Week 113 take beating xiamoys (5:35.528 IGT) at {path.name}. No film rendered.")
+        raise ValueError(f"The repository contains no verified complete Week 113 take under seven minutes at {path.name}. No film rendered.")
     with zipfile.ZipFile(path) as z:
         if len(z.namelist())!=len(set(z.namelist())):raise ValueError("Repeated ZIP member")
         bad=z.testzip()
@@ -64,13 +64,15 @@ def verify_take(path, allow_segment):
             if course.get(key)!=pinned[key]:raise ValueError(f"Recording differs from pinned course: {key}")
         if meta.get("course")!=113 or course["week"]!=113:raise ValueError("Unexpected course")
         if not allow_segment and not (meta.get("kind")=="local_full_run" and meta.get("native_completed") is True and
-                data.get("is_completed") is True and meta["last_observed_ms"]>0 and beats_xiamoys(data.get("final_igt")) and
+                data.get("is_completed") is True and finish_fits_film(meta["last_observed_ms"]) and under_time_limit(data.get("final_igt")) and
                 meta.get("native_speedrunigt_ms")==data["final_igt"] and isinstance(meta.get("native_route"),dict) and meta["native_route"] and
                 meta.get("native_world",{}).get("seen_credits") is True):
-            raise ValueError("This take must contain a verified original Week 113 finish strictly faster than xiamoys (5:35.528 native IGT)")
+            raise ValueError("This take must contain a verified original Week 113 finish and uncut film under seven minutes")
         if not allow_segment:
             with z.open("observer.jsonl.gz") as compressed, gzip.GzipFile(fileobj=compressed) as log:
                 rows = [json.loads(line) for line in log]
+            if rows and rows[-1].get("event") == "credits" and rows[-1].get("elapsed_ms") != meta["last_observed_ms"]:
+                raise ValueError("Recorded finish time differs from the original journal")
             meta["native_route"].update(observed_route(rows))
             stasis = meta["native_route"]["stasis_shortcuts"]
             with z.open("Astra.mcpr") as replay:
@@ -130,7 +132,7 @@ def render(a):
     marked=game/"replay_recordings"/"Astra-pov.mcpr";marked.parent.mkdir(exist_ok=True)
     source=game/"original.mcpr";journal=game/"observer.jsonl"
     view=native.build(source,journal,marked,"Astra",meta.get("spawn_minus_replay_start_ms"),0,None,
-                      hud=hud,credits_tail_ms=18000 if meta["kind"]=="local_full_run" else 0)
+                      hud=hud,credits_tail_ms=min(18000, MAX_MOVIE_FRAMES * 1000 // 60 - meta["last_observed_ms"]) if meta["kind"]=="local_full_run" else 0)
     cfgdir=game/"config";cfgdir.mkdir(exist_ok=True)
     raw=game/"Astra-native.mp4";(cfgdir/"astra-render-once.json").write_text(json.dumps({"input":str(marked),"output":str(raw),"ffmpeg":str(Path(shutil.which("ffmpeg")).resolve())}))
     launcher=subprocess.Popen([str(prism),"-d",str(data),"-l",dstroot.name],cwd=dstroot)
@@ -157,11 +159,14 @@ def render(a):
             raise ValueError(f"No launcher or render activity for {a.idle_minutes:g} minutes; inspect {game / 'logs'}. The instance and recording are preserved.")
         time.sleep(3)
     probe=subprocess.run(["ffprobe","-v","error","-show_streams","-of","json",str(raw)],capture_output=True,check=True)
-    v=next((q for q in json.loads(probe.stdout).get("streams",[]) if q["codec_type"]=="video"),{})
+    streams=json.loads(probe.stdout).get("streams",[])
+    v=next((q for q in streams if q["codec_type"]=="video"),{})
     if (v.get("width"),v.get("height"))!=(1920,1080) or v.get("avg_frame_rate") not in ("60/1","60"):
         raise ValueError("Native movie differs from 1920x1080 at 60 fps")
     frames=int(v.get("nb_frames",0))
     if abs(frames-expected)>1:raise ValueError(f"Expected {expected} frames, received {frames}")
+    if not a.practice_segment and frames > MAX_MOVIE_FRAMES:
+        raise ValueError("Native movie exceeds the seven-minute delivery limit")
     with tempfile.TemporaryDirectory(dir=dst.parent) as td:
         if not a.music and not a.practice_segment:
             try:a.music=music_source.artist_source(Path(td)/"Sleepwalker.mp3")
@@ -169,9 +174,7 @@ def render(a):
                 raise ValueError(f"The native render is preserved at {raw}. To mux it supply your local Sleepwalker track; artist source returned {e}") from e
         tmp=Path(td)/"completed.mp4"
         if a.music:
-            cmd=["ffmpeg","-v","error","-nostdin","-i",str(raw),"-stream_loop","-1","-i",str(a.music),"-map","0:v:0","-map","1:a:0",
-                 "-c:v","copy","-c:a","aac","-b:a","192k","-t",f"{frames/60:.8f}","-movflags","+faststart",str(tmp)]
-            subprocess.run(cmd,check=True)
+            music_source.mux(raw, a.music, tmp, frames, any(track["codec_type"] == "audio" for track in streams))
         else:shutil.copyfile(raw,tmp)
         if dst.exists():raise FileExistsError(dst)
         # The temporary directory and destination share a filesystem.
