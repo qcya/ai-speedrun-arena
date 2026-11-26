@@ -38,6 +38,7 @@ public final class Fortress {
     private Fortress() {}
 
     public static void reset() {
+        EastRodPocket.reset();
         excavating = guardingBridge = false;
         bridgeSwing = -20;
         previousEnemy = -1;
@@ -525,6 +526,47 @@ public final class Fortress {
         walk(mc, p.x - mc.player.getX(), p.z - mc.player.getZ(), landing, false);
     }
 
+    static boolean openInnerCageFloor(MinecraftClient mc) {
+        if(mc.currentScreen!=null || Race.referenceTick()<3590
+                || mc.player.inventory.count(Items.IRON_PICKAXE)==0
+                || mc.player.getY()<58.85 || mc.player.getY()>61.1
+                || mc.player.squaredDistanceTo(SPAWNER)>34)return false;
+        Vec3d eye=mc.player.getCameraPosVec(1);
+        boolean pending=false;
+        for(int x=-8;x<=-7;x++) {
+            BlockPos p=new BlockPos(x,59,114);
+            if(mc.world.getBlockState(p).getBlock()!=Blocks.NETHER_BRICKS
+                    || mc.world.getBlockState(p.down()).getBlock()!=Blocks.NETHER_BRICKS
+                    || !clear(mc,p.up()))continue;
+            pending=true;
+            if(mc.player.getBoundingBox().intersects(new Box(p.up())))continue;
+            Vec3d top=new Vec3d(x+.5,59.98,114.50);
+            if(eye.squaredDistanceTo(top)>18)continue;
+            BlockHitResult ray=mc.world.rayTrace(new RayTraceContext(eye,top,
+                    RayTraceContext.ShapeType.OUTLINE, RayTraceContext.FluidHandling.NONE, mc.player));
+            if(ray.getType()!=HitResult.Type.BLOCK || !p.equals(ray.getBlockPos()))continue;
+            Race.stop(mc);
+            mc.options.keyAttack.setPressed(false);
+            if(Middle.select(mc,Items.IRON_PICKAXE) && Middle.aim(mc,p,null)!=null)
+                mc.options.keyAttack.setPressed(true);
+            excavating=true;
+            status="clearing the two inner cage bricks above intact supports";
+            return true;
+        }
+        if(!pending)return false;
+        // The spawner occupies the center tile. Approach its east aisle
+        // from the south and let the ordinary controller take all other approaches.
+        double x=mc.player.getX(),z=mc.player.getZ();
+        if(z<115.72 || z>120.1 || x< -9.7 || x> -5.32)return false;
+        if(Math.hypot(x+6.38,z-115.58)<.32)return false;
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        double targetZ=z>117.1?116.66:115.58;
+        walk(mc,-6.38-x,targetZ-z,null,true);
+        status="approaching the east face of the inner cage floor";
+        return true;
+    }
+
     private static boolean openCageFloor(MinecraftClient mc) {
         if (Race.referenceTick() < 3700 || mc.player.inventory.count(Items.BOW) == 0
                 || mc.player.inventory.count(Items.IRON_PICKAXE) == 0 || !mc.player.isOnGround()
@@ -597,6 +639,9 @@ public final class Fortress {
      */
     public static boolean tick(MinecraftClient mc, int goal) {
         if (leaveRodPocket(mc, goal)) return true;
+        if (EastRodPocket.active() && EastRodPocket.inspect(mc,goal,false)) {
+            status=EastRodPocket.status;return true;
+        }
         if (mc.player.inventory.count(Items.BLAZE_ROD) >= goal
                 || mc.player.squaredDistanceTo(SPAWNER) > 26 * 26
                 || (mc.currentScreen != null && !ownsInventory)) {
@@ -642,6 +687,9 @@ public final class Fortress {
             }
         }
         if (rod==null && enterSouthCageGap(mc,target,aim)) return true;
+        if (EastRodPocket.inspect(mc,goal,rod!=null || target!=null)) {
+            status=EastRodPocket.status;return true;
+        }
         if (blazesAtSpawner
                 && rod == null
                 && (target == null || mc.player.getY() < 59.6)
@@ -654,7 +702,7 @@ public final class Fortress {
         }
         if (target == null && rod == null) {
             fighting = false;
-            if (openCageFloor(mc)) return true;
+            if (openInnerCageFloor(mc) || openCageFloor(mc)) return true;
             if (excavating) {
                 mc.options.keyAttack.setPressed(false);
                 mc.interactionManager.cancelBlockBreaking();

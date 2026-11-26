@@ -221,5 +221,59 @@
       }
     },
     "escape_ms": 7203
+  },
+  "northern_flood_escape": {
+    "kind": "Matched native survival practice from the living P98 flood hole; original is unchanged.",
+    "native_source_files": 56,
+    "hashes_unchanged": true,
+    "original_nbt_health": 13.299999237060547,
+    "original_nbt_air": 0,
+    "native_survival": {
+      "source": {
+        "event": "spawn",
+        "run_tick": 0,
+        "elapsed_ms": 0,
+        "x": -728.6999999880791,
+        "y": 38.0,
+        "z": 1278.300000011921,
+        "air": -19,
+        "hp": 13.299999,
+        "middle_action": "approaching bastion"
+      },
+      "positive_air": {
+        "event": "state",
+        "run_tick": 61,
+        "elapsed_ms": 2675,
+        "x": -728.6661931059174,
+        "y": 40.200000047683716,
+        "z": 1277.8807165648511,
+        "air": 7,
+        "hp": 13.299999,
+        "middle_action": "swimming over the dry northern rim of the flooded passage"
+      },
+      "resume_route": {
+        "event": "state",
+        "run_tick": 70,
+        "elapsed_ms": 3036,
+        "x": -728.654506626004,
+        "y": 39.40750404355463,
+        "z": 1277.1825405980135,
+        "air": 39,
+        "hp": 13.299999,
+        "middle_action": "walking along the brick floor beside the flooded corridor"
+      },
+      "dry_checkpoint": {
+        "event": "rejoined_dry_corridor",
+        "run_tick": 193,
+        "elapsed_ms": 9130,
+        "x": -734.1270036361603,
+        "y": 39.0,
+        "z": 1275.5923851240027,
+        "air": 300,
+        "hp": 17.9,
+        "middle_action": "walking along the brick floor beside the flooded corridor"
+      }
+    },
+    "patch": "37e37cc8669cf4328fc68b7117534376d16dac40b8d767267af8dba6a8e3c437"
   }
 }

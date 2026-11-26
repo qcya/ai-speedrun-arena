@@ -1,0 +1,184 @@
+{
+  "p97_four_rods_to_six": {
+    "kind": "One original P97 run compared with a continued copy of its ordinary game-tick 6000 autosave, aligned to the observed saved position. Reloaded mob behavior can differ.",
+    "source_files": 40,
+    "source_hashes_unchanged": true,
+    "original_observer_position_match": {
+      "run_tick": 5973,
+      "elapsed_ms": 298160,
+      "hp": 16.700005,
+      "x": -7.536341284081372,
+      "y": 59.0,
+      "z": 119.33090593118519,
+      "event": "state"
+    },
+    "source_native_six": {
+      "run_tick": 7077,
+      "elapsed_ms": 353345,
+      "hp": 20.0,
+      "x": -8.092427504860579,
+      "y": 59.0,
+      "z": 117.3443201576681,
+      "event": "state"
+    },
+    "baseline_elapsed_after_same_recorded_pos": 55185,
+    "calibration_both_inner_bricks_open": {
+      "run_tick": 53,
+      "elapsed_ms": 2178,
+      "hp": 16.700005,
+      "x": -6.979477628999519,
+      "y": 59.0,
+      "z": 118.40273076204686,
+      "event": "state"
+    },
+    "calibration_six": {
+      "run_tick": 612,
+      "elapsed_ms": 30097,
+      "hp": 15.8200035,
+      "x": -9.296060500391604,
+      "y": 59.41999998688698,
+      "z": 115.24695167415669,
+      "event": "six_rods"
+    },
+    "fourth_wave_native": [
+      {
+        "xyz": [
+          -6.71,
+          60.0,
+          119.06
+        ],
+        "tick": 489,
+        "killed": null
+      },
+      {
+        "xyz": [
+          -6.15,
+          61.0,
+          114.98
+        ],
+        "tick": 489,
+        "killed": [
+          558,
+          27402
+        ]
+      },
+      {
+        "xyz": [
+          -7.29,
+          59.0,
+          114.58
+        ],
+        "tick": 489,
+        "killed": [
+          584,
+          28699
+        ]
+      },
+      {
+        "xyz": [
+          -8.61,
+          60.0,
+          116.35
+        ],
+        "tick": 489,
+        "killed": [
+          597,
+          29354
+        ]
+      }
+    ],
+    "source_fourth_wave_count": 1,
+    "calibration_fourth_wave_count": 4,
+    "native_replay_crc": 593710935,
+    "patch_sha256": "ca2f61d458a010e0e1b852adc56121339d3fd0ea10f0a405ca34e44ab2dd1ac0",
+    "observed_difference_ms": 25088
+  },
+  "east_drop_recovery": {
+    "kind": "Native living five-rod practice save, one naturally landed rod beyond eastern lower corridor. Not a fresh competition attempt.",
+    "source_world_file_count": 46,
+    "original_hashes_match_after": true,
+    "patch_sha256": "95195c4e471211ccd70d117ae9b34ffd4da4d041c43c10f7b87eed1395c0e7ba",
+    "events": [
+      {
+        "event": "spawn",
+        "run_tick": 0,
+        "elapsed_ms": 0,
+        "hp": 20.0,
+        "x": -10.237326582614168,
+        "y": 58.0,
+        "z": 121.75071731520396,
+        "upper_east_wall": "minecraft:nether_bricks",
+        "lower_east_wall": "minecraft:nether_bricks",
+        "ground_rods": [
+          [
+            166,
+            -4.125,
+            57.0,
+            120.875,
+            false
+          ]
+        ],
+        "middle_action": "approaching bastion",
+        "rods": 5
+      },
+      {
+        "event": "state",
+        "run_tick": 43,
+        "elapsed_ms": 1644,
+        "hp": 20.0,
+        "x": -6.6584577043792645,
+        "y": 57.0,
+        "z": 120.54289206942269,
+        "upper_east_wall": "minecraft:air",
+        "lower_east_wall": "minecraft:nether_bricks",
+        "ground_rods": [
+          [
+            166,
+            -4.125,
+            57.0,
+            120.875,
+            false
+          ]
+        ],
+        "middle_action": "opening the two-brick side of the eastern rod pocket",
+        "rods": 5
+      },
+      {
+        "event": "state",
+        "run_tick": 60,
+        "elapsed_ms": 2496,
+        "hp": 20.0,
+        "x": -6.6584577043792645,
+        "y": 57.0,
+        "z": 120.54289206942269,
+        "upper_east_wall": "minecraft:air",
+        "lower_east_wall": "minecraft:air",
+        "ground_rods": [
+          [
+            166,
+            -4.125,
+            57.0,
+            120.875,
+            true
+          ]
+        ],
+        "middle_action": "opening the two-brick side of the eastern rod pocket",
+        "rods": 5
+      },
+      {
+        "event": "six_rods",
+        "run_tick": 67,
+        "elapsed_ms": 2838,
+        "hp": 20.0,
+        "x": -5.304714266436112,
+        "y": 57.0,
+        "z": 120.60484439404367,
+        "upper_east_wall": "minecraft:air",
+        "lower_east_wall": "minecraft:air",
+        "ground_rods": [],
+        "middle_action": "collecting the visible rod through the eastern pocket",
+        "rods": 6
+      }
+    ]
+  }
+}

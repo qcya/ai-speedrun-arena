@@ -464,14 +464,27 @@ public final class StrongholdEntry {
             BlockPos bottom=new BlockPos(-729,38,1278),breath=bottom.south(),step=breath.east();
             if(!mc.world.getFluidState(bottom).isIn(net.minecraft.tag.FluidTags.WATER)
                     || !mc.world.getFluidState(bottom.up()).isIn(net.minecraft.tag.FluidTags.WATER)
-                    || !mc.world.getBlockState(bottom).getCollisionShape(mc.world,bottom).isEmpty()
-                    || !dryHead(mc,breath.up()) || !dryHead(mc,breath.up(2))
+                    || !mc.world.getBlockState(bottom).getCollisionShape(mc.world,bottom).isEmpty())return false;
+            BlockPos north=bottom.north();
+            if(mc.world.getBlockState(north).isFullCube(mc.world,north)
+                    && dryHead(mc,north.up()) && dryHead(mc,north.up(2))
+                    && dryHead(mc,north.north().up()) && dryHead(mc,north.north().up(2))) {
+                floodedHole=3;
+            } else if(!dryHead(mc,breath.up()) || !dryHead(mc,breath.up(2))
                     || !mc.world.getBlockState(step).isFullCube(mc.world,step)
                     || !dryHead(mc,step.up()) || !dryHead(mc,step.up(2)))return false;
-            floodedHole=0;
+            else floodedHole=0;
         }
         Race.stop(mc);
-        if(floodedHole==0) {
+        if(floodedHole==3) {
+            walk(mc,-728.52,1276.54,false);
+            mc.options.keyJump.setPressed(mc.player.getY()<39.0 || mc.player.isTouchingWater());
+            if(mc.player.getZ()<1277.42 && mc.player.getY()>=38.98
+                    && !mc.player.isSubmergedIn(net.minecraft.tag.FluidTags.WATER)){
+                floodedHole=-1;floodedTurn=0;
+            }
+            status="swimming over the dry northern rim of the flooded passage";
+        } else if(floodedHole==0) {
             if(mc.player.getZ()<1279.22)walk(mc,-728.55,1279.61,false);
             else if(!mc.player.isSubmergedIn(net.minecraft.tag.FluidTags.WATER) && mc.player.getAir()>=70)floodedHole=1;
             mc.options.keyJump.setPressed(mc.player.getY()<38.98);
