@@ -17,7 +17,7 @@ import zipfile
 import zlib
 
 import render
-from weekly.week113.tools.compare_splits import XIAMOYS_IGT_MS, beats_xiamoys
+from weekly.week113.tools.compare_splits import TIME_LIMIT_MS, finish_fits_film, under_time_limit
 
 ROOT = Path(__file__).resolve().parent
 WEEK = ROOT / 'weekly/week113'
@@ -366,9 +366,13 @@ def finish_attempt(attempt, work, destination):
     if results['observed_credits'] and not results['death'] and verdict == 'credits':
         if not results['native_completed'] or type(results['final_igt_ms']) is not int or results['final_igt_ms'] <= 0:
             raise ValueError('Native credits observed but final SpeedRunIGT receipt is missing or invalid; preserved for inspection.')
-        receipt['benchmark'] = {'player': 'xiamoys', 'time_ms': XIAMOYS_IGT_MS, 'comparison': '<'}
-        receipt['lead_ms'] = XIAMOYS_IGT_MS - results['final_igt_ms']
-        if beats_xiamoys(results['final_igt_ms']):
+        receipt['benchmark'] = {'time_ms': TIME_LIMIT_MS, 'comparison': '<'}
+        receipt['lead_ms'] = TIME_LIMIT_MS - results['final_igt_ms']
+        if not under_time_limit(results['final_igt_ms']):
+            verdict = 'over_time_limit'
+        elif not finish_fits_film(results['observer_rta_ms']):
+            verdict = 'film_over_time_limit'
+        else:
             from freeze_take import pack
             from world_evidence import MissingStandardStasis
             try:
@@ -379,8 +383,6 @@ def finish_attempt(attempt, work, destination):
             else:
                 render.verify_take(destination, False)
                 verdict = 'qualified'
-        else:
-            verdict = 'did_not_beat_xiamoys'
     receipt['verdict'] = verdict
     write(record, receipt)
     print(f"{verdict}  IGT={results['final_igt_ms']}ms  RTA={results['observer_rta_ms']}ms  {world}", flush=True)

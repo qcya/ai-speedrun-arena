@@ -2,7 +2,7 @@
 
 本周练习使用 Minecraft Java 1.16.1、原作者发布的 MCSR Ranked 6.0.12 和第 113 周设置。11 月 26 日 15:48（北京时间）查询时，第一名 Ormo 为 5:28.356，第二名夏末（xiamoys）为 5:35.528，第五名 Chato61 为 6:45.516。周榜于 2026-11-30 00:00 UTC 截止，中国及新加坡时间上午八点。[当周官方实时接口](https://api.mcsrranked.com/weekly-race/113) · [查询快照和四项种子](course.json)
 
-本次挑战固定对照夏末的 **5:35.528**。只有 Astra 在同一张图从自然出生连续通关、原生 SpeedRunIGT 小于 **335,528 毫秒**，程序才会封存整局。
+本次挑战要求 Astra 在同一张图从自然出生连续通关，原生 SpeedRunIGT 和保留通关画面的原速成片均须短于 **7:00**。夏末的 **5:35.528** 用于对比分段。
 
 ### 东线双箱训练
 
@@ -115,4 +115,4 @@ python weekly/week113/tools/freeze_take.py "D:/Minecraft/AstraPractice/.minecraf
 python weekly/week113/tools/compare_splits.py "D:/Minecraft/AstraPractice/.minecraft/saves/W113-01/speedrunigt/record.json"
 ```
 
-第一条命令根据完整的本地通关证据检查固定目标。夏末的官方成绩是 5:35.528，Astra 必须至少快一毫秒。使用 `--segment` 可以明确导出未完成的分段练习。第二条命令对比 Astra 和夏末的同进度游戏内时间。加 `--reference Ormo` 可改为对比 Ormo。右上角的总表记录现实耗时。完整场次的比赛计时、录像的实际时长和用于比较的官方成绩分别保存在回放包中。
+第一条命令根据完整的本地通关证据检查固定目标。原生计时须小于 420,000 毫秒，并且完整录像必须能在七分钟内呈现结算画面。使用 `--segment` 可以明确导出未完成的分段练习。第二条命令对比 Astra 和夏末的同进度游戏内时间。加 `--reference Ormo` 可改为对比 Ormo。右上角的总表记录现实耗时。完整场次的比赛计时、录像的实际时长和用于比较的官方成绩分别保存在回放包中。

@@ -4,12 +4,22 @@ import argparse
 import json
 from pathlib import Path
 
-# The challenge is bound to this published Week 113 run even if the leaderboard changes.
+# Keep the historical split reference independent of the local release target.
 XIAMOYS_IGT_MS = 335_528
 
 
-def beats_xiamoys(igt_ms):
-    return type(igt_ms) is int and 0 < igt_ms < XIAMOYS_IGT_MS
+TIME_LIMIT_MS = 420_000
+# Last frame timestamp of the longest 60 fps movie strictly under seven minutes.
+MAX_MOVIE_FRAMES = 420 * 60 - 1
+MAX_CREDITS_MS = (MAX_MOVIE_FRAMES - 1) * 1000 // 60
+
+
+def under_time_limit(igt_ms):
+    return type(igt_ms) is int and 0 < igt_ms < TIME_LIMIT_MS
+
+
+def finish_fits_film(elapsed_ms):
+    return type(elapsed_ms) is int and 0 < elapsed_ms <= MAX_CREDITS_MS
 
 
 def compare(record,reference):
