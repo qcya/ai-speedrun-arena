@@ -1,0 +1,229 @@
+{
+  "scope": "Native local practice cases on Weekly 113. Checkpoint clocks are separate from full-run times.",
+  "regular_coast": {
+    "scope": "native shoreline segment from unchanged saved position, before first pearl",
+    "matching_origin_files": 32,
+    "native_uses_before_after": [
+      0,
+      2
+    ],
+    "landing_records": [
+      {
+        "position": [
+          -76.90594670760177,
+          74.238835439301,
+          170.5431312563885
+        ],
+        "tick": 237,
+        "ms": 11402,
+        "hp": 15.0,
+        "floor_block": "netherrack",
+        "feet_block": "air"
+      },
+      {
+        "position": [
+          -27.26863940753116,
+          57.701379842780405,
+          167.54513380624925
+        ],
+        "tick": 357,
+        "ms": 17491,
+        "hp": 10.0,
+        "floor_block": "nether_bricks",
+        "feet_block": "air"
+      }
+    ],
+    "initial_unique_projectiles": {
+      "4d7dc2553c034a51b6562b42b8f5ae54": {
+        "packet_ms": 9936,
+        "position": [
+          -105.48639656465465,
+          41.939999990165234,
+          148.40493586016706
+        ],
+        "velocity": [
+          0.638875,
+          1.678875,
+          0.494875
+        ]
+      },
+      "fb68f02cf5e14e74a749bddd2f9eae8b": {
+        "packet_ms": 16931,
+        "position": [
+          -76.90594670760177,
+          75.93999999016523,
+          170.5431312563885
+        ],
+        "velocity": [
+          1.46975,
+          0.102,
+          -0.08875
+        ]
+      }
+    },
+    "replay_sha256": "6e88e452c4218ca8f7099600ac4d519e902c6904ee61ac00228bbd9e2018ef94"
+  },
+  "lava_recovery": {
+    "stage": "second throw after falling into lava",
+    "source_files_verified": 43,
+    "initial_pearls": 12,
+    "before_throw": [
+      -41.70335772432266,
+      31.660798427533358,
+      167.49366946820308
+    ],
+    "teleport_foot": [
+      -28.65322242137208,
+      57.3404560568115,
+      167.3535836960242
+    ],
+    "settled_on_bridge": {
+      "foot": [
+        -29.976846513123856,
+        57.0,
+        167.42425364287283
+      ],
+      "on_ground": true,
+      "health": 15.0,
+      "pearls": 11
+    },
+    "replay_sha256": "43aad94f17ddabb5b92d854d4c64b301c8ab93e4fc1e7a81eb8fad7b5eac870a"
+  },
+  "fortress_lower_corner": {
+    "type": "survival checkpoint navigation only",
+    "original": "fresh-east46",
+    "source_files_verified": 48,
+    "start": [
+      -10.300000011920929,
+      58.00133597911215,
+      121.40023769277022
+    ],
+    "finish": [
+      -8.184818006277032,
+      57.0,
+      121.40012494517526
+    ],
+    "health_before_after": [
+      17.300003,
+      17.300003
+    ],
+    "elapsed_ticks": 40,
+    "elapsed_observer_ms": 1543,
+    "blocks_mined": {
+      "minecraft:nether_bricks": 1,
+      "minecraft:netherrack": 1
+    },
+    "blaze_rods_at_exit": 3,
+    "native_stats_sha256": "386630ae49e462a0b5b93dcd620abfc322ebd22db785f5400ebd7c0a6e51dd30",
+    "observer_sha256": "360a3d1dc8628db468c9401c047960c7768d65dc65ca3a78d6a34a235cdc010a"
+  },
+  "shield_and_food": {
+    "observations": {
+      "fresh-east45": [
+        {
+          "run_tick": 2790,
+          "elapsed_ms": 139089,
+          "x": -125.24146499793737,
+          "y": 39.0,
+          "z": 105.43509965553642,
+          "hp": 13.400001,
+          "blocking": true,
+          "middle_action": "eating to restore hunger"
+        },
+        {
+          "run_tick": 2816,
+          "elapsed_ms": 140490,
+          "x": -125.25494471660195,
+          "y": 39.0,
+          "z": 105.51403390704195,
+          "hp": 13.400001,
+          "blocking": true,
+          "middle_action": "eating to restore hunger"
+        },
+        {
+          "run_tick": 2839,
+          "elapsed_ms": 141785,
+          "x": -125.25494471660195,
+          "y": 39.0,
+          "z": 105.51403390704195,
+          "hp": 9.1,
+          "blocking": true,
+          "middle_action": "eating to restore hunger"
+        },
+        {
+          "run_tick": 2859,
+          "elapsed_ms": 142674,
+          "x": -125.25494471660195,
+          "y": 39.0,
+          "z": 105.51403390704195,
+          "hp": 4.8,
+          "blocking": true,
+          "middle_action": "eating to restore hunger"
+        },
+        {
+          "run_tick": 2875,
+          "elapsed_ms": 143540,
+          "x": -125.25494471660195,
+          "y": 39.0,
+          "z": 105.51403390704195,
+          "hp": 0.5,
+          "blocking": true,
+          "middle_action": "eating to restore hunger"
+        },
+        {
+          "run_tick": 2898,
+          "elapsed_ms": 144565,
+          "x": -125.25494471660195,
+          "y": 39.0,
+          "z": 105.51403390704195,
+          "hp": 0.0,
+          "blocking": true,
+          "middle_action": "eating to restore hunger"
+        }
+      ],
+      "fresh-east46": [
+        {
+          "run_tick": 2952,
+          "elapsed_ms": 147173,
+          "x": -125.25011296676293,
+          "y": 39.0,
+          "z": 105.42379734144022,
+          "hp": 4.4333363,
+          "blocking": false,
+          "middle_action": "walking on upper bastion terrace 10/34"
+        },
+        {
+          "run_tick": 2965,
+          "elapsed_ms": 147908,
+          "x": -126.76133493384098,
+          "y": 38.0,
+          "z": 104.45818628874234,
+          "hp": 4.4333363,
+          "blocking": false,
+          "middle_action": "walking on upper bastion terrace 11/34"
+        },
+        {
+          "run_tick": 2989,
+          "elapsed_ms": 149013,
+          "x": -129.59883516457597,
+          "y": 36.0,
+          "z": 106.60851770920746,
+          "hp": 4.4333363,
+          "blocking": false,
+          "middle_action": "walking on upper bastion terrace 14/34"
+        },
+        {
+          "run_tick": 3006,
+          "elapsed_ms": 149983,
+          "x": -130.49808570228316,
+          "y": 36.0,
+          "z": 110.30055556281326,
+          "hp": 4.4333363,
+          "blocking": false,
+          "middle_action": "walking on upper bastion terrace 23/34"
+        }
+      ]
+    },
+    "scope": "independent uninterrupted original games with different piglin positions"
+  }
+}

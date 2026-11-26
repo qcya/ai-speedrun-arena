@@ -99,9 +99,9 @@ final class TravelPearls {
     }
 
     static boolean aimFirst(MinecraftClient mc) {
-        Vec3d base=new Vec3d(-105.50,41,148.50);
+        Vec3d base=new Vec3d(-105.50,40,148.50);
         double horizontal=Math.hypot(mc.player.getX()-base.x,mc.player.getZ()-base.z);
-        if (mc.world.getBlockState(new BlockPos(base.x,40,base.z)).getMaterial().isReplaceable() || horizontal>.26) {
+        if (mc.world.getBlockState(new BlockPos(base.x,39,base.z)).getMaterial().isReplaceable() || horizontal>.26) {
             if (horizontal>.22) {
                 Race.aim(mc,new Vec3d(base.x,mc.player.getEyeY()-.12,base.z));
                 Middle.approach(mc,base,horizontal<.7);
@@ -109,7 +109,7 @@ final class TravelPearls {
                 return false;
             }
             if (!Middle.selectBuildingBlock(mc,true)) return false;
-            BlockPos top=new BlockPos(base.x,40,base.z);
+            BlockPos top=new BlockPos(base.x,39,base.z);
             while (top.getY()>29 && mc.world.getBlockState(top).getMaterial().isReplaceable()) top=top.down();
             BlockHitResult hit=Middle.aim(mc,top,Direction.UP);
             mc.options.keyJump.setPressed(true);
@@ -117,9 +117,9 @@ final class TravelPearls {
             return false;
         }
         if (firstDirection==null && mc.player.isOnGround()) {
-            // Reproducing three native projectiles isolated the lip above the shore.
+            // The lower pillar and more vertical shot clear the lip above the shore.
             // This angle clears its side and lands on the broad floor at Y74.
-            firstDirection=direction(-52.5,-55.5);
+            firstDirection=direction(-52.875,-57.25);
         }
         if(firstDirection==null || !Middle.select(mc,Items.ENDER_PEARL))return false;
         Race.aim(mc,mc.player.getCameraPosVec(1).add(firstDirection.multiply(10)));
@@ -179,9 +179,23 @@ final class TravelPearls {
     }
 
     static boolean reachedFortressAfterSwim(MinecraftClient mc) {
-        if (!swimmingToFortress || mc.player.squaredDistanceTo(-30.5,57,167.45)>=9) return false;
-        BlockPos support=new BlockPos(mc.player.getX(),56,mc.player.getZ());
-        return !mc.world.getBlockState(support).getCollisionShape(mc.world,support).isEmpty();
+        if (!swimmingToFortress) return false;
+        double x=mc.player.getX(), y=mc.player.getY(), z=mc.player.getZ();
+        if (x< -32.30 || x> -25.10 || z<165.8 || z>168.1 || y<56.99 || y>=58.65) return false;
+        // A pearl teleports the feet to the preceding projectile tick. At the bridge
+        // edge the player's body can overlap solid brick while its center is over air.
+        for (int floorY=56;floorY<=57;floorY++) {
+            double aboveTop=y-(floorY+1);
+            if (aboveTop<-.01 || aboveTop>.65) continue;
+            for (int bx=(int)Math.floor(x-.295);bx<=(int)Math.floor(x+.295);bx++) {
+                for (int bz=(int)Math.floor(z-.295);bz<=(int)Math.floor(z+.295);bz++) {
+                    BlockPos p=new BlockPos(bx,floorY,bz);
+                    if (mc.world.getBlockState(p).getBlock()==Blocks.NETHER_BRICKS
+                            && mc.world.getBlockState(p.up()).getCollisionShape(mc.world,p.up()).isEmpty()) return true;
+                }
+            }
+        }
+        return false;
     }
 
     static boolean usesLavaRecovery() {
@@ -189,7 +203,7 @@ final class TravelPearls {
     }
 
     private static boolean swimToLaunch(MinecraftClient mc) {
-        double x=-44.50,z=167.50;
+        double x=-41.50,z=167.50;
         double distance=Math.hypot(mc.player.getX()-x,mc.player.getZ()-z);
         mc.options.keyJump.setPressed(true);
         if(distance>.32) {
@@ -209,7 +223,8 @@ final class TravelPearls {
     static boolean aimSecond(MinecraftClient mc) {
         if(swimmingToFortress){
             if(!swimToLaunch(mc))return false;
-            Vec3d dir=direction(-90,-74);
+            // The shorter, steeper arc clears the protruding west face at (-32,56,167).
+            Vec3d dir=direction(-91.0,-77.75);
             Race.aim(mc,mc.player.getCameraPosVec(1).add(dir.multiply(10)));
             net.minecraft.server.network.ServerPlayerEntity player=mc.getServer().getPlayerManager().getPlayer(mc.player.getUuid());
             if(player==null || player.getRotationVec(1).dotProduct(dir)<.9998 ||

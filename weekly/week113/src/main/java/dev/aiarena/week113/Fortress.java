@@ -378,6 +378,23 @@ public final class Fortress {
             mc.options.keyAttack.setPressed(false);
         }
         if (exitStep == 1 && mc.player.getZ() >= 121.13) exitStep++;
+        if (exitStep>=2 && mc.player.getX()<=-9.96 && mc.player.getX()>=-11.1
+                && mc.player.getZ()>=121.13 && mc.player.getZ()<121.9) {
+            // The mined north-south pocket can open onto a second wall east of the turn.
+            BlockPos floor=new BlockPos(-10,56,121);
+            if (mc.world.getBlockState(floor).isSideSolidFullSquare(mc.world,floor,net.minecraft.util.math.Direction.UP)) {
+                for (int y:new int[]{58,57}) {
+                    BlockPos wall=new BlockPos(-10,y,121);
+                    Block material=mc.world.getBlockState(wall).getBlock();
+                    if (material!=Blocks.NETHERRACK && material!=Blocks.NETHER_BRICKS) continue;
+                    takeControls(mc);
+                    if (Middle.select(mc,Items.IRON_PICKAXE))
+                        mc.options.keyAttack.setPressed(Middle.aim(mc,wall,null)!=null);
+                    status="mining the eastern wall at the lower fortress turn";
+                    return true;
+                }
+            }
+        }
         if (exitStep >= 2 && mc.player.getX() > -8.28) {
             pocketRods = -1;
             exitStep = 0;

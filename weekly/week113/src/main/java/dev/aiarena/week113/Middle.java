@@ -1203,6 +1203,12 @@ public final class Middle {
 
     private static boolean eat(MinecraftClient mc) {
         if (!eating && leavingEntrancePortal(mc)) return false;
+        // A shield may already be raised on the way out of a bastion chest.
+        // Let its owner keep moving while blocking.
+        if (mc.player.isUsingItem() && !mc.player.getActiveItem().isFood()) {
+            eating=false;
+            return false;
+        }
         if (eating) {
             if (!mc.player.isUsingItem()) {
                 eating=false;
@@ -1226,7 +1232,8 @@ public final class Middle {
                 if (offhand!=Items.COOKED_SALMON && offhand!=Items.COOKED_COD && offhand!=Items.BREAD) return false;
                 hand=Hand.OFF_HAND;
             } else if (!select(mc,food)) return false;
-            if (!mc.interactionManager.interactItem(mc.player,mc.world,hand).isAccepted()) return false;
+            if (!mc.interactionManager.interactItem(mc.player,mc.world,hand).isAccepted()
+                    || !mc.player.isUsingItem() || !mc.player.getActiveItem().isFood()) return false;
             eating=true;
         }
         Race.stop(mc);
