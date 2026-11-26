@@ -15,11 +15,17 @@ import net.minecraft.util.math.Vec3d;
 final class BastionEgress {
     private static final int[][] UPPER = {
         {-111,36,109},{-112,36,109},{-113,36,108},{-114,36,108},{-115,36,108},
-        {-116,36,109},{-117,36,109},{-117,36,110},{-118,36,111},{-119,36,112},
-        {-119,36,113},{-119,36,114},{-119,36,115},{-119,36,116},{-119,36,117},
-        {-119,36,118},{-119,36,119},{-119,36,120},{-120,36,120},{-121,36,120},
-        {-122,36,120},{-123,36,120},{-123,36,121}
+        {-116,36,108},{-117,36,109},{-117,36,110},{-117,36,111},{-118,36,112},
+        {-118,36,113},{-118,36,114},{-118,36,115},{-118,36,116},{-118,36,117},
+        {-118,36,118},{-118,36,119},{-119,36,119},{-120,36,119},{-121,36,119},
+        {-122,36,119},{-123,36,119},{-123,36,120}
     };
+    private static final int BRANCH=15;
+    private static final int[][] RECESS = {
+        {-119,35,118},{-120,35,119},{-121,35,120},{-122,35,120}
+    };
+    private static boolean prepared,shortRecess,branchDecided;
+    private static int padTicks;
     private static final BlockPos CHEST = new BlockPos(-124,33,122);
     private static boolean decided,useUpper,covering,waitForPiglins,upperAllowed,waiting;
     private static int index,settledTicks,waitingTicks,clearTicks;
@@ -28,6 +34,7 @@ final class BastionEgress {
     static String status="";
 
     static void reset() {
+        prepared=shortRecess=branchDecided=false;padTicks=0;
         decided=false;useUpper=false;arrived=false;covering=false;waiting=false;index=1;lootFoot=null;lastUnreachable=null;settledTicks=waitingTicks=clearTicks=0;
         net.minecraft.server.integrated.IntegratedServer server=MinecraftClient.getInstance().getServer();
         waitForPiglins=server!=null&&java.nio.file.Files.isRegularFile(server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-bastion-wait"));
@@ -52,6 +59,35 @@ final class BastionEgress {
             double fraction=Math.max(0,Math.min(1,((x+111)*-8+(z-112)*3)/73));
             double distance=Math.hypot(x-(-111-8*fraction),z-(112+3*fraction));
             if(distance<5.1 && ++count>=2)return true;
+        }
+        return false;
+    }
+
+    // The chest perch can see both faces without stepping off the floor or opening the chest.
+    static boolean prepareExit(MinecraftClient mc) {
+        if(waitForPiglins || mc.currentScreen!=null || padTicks>=20 || !BastionApproach.onLootPerch(mc))return false;
+        if(!prepared && !crowded(mc))return false;
+        prepared=true;
+        BlockPos anchor=new BlockPos(-113,35,108);
+        net.minecraft.util.math.Direction face=net.minecraft.util.math.Direction.EAST;
+        if(!BastionApproach.open(mc,anchor.offset(face))) {
+            anchor=anchor.offset(face);face=net.minecraft.util.math.Direction.SOUTH;
+        }
+        if(!BastionApproach.open(mc,anchor.offset(face)))return false;
+        ++padTicks;Race.stop(mc);mc.options.keySneak.setPressed(true);
+        mc.options.keyAttack.setPressed(false);
+        if(Middle.selectBuildingBlock(mc,false))Middle.use(mc,Middle.aim(mc,anchor,face));
+        status="preparing the westward exit before opening the first chest";
+        return true;
+    }
+
+    private static boolean lowerLandingOccupied(MinecraftClient mc) {
+        for(Entity e:mc.world.getEntities()) {
+            if(!(e instanceof PiglinEntity) || !e.isAlive())continue;
+            PiglinEntity pig=(PiglinEntity)e;
+            if(pig.isBaby() || !(pig.getMainHandStack().getItem() instanceof SwordItem))continue;
+            if(Math.abs(e.getY()-35)<2.5 && (e.squaredDistanceTo(-119.3,35,118.7)<25
+                    || e.squaredDistanceTo(-121.5,35,120.5)<25))return true;
         }
         return false;
     }
@@ -86,7 +122,7 @@ final class BastionEgress {
             if(pig.isBaby()||!(pig.getMainHandStack().getItem() instanceof SwordItem)
                     ||pig.getY()+2.25<mc.player.getY()||!mc.player.canSee(pig))continue;
             double dist=mc.player.squaredDistanceTo(pig);
-            if(dist<best){best=dist;threat=pig;}
+            if(pig.isAttacking() && dist<best){best=dist;threat=pig;}
         }
         if(threat==null){lowerShield(mc);return false;}
         Race.aim(mc,threat.getBoundingBox().getCenter());
@@ -103,17 +139,31 @@ final class BastionEgress {
         return true;
     }
 
-    private static boolean chestVisible(MinecraftClient mc){
+    private static Vec3d chestPoint(MinecraftClient mc){
         // A native chest lid is 14/16 high. Probe only points inside that shape.
         for(double y:new double[]{.74,.54,.31})for(double x:new double[]{.5,.21,.79})for(double z:new double[]{.5,.21,.79}){
-            BlockHitResult hit=BastionApproach.line(mc,new Vec3d(CHEST.getX()+x,CHEST.getY()+y,CHEST.getZ()+z));
-            if(hit!=null&&CHEST.equals(hit.getBlockPos()))return true;
+            Vec3d point=new Vec3d(CHEST.getX()+x,CHEST.getY()+y,CHEST.getZ()+z);
+            BlockHitResult hit=BastionApproach.line(mc,point);
+            if(hit!=null&&CHEST.equals(hit.getBlockPos()))return point;
         }
-        return false;
+        return null;
+    }
+
+    private static boolean chestVisible(MinecraftClient mc){return chestPoint(mc)!=null;}
+
+    static void openSecondChest(MinecraftClient mc) {
+        Race.stop(mc);mc.options.keySneak.setPressed(false);
+        Vec3d aim=chestPoint(mc);
+        if(aim==null)return;
+        Race.aim(mc,aim);mc.gameRenderer.updateTargetedEntity(1);
+        if(mc.crosshairTarget instanceof BlockHitResult) {
+            BlockHitResult hit=(BlockHitResult)mc.crosshairTarget;
+            if(CHEST.equals(hit.getBlockPos()))Middle.use(mc,hit);
+        }
     }
 
     private static BlockPos at(int i) {
-        int[] xyz=UPPER[i];return new BlockPos(xyz[0],xyz[1],xyz[2]);
+        int[] xyz=shortRecess && i>=BRANCH?RECESS[i-BRANCH]:UPPER[i];return new BlockPos(xyz[0],xyz[1],xyz[2]);
     }
 
     private static boolean overFirstChestTerrace(MinecraftClient mc) {
@@ -127,8 +177,9 @@ final class BastionEgress {
             decided=true;
             boolean blocked=overFirstChestTerrace(mc)&&crowded(mc);
             waiting=blocked&&waitForPiglins;
-            useUpper=blocked&&upperAllowed&&!waitForPiglins;
+            useUpper=(prepared || blocked&&upperAllowed)&&!waitForPiglins;
         }
+        if(!arrived && !waiting && !waitForPiglins && !useUpper && overFirstChestTerrace(mc) && crowded(mc))useUpper=true;
         // The first hand-fed trade takes six seconds. Piglins can fill the lower hall during that wait,
         // and the pickup can leave Astra one cell away from the original chest perch or briefly airborne.
         if(waitForPiglins && !waiting && waitingTicks==0
@@ -155,14 +206,16 @@ final class BastionEgress {
         if(!useUpper||arrived)return false;
         Race.stop(mc);mc.options.keyAttack.setPressed(false);Race.cap(2131);
         if(mc.player.getY()<33.5){lowerShield(mc);useUpper=false;return false;}
+        if(index==BRANCH && !branchDecided){
+            branchDecided=true;shortRecess=!lowerLandingOccupied(mc);
+        }
+        // Recheck while still able to stay on the high crossing.
+        if(shortRecess && index==BRANCH && mc.player.getY()>=35.7 && lowerLandingOccupied(mc))shortRecess=false;
+        int length=shortRecess?BRANCH+RECESS.length:UPPER.length;
         BlockPos p=at(index),previous=at(index-1);
-        // Keep walking at Y36, over the second chest's soul-sand stair. In the
-        // native crowded run a piglin climbed that stair when the route dropped.
-        if(index>=16){
-            if(lootFoot==null && mc.player.isOnGround() && chestVisible(mc)){
-                BlockPos current=mc.player.getBlockPos();
-                if(!current.equals(lastUnreachable)&&!BastionApproach.open(mc,current.down()) && current.getY()==36)lootFoot=current;
-            }
+        if(index==length-1) {
+            if(lootFoot==null && mc.player.isOnGround() && mc.player.getBlockPos().equals(p)
+                    && !BastionApproach.open(mc,p.down()) && chestVisible(mc))lootFoot=p;
             if(lootFoot!=null && mc.player.getY()<lootFoot.getY()-.65){lastUnreachable=lootFoot;lootFoot=null;}
             if(lootFoot!=null){
                 double bx=lootFoot.getX()+.5,bz=lootFoot.getZ()+.5;
@@ -185,18 +238,18 @@ final class BastionEgress {
         }
         if(BastionApproach.open(mc,p.down())){
             lowerShield(mc);
-            status="bridging above the first-chest piglins "+index+"/"+(UPPER.length-1);
+            status="bridging above the first-chest piglins "+index+"/"+(length-1);
             BastionApproach.bridge(mc,previous,p);return true;
         }
         double x=p.getX()+.5,z=p.getZ()+.5;
         double d=Math.hypot(mc.player.getX()-x,mc.player.getZ()-z);
-        if(index<UPPER.length-1 && d<.38 && Math.abs(mc.player.getY()-p.getY())<.55) {
+        if(index<length-1 && d<.38 && Math.abs(mc.player.getY()-p.getY())<.55) {
             index++;return true;
         }
-        status="crossing the upper bastion terrace "+index+"/"+(UPPER.length-1);
-        if(index<14 || !guardRamp(mc))Race.aim(mc,new Vec3d(x,mc.player.getEyeY()-.1,z));
+        status="crossing the upper bastion terrace "+index+"/"+(length-1);
+        if(!guardRamp(mc))Race.aim(mc,new Vec3d(x,mc.player.getEyeY()-.1,z));
         boolean downhill=p.getY()<previous.getY();
-        boolean nearGap=index+1<UPPER.length && BastionApproach.open(mc,at(index+1).down());
+        boolean nearGap=index+1<length && BastionApproach.open(mc,at(index+1).down());
         BastionApproach.move(mc,x,z,!downhill && (nearGap || d<.35),!nearGap && d>1.1);
         mc.options.keyJump.setPressed(mc.player.horizontalCollision && p.getY()>mc.player.getY()+.45);
         return true;

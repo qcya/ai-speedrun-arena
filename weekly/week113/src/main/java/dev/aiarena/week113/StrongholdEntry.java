@@ -6,6 +6,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.mob.CreeperEntity;
+import net.minecraft.entity.mob.SilverfishEntity;
+import net.minecraft.entity.mob.SkeletonEntity;
+import net.minecraft.entity.mob.SpiderEntity;
+import net.minecraft.entity.mob.ZombieEntity;
+import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.item.Items;
 import net.minecraft.screen.slot.SlotActionType;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -43,17 +48,22 @@ public final class StrongholdEntry {
         {-743, 39, 1275, -742, 40, 1276, -1, 0, 5673}
     };
     private static int door = -1, misses;
+    private static boolean guardingCorridor;
     private static boolean returnToButton;
-    private static boolean active, finished;
+    private static boolean active, finished, westernPortal;
+    private static final double[][] WESTERN_TURNS = {
+        {-708.55, 1309.8}, {-712.05, 1309.65}, {-712.15, 1308.5}
+    };
     private static int phase, point;
     public static String status = "leaving the eastern stronghold portal";
 
     private StrongholdEntry() {}
 
     public static void reset() {
-        active = finished = false;
+        active = finished = westernPortal = false;
         phase = point = 0;
         door = -1;
+        guardingCorridor = false;
         misses = 0;
         returnToButton = false;
         waterSpot = null;
@@ -234,6 +244,118 @@ public final class StrongholdEntry {
                 > .015;
     }
 
+    private static boolean corridorMob(Entity entity) {
+        return entity instanceof ZombieEntity || entity instanceof SpiderEntity
+                || entity instanceof SilverfishEntity || entity instanceof SkeletonEntity;
+    }
+
+    // Real iron doors admit a 0.6-wide player through one block. First line up with the
+    // opening on its entry side so a diagonal run cannot press continuously into the jamb.
+    private static void crossOpenDoor(MinecraftClient mc, int[] d, boolean facingMob) {
+        BlockPos pos = new BlockPos(d[0], d[1], d[2]);
+        BlockState panel = mc.world.getBlockState(pos);
+        double x = d[0] + .5, z = d[2] + .5;
+        // A fully open iron door still occupies 3/16 of one side of its block.
+        Box open = panel.with(DoorBlock.OPEN, true).getCollisionShape(mc.world,pos).getBoundingBox();
+        if (d[6] != 0 && open.maxZ-open.minZ < .5)
+            z += open.minZ < .5 ? open.maxZ / 2 : -(1-open.minZ) / 2;
+        if (d[7] != 0 && open.maxX-open.minX < .5)
+            x += open.minX < .5 ? open.maxX / 2 : -(1-open.minX) / 2;
+        double dx = mc.player.getX() - x, dz = mc.player.getZ() - z;
+        double forward = dx * d[6] + dz * d[7];
+        double across = Math.abs(dx * d[7] - dz * d[6]);
+        double advance = forward < -.4 && across > .085 ? Math.min(forward, -.82) : 1.2;
+        x += d[6] * advance;
+        z += d[7] * advance;
+        if (facingMob) {
+            BastionApproach.move(mc, x, z, false, false);
+        } else {
+            walk(mc, x, z, false);
+            mc.options.keyJump.setPressed(false);
+        }
+    }
+
+    static boolean guardCorridor(MinecraftClient mc, int reference) {
+        CreeperEntity primed = null;
+        Entity melee = null;
+        double nearestFuse = 81, nearestMob = 3.15 * 3.15;
+        if (reference >= 5542 && reference <= 5708 && mc.player.getX() > -757
+                && mc.player.getX() < -713 && mc.player.getZ() > 1268 && mc.player.getZ() < 1296
+                && mc.player.getY() >= 31 && mc.player.getY() <= 44
+                && mc.player.getOffHandStack().getItem() == Items.SHIELD
+                && (mc.currentScreen == null || (mc.currentScreen instanceof InventoryScreen
+                        && mc.player.inventory.getCursorStack().isEmpty()))) {
+            for (Entity e : mc.world.getEntities(mc.player,mc.player.getBoundingBox().expand(9))) {
+                if (!e.isAlive()) continue;
+                double distance = mc.player.squaredDistanceTo(e);
+                if (e instanceof CreeperEntity && distance < nearestFuse) {
+                    CreeperEntity c = (CreeperEntity)e;
+                    if ((c.getFuseSpeed() > 0 || c.getClientFuseTime(1) > .05f) && mc.player.canSee(c)) {
+                        nearestFuse = distance;
+                        primed = c;
+                    }
+                } else if (distance < nearestMob && corridorMob(e) && mc.player.canSee(e)) {
+                    nearestMob = distance;
+                    melee = e;
+                }
+            }
+        }
+        Entity threat = primed != null ? primed : melee;
+        if (threat == null) {
+            if (guardingCorridor) {
+                mc.options.keyUse.setPressed(false);
+                if (mc.player.getActiveItem().getItem() == Items.SHIELD)
+                    mc.interactionManager.stopUsingItem(mc.player);
+            }
+            guardingCorridor = false;
+            return false;
+        }
+        // A primed creeper in the failed run exploded during a food swap. Cancel the pending
+        // number-key swap before the common inventory controller can reopen the screen.
+        if (!guardingCorridor) Hotbar.reset();
+        guardingCorridor = true;
+        if (mc.currentScreen instanceof InventoryScreen) mc.player.closeHandledScreen();
+        if (mc.player.isUsingItem() && mc.player.getActiveItem().getItem() != Items.SHIELD)
+            mc.interactionManager.stopUsingItem(mc.player);
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        Race.aim(mc, threat.getBoundingBox().getCenter());
+        if (primed == null) {
+            if (door >= 0) {
+                int[] d = DOORS[door];
+                BlockState panel = mc.world.getBlockState(new BlockPos(d[0], d[1], d[2]));
+                double dx = mc.player.getX()-d[0]-.5, dz = mc.player.getZ()-d[2]-.5;
+                if (panel.getBlock() instanceof DoorBlock && panel.get(DoorBlock.OPEN)
+                        && Math.hypot(dx,dz) <= 2.5 && dx*d[6]+dz*d[7] <= .65)
+                    crossOpenDoor(mc, d, true);
+            }
+            for (int i = 0; i < 9; i++) {
+                if (mc.player.inventory.getStack(i).getItem() == Items.DIAMOND_SWORD) {
+                    mc.player.inventory.selectedSlot = i;
+                    break;
+                }
+            }
+            mc.gameRenderer.updateTargetedEntity(1);
+            if (mc.crosshairTarget instanceof EntityHitResult && mc.player.getAttackCooldownProgress(.5f) >= .99f) {
+                Entity target = ((EntityHitResult)mc.crosshairTarget).getEntity();
+                if (corridorMob(target) && target.isAlive() && mc.player.canSee(target)
+                        && mc.player.getCameraPosVec(1).squaredDistanceTo(mc.crosshairTarget.getPos()) <= 9) {
+                    if (mc.player.isUsingItem()) mc.interactionManager.stopUsingItem(mc.player);
+                    mc.options.keyUse.setPressed(false);
+                    mc.interactionManager.attackEntity(mc.player, target);
+                    mc.player.swingHand(Hand.MAIN_HAND);
+                    status = "striking a mob blocking the stronghold corridor";
+                    return true;
+                }
+            }
+        }
+        if (!mc.player.isUsingItem()) mc.interactionManager.interactItem(mc.player, mc.world, Hand.OFF_HAND);
+        mc.options.keyUse.setPressed(true);
+        status = primed != null ? "shielding the primed creeper in the stronghold corridor"
+                : "guarding the stronghold doorway between strikes";
+        return true;
+    }
+
     private static boolean doorPass(MinecraftClient mc, int reference) {
         if (mc.currentScreen != null) return false;
         if (door < 0)
@@ -244,7 +366,6 @@ public final class StrongholdEntry {
                 if (Math.abs(mc.player.getY() - d[1]) > 1.8 || Math.hypot(dx, dz) > 2.3) continue;
                 BlockState state = mc.world.getBlockState(new BlockPos(d[0], d[1], d[2]));
                 if (state.getBlock() instanceof DoorBlock
-                        && !state.get(DoorBlock.OPEN)
                         && !pastPanel(mc, d, state)) {
                     door = i;
                     misses = 0;
@@ -271,7 +392,7 @@ public final class StrongholdEntry {
             returnToButton = false;
             misses = 0;
             status = "walking through the stronghold doorway";
-            walk(mc, x + d[6] * 1.2, z + d[7] * 1.2, false);
+            crossOpenDoor(mc, d, false);
             return true;
         }
         if (returnToButton) {
@@ -312,6 +433,27 @@ public final class StrongholdEntry {
     public static boolean tick(MinecraftClient mc, int reference) {
         if (coolPortalPool(mc, reference) || doorPass(mc, reference)) return true;
         if (finished) return false;
+        if (!active && reference >= 5412 && reference < 5479
+                && mc.player.getY() >= 32 && mc.player.getY() <= 38
+                && ((Math.hypot(mc.player.getX() + 708.32, mc.player.getZ() - 1308.5) < 2.8
+                        && mc.world.getBlockState(new BlockPos(-711, 33, 1308)).getBlock() == net.minecraft.block.Blocks.OBSIDIAN)
+                    || (Math.hypot(mc.player.getX() + 703.5, mc.player.getZ() - 1309.68) < 2.8
+                        && mc.world.getBlockState(new BlockPos(-704, 36, 1309)).getBlock() == net.minecraft.block.Blocks.NETHER_PORTAL))) {
+            westernPortal = active = true;
+            point = 0;
+        }
+        if (westernPortal) {
+            Race.stop(mc);
+            mc.options.keyAttack.setPressed(false);
+            status = "walking around the western return frame toward the pearl chest";
+            double[] target = WESTERN_TURNS[point];
+            if (walk(mc,target[0],target[1],false) && ++point == WESTERN_TURNS.length) {
+                westernPortal = false;
+                finished = true;
+                Race.advanceTo(5461);
+            }
+            return true;
+        }
         if (!active) {
             // The first client frame following a dimension change can still
             // hold the login spawn position. Wait for the observed portal location.

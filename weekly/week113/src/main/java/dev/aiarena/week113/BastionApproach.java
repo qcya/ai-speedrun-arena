@@ -208,7 +208,7 @@ public final class BastionApproach {
                 status="staying on the previous solid entrance tile";
             } else if(gravity && visible.getBlock()==actual.getBlock()) {
                 status="clearing suspended entrance gravel";
-                if(select(m,Items.GOLDEN_SHOVEL,Items.WOODEN_SHOVEL,Items.IRON_PICKAXE)) {
+                if(select(m,Opening.shovelOrPick(m))) {
                     Race.aim(m,Vec3d.ofCenter(support));m.gameRenderer.updateTargetedEntity(1);
                     if(m.crosshairTarget instanceof BlockHitResult && m.crosshairTarget.getType()==HitResult.Type.BLOCK
                             && ((BlockHitResult)m.crosshairTarget).getBlockPos().equals(support))m.options.keyAttack.setPressed(true);

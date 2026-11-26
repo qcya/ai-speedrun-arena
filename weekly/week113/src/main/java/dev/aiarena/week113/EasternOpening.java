@@ -14,7 +14,7 @@ import net.minecraft.tag.FluidTags;
 import net.minecraft.world.RayTraceContext;
 
 final class EasternOpening {
-    private static final double[][] COAST={{228.6,6.4},{225.3,6.3},{224.2,.4},{223.5,-6.1}};
+    private static final double[][] COAST={{228.6,6.70},{225.3,6.70},{224.2,.4},{223.5,-6.1}};
     private static final double[][] APPROACH={{228,-9.2},{235,-11.7},{242.7,-8.86},{249,-10.1},{253.9,-11.3},{255.7,-11.55}};
     private static final double[][] RAVINE={{262.7,-15.3},{263.4,-20.6},{264.4,-23.5},{266.1,-26.2},{266.62,-29.0}};
     private static int phase,point,ticksInPhase,lastUse;
@@ -51,6 +51,14 @@ final class EasternOpening {
     private static boolean follow(MinecraftClient m,double[][] path,double radius){
         while(point<path.length && Math.hypot(path[point][0]-m.player.getX(),path[point][1]-m.player.getZ())<radius)point++;
         if(point>=path.length){advance();return true;}
+        // The northern lip occupies the adjacent column at z=5. Clear it
+        // with the full player width before jumping west out of the TNT crater.
+        if(path==COAST && point==1 && m.player.getY()<70.5 && m.player.getX()>227.7
+                && m.player.getX()<229.6 && m.player.getZ()<6.50) {
+            move(m,m.player.getX(),6.72,false);
+            m.options.keyJump.setPressed(false);
+            return false;
+        }
         move(m,path[point][0],path[point][1],true);return false;
     }
     private static boolean water(MinecraftClient m) {
@@ -223,13 +231,53 @@ final class EasternOpening {
             m.interactionManager.attackEntity(m.player,b);m.player.swingHand(Hand.MAIN_HAND);
         }
     }
+    private static boolean ravineGuard;
+    private static void releaseRavineShield(MinecraftClient m) {
+        if(!ravineGuard)return;
+        m.options.keyUse.setPressed(false);
+        if(m.player.isUsingItem() && m.player.getActiveItem().getItem()==Items.SHIELD)
+            m.interactionManager.stopUsingItem(m.player);
+        ravineGuard=false;
+    }
+
+    private static boolean defendCastSite(MinecraftClient m) {
+        // Combat knockback makes the player airborne without leaving the casting site.
+        // Keep the sword through those ticks. Switching to the pick resets its cooldown.
+        if(phase<8 || m.player.getY()>20){releaseRavineShield(m);return false;}
+        Entity nearest=null;
+        double radius=12.25;
+        for(Entity entity:m.world.getEntities()) {
+            if(!(entity instanceof net.minecraft.entity.mob.ZombieEntity) || !entity.isAlive() || !m.player.canSee(entity))continue;
+            double distance=entity.squaredDistanceTo(m.player);
+            if(distance<radius){nearest=entity;radius=distance;}
+        }
+        if(nearest==null){releaseRavineShield(m);return false;}
+        status="defending the ravine casting site from a zombie";
+        if(!choose(m,Items.DIAMOND_SWORD))return true;
+        net.minecraft.server.network.ServerPlayerEntity self=ownServerPlayer(m);
+        face(m,nearest.getBoundingBox().getCenter());
+        if(self==null || self.getMainHandStack().getItem()!=Items.DIAMOND_SWORD)return true;
+        if(m.player.getAttackCooldownProgress(.5f)>.94f){
+            releaseRavineShield(m);
+            if(m.crosshairTarget instanceof EntityHitResult && ((EntityHitResult)m.crosshairTarget).getEntity()==nearest){
+                m.interactionManager.attackEntity(m.player,nearest);
+                m.player.swingHand(Hand.MAIN_HAND);
+            }
+        }else if(m.player.getOffHandStack().getItem()==Items.SHIELD){
+            if(!m.player.isUsingItem())m.interactionManager.interactItem(m.player,m.world,Hand.OFF_HAND);
+            m.options.keyUse.setPressed(true);
+            ravineGuard=true;
+        }
+        return true;
+    }
+
     static boolean tick(MinecraftClient m){
         Race.stop(m);m.options.keyAttack.setPressed(false);ticksInPhase++;
         status="eastern ravine "+phase+" waypoint "+point;
         if(phase>=4 && m.player.getVehicle()!=null){
             m.options.keySneak.setPressed(true);return true;
         }
-        if(Hotbar.tick(m))return true;
+        if(Hotbar.tick(m) || defendCastSite(m))return true;
         switch(phase){
           case 0:follow(m,COAST,1.35);break;
           case 1:if(water(m)) advance();break;
@@ -327,6 +375,11 @@ final class EasternOpening {
             status="descending the eastern ravine with the water bucket";
             if(m.player.getY()>20 || !m.player.isOnGround() && !m.player.isTouchingWater()){
                 if(m.player.getY()>30)move(m,266.55,-31.75,false);
+                else if(m.player.getZ()< -31.55 && m.player.getVelocity().z<-.035) {
+                    // The northern rim at Z -34 is one block taller than the two wet cells.
+                    // Brake the horizontal drift before the player's feet overlap that rim.
+                    BastionApproach.move(m,266.5,m.player.getZ()+1,false,false);
+                }
                 if(choose(m,Items.WATER_BUCKET)){
                     m.player.pitch=89;m.gameRenderer.updateTargetedEntity(1);
                     if(m.crosshairTarget instanceof BlockHitResult && m.crosshairTarget.getType()==HitResult.Type.BLOCK){
@@ -379,7 +432,7 @@ final class EasternOpening {
                 }
             }
             done=m.world.getBlockState(at).getMaterial().isReplaceable();
-            if(!done && choose(m,m.world.getBlockState(at).getBlock()==Blocks.DIRT && count(m,Items.WOODEN_SHOVEL)>0 ? Items.WOODEN_SHOVEL:Items.IRON_PICKAXE))
+            if(!done && choose(m,m.world.getBlockState(at).getBlock()==Blocks.DIRT ? Opening.shovelOrPick(m):Items.IRON_PICKAXE))
                 m.options.keyAttack.setPressed(Opening.target(m,at)!=null);
             break;
           case PLUG:

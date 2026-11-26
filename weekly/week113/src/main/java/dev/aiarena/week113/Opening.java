@@ -53,6 +53,12 @@ public final class Opening {
         status = "following coast";
     }
 
+    static Item shovelOrPick(MinecraftClient mc) {
+        for (Item tool : new Item[]{Items.GOLDEN_SHOVEL, Items.IRON_SHOVEL, Items.WOODEN_SHOVEL})
+            if (mc.player.inventory.count(tool) > 0) return tool;
+        return Items.IRON_PICKAXE;
+    }
+
     static BlockHitResult target(MinecraftClient mc, BlockPos pos) {
         Vec3d eye=mc.player.getCameraPosVec(1),point=Vec3d.ofCenter(pos);
         BlockHitResult initial=mc.world.rayTrace(new net.minecraft.world.RayTraceContext(eye,point,
@@ -394,7 +400,12 @@ public final class Opening {
             case 13:ok=eastern || craft(mc,"oak_door",Items.OAK_DOOR,6,true,false);break;
             case 14:ok=craft(mc,"stick",Items.STICK,7,true,false);break;
             case 15:ok=craft(mc,"diamond_sword",Items.DIAMOND_SWORD,1,true,false);break;
-            case 16:ok=craft(mc,shovel==Items.WOODEN_SHOVEL?"wooden_shovel":"golden_shovel",shovel,1,true,false);break;
+            case 16:
+                // The shield and lighter cost one iron each. Use only the third ingot for a shovel.
+                if (shovel==Items.WOODEN_SHOVEL && shieldOpening && count(mc,Items.IRON_INGOT)>=3)
+                    shovel=Items.IRON_SHOVEL;
+                String recipe=shovel==Items.IRON_SHOVEL?"iron_shovel":shovel==Items.WOODEN_SHOVEL?"wooden_shovel":"golden_shovel";
+                ok=craft(mc,recipe,shovel,1,true,false);break;
             case 17:ok=craft(mc,"shield",Items.SHIELD,1,true,false);break;
             case 18:
                 status="equipping shield in offhand";Race.stop(mc);
@@ -795,7 +806,7 @@ public final class Opening {
         if(castStep<RAVINE.length){
             Race.cap(1110);
             if(mc.player.getY()>13.7)return false;
-            if(!preparedGold && shovel==Items.WOODEN_SHOVEL && count(mc,Items.GOLD_INGOT)>0) {
+            if(!preparedGold && shovel!=Items.GOLDEN_SHOVEL && count(mc,Items.GOLD_INGOT)>0) {
                 if(!Hotbar.select(mc,Items.GOLD_INGOT,0))return true;
                 preparedGold=true;
             }

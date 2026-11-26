@@ -17,14 +17,21 @@ public final class ReturnFrame {
         {-88, 74}, {-88, 75}, {-88, 76}, {-88, 77}, {-85, 74}, {-85, 75}, {-85, 76}, {-85, 77},
         {-87, 77}, {-86, 77}
     };
-    private static int stage, index;
+    private static int stage, index, edgeTicks;
     private static boolean active;
+    private static int bankStep=-1;
+    private static final double[][] RETURN_BANK = {
+        {-84.52,174.50},{-84.52,172.48},{-84.52,170.50},{-85.50,170.50},{-85.50,166.58},{-84.55,166.52}
+    };
+
     public static String status = "approaching the return ledge";
 
     private ReturnFrame() {}
 
     public static void reset() {
         stage = index = 0;
+        bankStep=-1;
+        edgeTicks = 0;
         active = false;
     }
 
@@ -33,6 +40,15 @@ public final class ReturnFrame {
             Item i = m.player.inventory.getStack(slot).getItem();
             if (i != primary && (other == null || i != other)) continue;
             return Hotbar.select(m,i,exchangeSlot(m));
+        }
+        return false;
+    }
+
+    static boolean selectSupport(MinecraftClient m) {
+        for(Item item:new Item[]{Items.NETHERRACK,Items.DIRT,Items.NETHER_BRICKS,Items.BLACKSTONE,
+                Items.CRACKED_POLISHED_BLACKSTONE_BRICKS,Items.CHISELED_POLISHED_BLACKSTONE,
+                Items.POLISHED_BLACKSTONE_BRICKS,Items.COBBLESTONE,Items.ANDESITE,Items.DIORITE,Items.GRANITE}) {
+            if(m.player.inventory.count(item)>0)return select(m,item,null);
         }
         return false;
     }
@@ -134,7 +150,7 @@ public final class ReturnFrame {
             index++;
             return;
         }
-        if (!select(m, obsidian ? Items.OBSIDIAN : Items.NETHERRACK, obsidian ? null : Items.DIRT))
+        if (!(obsidian ? select(m,Items.OBSIDIAN,null) : selectSupport(m)))
             return;
         double az = z + .5, x = m.player.getX(), playerZ = m.player.getZ();
         if (Math.abs(az - playerZ) > .28 || x > anchor.getX() + .78) {
@@ -155,7 +171,7 @@ public final class ReturnFrame {
         BlockPos foot = new BlockPos(-87, 74, 165);
         if (!go(m, -86.5, 165.5, .16, true)) return;
         if (!full(m, foot)) {
-            if (!select(m, Items.NETHERRACK, Items.DIRT)) return;
+            if (!selectSupport(m)) return;
             Race.aim(m, new Vec3d(-86.5, 73.999, 165.5));
             m.options.keyJump.setPressed(m.player.isOnGround());
             if (!m.player.getBoundingBox().intersects(new Box(foot))) place(m, foot);
@@ -168,17 +184,37 @@ public final class ReturnFrame {
      * Once the stasis runner reaches the ledge this owns movement through the actual portal
      * transfer.
      */
+    private static boolean onBuiltReturnBank(MinecraftClient m,int reference) {
+        if(reference<5208 || reference>=5218 || m.player.getX()<-84.2 || m.player.getX()>-82.9
+                || m.player.getZ()<174.3 || m.player.getZ()>175.8 || m.player.getY()<74.8 || m.player.getY()>77.4)
+            return false;
+        return full(m,new BlockPos(-83,74,177)) && full(m,new BlockPos(-83,74,176))
+                && full(m,new BlockPos(-83,75,176)) && full(m,new BlockPos(-85,74,172));
+    }
+
     public static boolean tick(MinecraftClient m, int reference) {
         if (!active) {
-            if (reference < 5218
+            boolean onBank=onBuiltReturnBank(m,reference);
+            if ((!onBank && reference < 5218)
                     || reference >= 5412
                     || m.player.getY() < 68
                     || m.player.getY() > 84
                     || m.player.squaredDistanceTo(-84.5, 75, 168.5) > 15 * 15) return false;
+            if(onBank)bankStep=0;
             active = true;
         }
         Race.stop(m);
         m.options.keyAttack.setPressed(false);
+        if(bankStep>=0 && bankStep<RETURN_BANK.length) {
+            double[] to=RETURN_BANK[bankStep];
+            status="crossing the shallow lava onto the solid western return bank "+(bankStep+1);
+            if(go(m,to[0],to[1],.30,false))bankStep++;
+            else if(m.player.isInLava()) {
+                m.options.keySneak.setPressed(false);
+                m.options.keyJump.setPressed(true);
+            }
+            return true;
+        }
         BlockPos interior = new BlockPos(-86, 74, FRAME_Z);
         if (m.world.getBlockState(interior).getBlock() == Blocks.NETHER_PORTAL) stage = 8;
         switch (stage) {
@@ -234,6 +270,19 @@ public final class ReturnFrame {
             default:
                 status = "waiting inside the return portal";
                 Race.advanceTo(5332);
+                if (++edgeTicks <= 150) {
+                    status = "holding the outer edge of the high return portal";
+                    double x = -86.69, z = 165.264;
+                    double dx = x - m.player.getX() - 1.15 * m.player.getVelocity().x;
+                    double dz = z - m.player.getZ() - 1.15 * m.player.getVelocity().z;
+                    if (Math.hypot(dx, dz) > .013) {
+                        Race.aim(m, new Vec3d(m.player.getX()+dx*6, m.player.getEyeY(),
+                                m.player.getZ()+dz*6));
+                        move(m, dx, dz, true);
+                    }
+                    m.options.keySneak.setPressed(true);
+                    break;
+                }
                 go(m, -86.7, 164.515625, .11, false);
                 // The protected pad is one block higher than the portal sill.
                 m.options.keySneak.setPressed(false);

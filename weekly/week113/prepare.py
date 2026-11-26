@@ -89,7 +89,7 @@ if __name__=="__main__":
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--upper-corridor",action="store_true",help="Use the elevated bastion detour if the usual lower corridor is crowded")
     p.add_argument("--wait-for-piglins",action="store_true",help="Wait on the first chest ledge for a crowded group to calm; use the lower bastion corridor")
-    p.add_argument("--save-gold",action="store_true",help="Craft a wooden shovel and reserve the treasure gold ingot for an attacking piglin")
+    p.add_argument("--save-gold",action="store_true",help="Reserve the treasure gold for piglins and use surplus iron for the shovel when available")
     p.add_argument("--shield",action="store_true",help="Use the wooden TNT trigger and equip a shield before entering the Nether")
     p.add_argument("--game-dir",type=Path,required=True);p.add_argument("--world-name",default="Astra-W113")
     p.add_argument("--skin",type=Path);p.add_argument("--ranked-jar",type=Path);p.add_argument("--replay-jar",type=Path)

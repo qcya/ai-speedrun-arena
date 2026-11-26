@@ -196,11 +196,28 @@ public final class Fortress {
                 || mc.world.getFluidState(feet).isIn(FluidTags.LAVA)) return false;
         BlockPos floor = feet.down();
         if (clear(mc, floor)) floor = floor.down();
-        // Walk down two blocks only onto the checked solid floor that actually
-        // carries this observed rod. The ordinary combat movement stays shallow.
-        if (rodLanding != null && clear(mc, floor) && rodLanding.down().equals(floor.down()))
+        // A two-block descent needs an observed rod and a checked landing.
+        // Ordinary combat movement stays shallow.
+        if (rodLanding != null && clear(mc, floor)
+                && (floor.equals(rodLanding) || cageRodApproach(mc, floor, rodLanding)))
             floor = floor.down();
         return !clear(mc, floor) && !mc.world.getFluidState(floor).isIn(FluidTags.LAVA);
+    }
+
+    private static boolean cageRodApproach(MinecraftClient mc, BlockPos feet, BlockPos rodFeet) {
+        if (feet.getY() != 59 || rodFeet.getY() != 59
+                || feet.getX() < -10 || feet.getX() > -6 || feet.getZ() < 113 || feet.getZ() > 118
+                || rodFeet.getX() < -10 || rodFeet.getX() > -6 || rodFeet.getZ() < 113 || rodFeet.getZ() > 118
+                || mc.world.getBlockState(feet.down()).getBlock() != Blocks.NETHER_BRICKS) return false;
+        // The open area around the spawner is two blocks lower. Verify each intermediate
+        // landing column even when the observed rod rests a further column away.
+        for (int h = 0; h <= 3; h++) {
+            BlockPos cell = feet.up(h);
+            Block block = mc.world.getBlockState(cell).getBlock();
+            if (!clear(mc, cell) || !mc.world.getFluidState(cell).isEmpty()
+                    || block == Blocks.FIRE || block == Blocks.SOUL_FIRE) return false;
+        }
+        return true;
     }
 
     private static void walk(MinecraftClient mc, double dx, double dz) {
@@ -261,6 +278,32 @@ public final class Fortress {
         return true;
     }
 
+    private static boolean enterSouthCageGap(MinecraftClient mc, BlazeEntity target, Vec3d aim) {
+        if (target==null || target.getZ()>116.7 || mc.player.getZ()<117.5 || mc.player.getZ()>119.1
+                || mc.player.getX() < -10.0 || mc.player.getX()>-8.50
+                || mc.player.getY()<59.6 || mc.player.getY()>61.1
+                || mc.player.getCameraPosVec(1).distanceTo(aim)<=3.0) return false;
+        // The west post blocks a direct approach. Only drop beside it onto verified brick.
+        BlockPos post=new BlockPos(-10,61,117);
+        if (mc.world.getBlockState(post).getBlock()!=Blocks.NETHER_BRICK_FENCE) return false;
+        for (int z=117;z<=118;z++) {
+            BlockPos floor=new BlockPos(-9,58,z);
+            if (mc.world.getBlockState(floor).getBlock()!=Blocks.NETHER_BRICKS) return false;
+            for (int h=1;h<=4;h++) {
+                BlockPos cell=floor.up(h);
+                if (!clear(mc,cell) || !mc.world.getFluidState(cell).isEmpty()
+                        || mc.world.getBlockState(cell).getBlock()==Blocks.FIRE) return false;
+            }
+        }
+        takeControls(mc);
+        equipSword(mc);
+        double x=-8.47,z=118.40;
+        Race.aim(mc,new Vec3d(x,mc.player.getEyeY()-.12,z));
+        BastionApproach.move(mc,x,z,false,false);
+        status="stepping down beside the southern cage fence";
+        return true;
+    }
+
     private static void approachSpawner(MinecraftClient mc) {
         double x = -7.62, z = mc.player.getZ() > 120.8 ? 120.0 : 116.55;
         double dx = x - mc.player.getX(), dz = z - mc.player.getZ();
@@ -289,7 +332,8 @@ public final class Fortress {
         net.minecraft.util.shape.VoxelShape support =
                 mc.world.getBlockState(ground).getCollisionShape(mc.world, ground);
         if (support.isEmpty()
-                || support.getBoundingBox().maxY < .92
+                || !Block.isShapeFullCube(support)
+                || !mc.world.getFluidState(ground).isEmpty()
                 || mc.world.getBlockState(ground).getBlock() == Blocks.MAGMA_BLOCK) return null;
         for (int h = 0; h <= 3; h++) {
             BlockPos body = feet.up(h);
@@ -475,6 +519,7 @@ public final class Fortress {
                 }
             }
         }
+        if (rod==null && enterSouthCageGap(mc,target,aim)) return true;
         if (blazesAtSpawner
                 && rod == null
                 && (target == null || mc.player.getY() < 59.6)
