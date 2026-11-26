@@ -42,6 +42,7 @@ public final class ReplayLayer extends Screen {
     private final Object sender;
     private final Method senderClock;
     private final int replayStart, fromMs, toMs;
+    private final RecordedDebugChat debugChat;
     private int lastIndex, atMs;
     private PlayerEntity avatar;
     private CreditsScreen credits;
@@ -55,11 +56,13 @@ public final class ReplayLayer extends Screen {
         this.owner=UUID.fromString(head.get("source_uuid").getAsString());
         this.replayStart=head.get("run_at_replay_ms").getAsInt();
         this.fromMs=head.get("from_ms").getAsInt();this.toMs=head.get("to_ms").getAsInt();
+        this.debugChat=new RecordedDebugChat(head.getAsJsonArray("render_distance_feedback"));
         JsonArray slots=null;
         String lastScreen="";
         for (JsonElement val:head.getAsJsonArray("rows")) {
             JsonObject row=val.getAsJsonObject();
             int t=row.get("elapsed_ms").getAsInt();String event=string(row,"event","");
+            if(event.equals("render_distance_shortcut")) continue;
             int idx=event.equals("enter_nether")?0:event.equals("enter_end")?1:
                 event.equals("dragon")||event.equals("dragon_zero")||event.equals("dragon_dead")?2:event.equals("credits")?3:-1;
             if (idx>=0 && marks[idx]<0) marks[idx]=t;
@@ -152,6 +155,7 @@ public final class ReplayLayer extends Screen {
                 return;
             }
             if (row.has("hotbar_slot")) hotbar(m,row);
+            debugChat.render(mc,m,atMs,integer(row,"run_tick",Math.floorDiv(atMs,50)),h);
             String screen=string(row,"screen","");
             if ((screen.equals("inventory") || screen.equals("chest") || screen.equals("crafting"))
                     && row.has("gui_slots") && row.has("mouse_x")) gui(m,row,screen);

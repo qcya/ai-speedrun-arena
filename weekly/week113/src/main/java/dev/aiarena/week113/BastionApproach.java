@@ -38,7 +38,8 @@ public final class BastionApproach {
     static String status="";
     private static int index, inventoryTicks;
     private static Boolean originalAutoJump;
-    public static void reset(){restoreJump();index=0;inventoryTicks=0;status="";}
+    private static BlockPos entranceSupport;
+    public static void reset(){restoreJump();entranceSupport=null;index=0;inventoryTicks=0;status="";}
     private static void restoreJump(){
         if(originalAutoJump!=null){MinecraftClient.getInstance().options.autoJump=originalAutoJump;originalAutoJump=null;}
     }
@@ -183,6 +184,19 @@ public final class BastionApproach {
     /** Packets only follow ordinary local input or a rendered crosshair interaction. */
     public static boolean tick(MinecraftClient m){
         Race.stop(m);m.options.keyAttack.setPressed(false);
+        if (entranceSupport!=null) {
+            // With this local practice world, check the committed server collision as
+            // well as the client's prediction before stepping over the entrance void.
+            net.minecraft.server.world.ServerWorld world=m.getServer().getWorld(m.world.getRegistryKey());
+            boolean solid=world!=null && !world.getBlockState(entranceSupport).getCollisionShape(world,entranceSupport).isEmpty();
+            if (!solid && !open(m,entranceSupport)) {
+                m.options.keySneak.setPressed(true);
+                status="waiting for entrance bridge support at "+entranceSupport.toShortString();
+                return false;
+            }
+            // A correction to air re-enters the ordinary right-click placement below.
+            entranceSupport=null;
+        }
         if(index>=path.size())return reachChestTerrace(m,path.get(path.size()-1));
         // One supported dirt extension leaves the next cell open as a moat against sword pigs.
         if(index>181 && !open(m,lootPerch.down()) && m.player.squaredDistanceTo(
@@ -228,7 +242,9 @@ public final class BastionApproach {
         status="walking to bastion "+index+"/"+path.size()+" "+p.toShortString();
         if(open(m,p.down())){
             status="bridging to bastion "+index+"/"+path.size()+" "+p.toShortString();
-            bridge(m,previous,p);return false;
+            boolean clicked=bridge(m,previous,p);
+            if(clicked && index<=2)entranceSupport=p.down();
+            return false;
         }
         double dy=p.getY()-m.player.getY();
         BlockPos overhead=m.player.getBlockPos().up(2);

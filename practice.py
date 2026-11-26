@@ -7,12 +7,14 @@ import os
 from pathlib import Path
 import shutil
 import sqlite3
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import uuid
 import zipfile
+import zlib
 
 import render
 
@@ -108,21 +110,125 @@ def game_alive(folder, token):
     return False
 
 
-def native_replay(game, spawn_ms):
+@contextlib.contextmanager
+def closed_world(world):
+    """Hold the same first byte that the Java world session owns while it is open."""
+    with (world / 'session.lock').open('r+b') as handle:
+        if os.name == 'nt':
+            import msvcrt
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.lockf(handle, fcntl.LOCK_EX | fcntl.LOCK_NB, 1)
+        try:
+            yield
+        finally:
+            if os.name == 'nt':
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.lockf(handle, fcntl.LOCK_UN, 1)
+
+
+def _pack_closed_replay(raw, spawn_ms):
+    """Package ReplayMod's finished files. The caller owns the closed-world lock."""
+    changed = raw / 'changed'
+    names = {'metaData.json', 'mods.json', 'recording.tmcpr', 'recording.tmcpr.crc32'}
+    if (raw.is_symlink() or changed.is_symlink() or {p.name for p in raw.iterdir()} != {'changed'}
+            or {p.name for p in changed.iterdir()} != names
+            or any((changed / n).is_symlink() or not (changed / n).is_file() for n in names)):
+        raise ValueError('Incomplete or unsupported ReplayMod temporary directory')
+    meta, mods = read(changed / 'metaData.json'), read(changed / 'mods.json')
+    if (not isinstance(meta, dict) or not isinstance(mods, dict)
+            or meta.get('mcversion') != '1.16.1' or meta.get('protocol') != 736
+            or meta.get('fileFormat') != 'MCPR' or meta.get('fileFormatVersion') != 14
+            or meta.get('singleplayer') is not True or type(meta.get('date')) is not int
+            or not -1000 <= spawn_ms - meta['date'] <= 15000
+            or type(meta.get('duration')) is not int or meta['duration'] <= 0
+            or not isinstance(mods.get('requiredMods'), list)):
+        raise ValueError('Temporary recording does not match the original native metadata and spawn')
+    recorded_crc = (changed / 'recording.tmcpr.crc32').read_bytes().strip()
+    if not 1 <= len(recorded_crc) <= 10 or not recorded_crc.isdigit() or int(recorded_crc) > 0xffffffff:
+        raise ValueError('Missing native ReplayMod final CRC32')
+    stream = changed / 'recording.tmcpr'
+    crc, count, last = 0, 0, -1
+    with stream.open('rb') as reader:
+        while header := reader.read(8):
+            if len(header) != 8:
+                raise ValueError('Truncated native replay packet header')
+            stamp, remaining = struct.unpack('>ii', header)
+            if stamp < last or stamp < 0 or remaining <= 0:
+                raise ValueError('Invalid native replay packet sequence')
+            crc = zlib.crc32(header, crc)
+            while remaining:
+                part = reader.read(min(remaining, 1024 * 1024))
+                if not part:
+                    raise ValueError('Truncated native replay packet')
+                crc = zlib.crc32(part, crc)
+                remaining -= len(part)
+            last, count = stamp, count + 1
+    if count < 2 or last != meta['duration'] or last < spawn_ms - meta['date'] or crc != int(recorded_crc):
+        raise ValueError('Packet stream does not match its native final duration and CRC32')
+    output = raw.with_suffix('')
+    with tempfile.NamedTemporaryFile(dir=raw.parent, suffix='.partial', delete=False) as handle:
+        temporary = Path(handle.name)
+    try:
+        with zipfile.ZipFile(temporary, 'w', zipfile.ZIP_DEFLATED, compresslevel=1) as archive:
+            for name in sorted(names):
+                archive.write(changed / name, name)
+        with zipfile.ZipFile(temporary) as archive:
+            if archive.getinfo('recording.tmcpr').CRC != crc or archive.testzip():
+                raise ValueError('Recovered replay failed ZIP integrity checks')
+        # Both operations refuse to replace an existing destination. Keep the raw files on every path.
+        if os.name == 'nt':
+            temporary.rename(output)
+        else:
+            os.link(temporary, output)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return output
+
+
+def native_replay(game, spawn_ms, world=None, token=None):
     matches = []
-    for replay in (game / 'replay_recordings').rglob('*.mcpr'):
+    recordings = game / 'replay_recordings'
+    for replay in recordings.rglob('*.mcpr'):
         with zipfile.ZipFile(replay) as z:
             meta = json.loads(z.read('metaData.json'))
             if meta.get('protocol') != 736 or z.getinfo('recording.tmcpr').file_size < 16:
                 continue
         if meta.get('singleplayer') and -1000 <= spawn_ms - meta['date'] <= 15000:
             matches.append(replay)
+    raw_matches = []
+    for raw in recordings.rglob('*.mcpr.tmp'):
+        metadata = raw / 'changed/metaData.json'
+        if metadata.is_file():
+            meta = read(metadata)
+            if isinstance(meta, dict) and type(meta.get('date')) is int and -1000 <= spawn_ms - meta['date'] <= 15000:
+                raw_matches.append(raw)
+    candidates = set(matches) | {p.with_suffix('') for p in raw_matches}
+    if len(candidates) > 1:
+        raise ValueError('Duplicate ReplayMod captures match this spawn')
+    if not matches and len(raw_matches) == 1:
+        if world is None or token is None or game_alive(game / 'astra-practice', token) is not False:
+            raise ValueError('Cannot recover a replay before the supervised Minecraft JVM closes')
+        with closed_world(world):
+            return _pack_closed_replay(raw_matches[0], spawn_ms)
     if len(matches) != 1:
         raise ValueError(f'Expected one finalized ReplayMod capture matching this spawn, found {len(matches)} in {game}')
     with zipfile.ZipFile(matches[0]) as z:
         corrupt = z.testzip()
         if corrupt:
             raise ValueError(f'Corrupt native replay member: {corrupt}')
+        if raw_matches:
+            # A recovered archive deliberately retains its original raw sibling. Distinguish it from a conflict.
+            changed = raw_matches[0] / 'changed'
+            payload = changed / 'recording.tmcpr'
+            if (not payload.is_file() or z.getinfo('recording.tmcpr').file_size != payload.stat().st_size
+                    or any(z.read(name) != (changed / name).read_bytes()
+                           for name in ('metaData.json', 'mods.json', 'recording.tmcpr.crc32'))
+                    or z.getinfo('recording.tmcpr').CRC != int(z.read('recording.tmcpr.crc32'))):
+                raise ValueError('Conflicting finalized and temporary ReplayMod captures')
     return matches[0]
 
 
@@ -211,7 +317,7 @@ def select_skin(explicit, work):
     raise ValueError('Point --skin at the original local qcya_ovo.png, or put it in Downloads.')
 
 
-def prepare_attempt(prism_data, work, skin, deps, opening="fast", wait_for_piglins=False):
+def prepare_attempt(prism_data, work, skin, deps, opening="fast", wait_for_piglins=False, initial_view_distance=None):
     token = str(uuid.uuid4())
     instance = Path(tempfile.mkdtemp(prefix='Astra-Practice-', dir=prism_data / 'instances'))
     game = instance / '.minecraft'
@@ -226,6 +332,8 @@ def prepare_attempt(prism_data, work, skin, deps, opening="fast", wait_for_pigli
                                   wait_for_piglins=wait_for_piglins))
     film = render.load_helper('prepare_local_film', ROOT / 'presentation/prepare.py')
     film.prepare(game, skin, 'auto', 'nether', RULES, ROOT / 'presentation/astra-local-film.jar', work / 'split-history')
+    if initial_view_distance is not None:
+        film.set_options(game / 'options.txt', {'renderDistance': str(initial_view_distance)})
     config = game / 'config/replaymod.json'
     write(config, {'recording': {'recordSingleplayer':True,'autoStartRecording':True,'renameDialog':False,'indicator':False}})
     switch = game / 'astra-practice'
@@ -246,7 +354,7 @@ def finish_attempt(attempt, work, destination):
     replay = None
     if results['spawn_epoch_ms'] is not None:
         try:
-            replay = native_replay(game, results['spawn_epoch_ms'])
+            replay = native_replay(game, results['spawn_epoch_ms'], world, attempt['token'])
             receipt['replay'] = str(replay)
         except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
             receipt.update(verdict='capture_incomplete', capture_error=str(error))
@@ -326,7 +434,7 @@ def practice(args):
                         previous_lane = read(last_opening)['opening'] if last_opening.is_file() else None
                         opening = 'shield' if previous_lane == 'fast' else 'fast'
                     attempt = prepare_attempt(data, work, *resources, opening=opening,
-                                              wait_for_piglins=args.wait_for_piglins)
+                                              wait_for_piglins=args.wait_for_piglins, initial_view_distance=args.initial_view_distance)
                     write(previous, attempt)
                 instance = Path(attempt['instance'])
                 game = instance / '.minecraft'
@@ -369,6 +477,8 @@ if __name__=='__main__':
     p.add_argument('--attempts',type=int,default=0,help='Number of attempts this invocation; zero continues until qualification')
     p.add_argument('--opening', choices=['alternate', 'fast', 'shield'], default='alternate',
                    help='Alternate the fast iron-trigger and shield openings across completed attempts, or select one lane')
+    p.add_argument('--initial-view-distance', type=int, metavar='CHUNKS',
+                   help='Use a chosen initial render distance, for example 16, in the isolated practice instance')
     p.add_argument('--wait-for-piglins', action='store_true',
                    help='Wait on the isolated chest ledge if the lower bastion corridor contains attacking piglins')
     p.add_argument('--reset-pb',action='append',choices=['nether','end'],default=[],help='Optional strict reset when missing this campaign’s prior achieved split')
@@ -379,6 +489,8 @@ if __name__=='__main__':
     p.add_argument('--freeze-only',action='store_true',help='Verify and keep the winning recording without starting export')
     p.add_argument('--inspect',type=Path,metavar='WORLD',help='Print an existing world\'s observer and native timer result without launching Minecraft')
     a=p.parse_args()
+    if a.initial_view_distance is not None and not 2 <= a.initial_view_distance <= 32:
+        p.error('--initial-view-distance must be between 2 and 32')
     if a.attempts<0:p.error('--attempts must be zero or positive')
     try:sys.exit(practice(a))
     except (OSError,ValueError,KeyError,RuntimeError,sqlite3.Error,zipfile.BadZipFile,subprocess.SubprocessError) as e:p.exit(1,str(e)+'\n')

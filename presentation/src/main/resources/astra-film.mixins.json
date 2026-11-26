@@ -1,1 +1,1 @@
-{"required":true,"minVersion":"0.8","package":"dev.aiarena.film.mixin","refmap":"astra-film-refmap.json","compatibilityLevel":"JAVA_8","client":["FilmTick","FilmToast","FilmSkin","FilmReplay"],"injectors":{"defaultRequire":1}}
+{"required":true,"minVersion":"0.8","package":"dev.aiarena.film.mixin","refmap":"astra-film-refmap.json","compatibilityLevel":"JAVA_8","client":["FilmTick","FilmToast","FilmSkin","FilmReplay","FilmChatAccess"],"injectors":{"defaultRequire":1}}

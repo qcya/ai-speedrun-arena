@@ -4,6 +4,7 @@ import argparse
 import bisect
 import json
 from pathlib import Path
+import re
 import shutil
 import struct
 import uuid
@@ -21,9 +22,46 @@ def varint(data, pos=0):
     raise ValueError("Incomplete VarInt in recording")
 
 
-def player_spawns(archive, player):
+def literal_chat(component):
+    if isinstance(component,str):return component
+    if isinstance(component,list):return ''.join(literal_chat(c) for c in component)
+    if not isinstance(component,dict):return ''
+    return str(component.get('text',''))+literal_chat(component.get('extra',[]))
+
+
+def distance_packet(packet, offset):
+    """Read only the vanilla debug message, never player chat or an action bar."""
+    size, pos=varint(packet,offset)
+    end=pos+size
+    if end+17!=len(packet) or packet[end] not in (0,1) or packet[end+1:]!=bytes(16):
+        return None
+    component=json.loads(packet[pos:end].decode('utf-8'))
+    # Some packet recorders serialize the already localized text instead of its keys.
+    literal=re.fullmatch(r'(?:\[调试\]： 渲染距离：|\[Debug\]: Render Distance: )([0-9]{1,2})',
+                         literal_chat(component))
+    if literal and 2<=int(literal[1])<=32:return int(literal[1]),component
+    if isinstance(component,dict):parts=component.get('extra',[])
+    elif isinstance(component,list):parts=component
+    else:return None
+    if not isinstance(parts,list):return None
+    prefix=any(isinstance(v,dict) and v.get('translate')=='debug.prefix' for v in parts)
+    if not prefix:return None
+    for part in parts:
+        if isinstance(part,dict) and part.get('translate')=='debug.cycle_renderdistance.message':
+            args=part.get('with')
+            if not isinstance(args,list) or len(args)!=1:return None
+            value=args[0]
+            if isinstance(value,dict):value=value.get('text')
+            if type(value) not in (str,int) or not str(value).isascii() or not str(value).isdecimal():return None
+            distance=int(value)
+            if 2<=distance<=32:return distance,component
+    return None
+
+
+def recorded_packets(archive, player):
     identities={}
     changes=[]
+    feedback=[]
     with archive.open("recording.tmcpr") as data:
         while header:=data.read(8):
             if len(header)!=8:raise ValueError("Truncated MCPR packet header")
@@ -44,9 +82,51 @@ def player_spawns(archive, player):
                 eid,idx=varint(packet,off);identifier=packet[idx:idx+16]
                 if identities.get(identifier)==player and (not changes or changes[-1][0]!=eid):
                     changes.append((eid,ts,str(uuid.UUID(bytes=identifier))))
+            elif pid==14 and identities:
+                message=distance_packet(packet,off)
+                if message:feedback.append((ts,*message))
     if not changes: raise ValueError(f"Recorded spawn packet for {player!r} was not found")
     if any(row[2]!=changes[0][2] for row in changes): raise ValueError("Multiple UUIDs used the same player name")
-    return changes
+    return changes,feedback
+
+
+def distance_feedback(rows,packets,start):
+    """Prefer original packet text; replay only proven local keys lacking a packet."""
+    # Vanilla ages chat in client ticks. In a cold world, 200 observed ticks can
+    # span appreciably more than ten seconds of the continuous real-time movie.
+    ticks=[(r['elapsed_ms'],r['run_tick']) for r in rows if type(r.get('run_tick')) is int]
+    tick_times=[t for t,_ in ticks]
+    def tick_at(ms):
+        index=bisect.bisect_right(tick_times,ms)-1
+        return ticks[index][1] if index>=0 else ms//50
+    native=[{'elapsed_ms':ts-start,'chat_tick':tick_at(ts-start),'after':value,'source':'packet','component':text}
+            for ts,value,text in packets]
+    local=[]
+    steps={'F3+F':1,'Shift+F3+F':-1}
+    for row in rows:
+        if row.get('event')!='render_distance_shortcut':continue
+        before,after=row.get('before'),row.get('after')
+        step=steps.get(row.get('shortcut'))
+        if (type(before) is not int or type(after) is not int or not 2<=before<=32
+                or not 2<=after<=32 or step!=after-before or step is None):
+            raise ValueError('Invalid recorded F3 render-distance shortcut')
+        # Exact 1.16.1 Keyboard.debugWarn text tree. The native client supplies the locale.
+        line={'text':'','extra':[{'translate':'debug.prefix','bold':True,'color':'yellow'},
+                                 ' ',{'translate':'debug.cycle_renderdistance.message','with':[str(after)]}]}
+        local.append({'elapsed_ms':row['elapsed_ms'],'chat_tick':row.get('run_tick',tick_at(row['elapsed_ms'])),
+                      'after':after,'source':'keyboard','component':line})
+    # Match the closest clocks first, including when genuine repeated keys hit the same value.
+    pairs=sorted((abs(p['elapsed_ms']-k['elapsed_ms']),i,j)
+                 for i,p in enumerate(native) for j,k in enumerate(local)
+                 if p['after']==k['after'] and abs(p['elapsed_ms']-k['elapsed_ms'])<=250)
+    used_packets=set()
+    used_keys=set()
+    for _,i,j in pairs:
+        if i not in used_packets and j not in used_keys:
+            used_packets.add(i)
+            used_keys.add(j)
+    feedback=native+[msg for j,msg in enumerate(local) if j not in used_keys]
+    return sorted(feedback,key=lambda item:item['elapsed_ms'])
 
 
 def timeline(changes, poses, run_at_replay_ms, offset, length):
@@ -92,7 +172,7 @@ def build(source,journal,destination,player,start,from_ms,length,*,hud=None,cred
         meta=json.loads(src.read("metaData.json"))
         if meta.get("mcversion")!="1.16.1" or meta.get("protocol")!=736:
             raise ValueError("Expected a Java Edition 1.16.1 / protocol 736 ReplayMod archive")
-        changes=player_spawns(src,player)
+        changes,chat=recorded_packets(src,player)
         eid,spawn,uid=changes[0]
         if start is None:
             if 'epoch_ms' not in spawns[0]:raise ValueError("This older journal requires a measured --spawn-replay-ms")
@@ -111,11 +191,13 @@ def build(source,journal,destination,player,start,from_ms,length,*,hud=None,cred
             if rows[-1].get('event')!='credits' or end!=times[-1]:
                 raise ValueError("A credits tail requires an actual observed finish")
             end+=min(credits_tail_ms,max(0,int(meta['duration'])-start-end))
-        poses=[r for r in rows if 'x' in r]
+        poses=[r for r in rows if 'x' in r and r.get('event')!='render_distance_shortcut']
         paths=json.loads(src.read("timelines.json")) if 'timelines.json' in src.namelist() else {}
         paths[PRESET]=timeline(changes,poses,start,offset,end-from_ms)
         render={"schema":1,"source_player":player,"source_uuid":uid,"run_at_replay_ms":start,
                 "from_ms":from_ms,"to_ms":end,"rows":rows}
+        feedback=distance_feedback(rows,chat,start)
+        if feedback:render['render_distance_feedback']=feedback
         if hud is not None:
             if hud.get('route') not in ('nether','direct'): raise ValueError('Unknown HUD route')
             prior=hud.get('previous_best_ms',{})
@@ -138,7 +220,8 @@ def build(source,journal,destination,player,start,from_ms,length,*,hud=None,cred
             raise
     return {"file":str(destination),"preset":PRESET,"entity":eid,"entity_spawn_ms":spawn,
             "video_duration_ms":end-from_ms,"replay_start_ms":offset,"original_ui_states":
-            sum("gui_slots" in r for r in rows),"recorded_source_rows":len(rows)}
+            sum("gui_slots" in r for r in rows),"recorded_source_rows":len(rows),
+            "distance_feedback_packets":len(chat),"distance_feedback_local":sum(f['source']=='keyboard' for f in feedback)}
 
 
 def main():

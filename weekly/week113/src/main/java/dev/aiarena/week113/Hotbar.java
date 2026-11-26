@@ -21,6 +21,10 @@ final class Hotbar {
     }
 
     static boolean select(MinecraftClient mc, Item item) {
+        return select(mc,item,-1);
+    }
+
+    static boolean select(MinecraftClient mc, Item item, int preferred) {
         if (pending!=null) return false;
         if (mc.player.getMainHandStack().getItem()==item) return true;
         for(int i=0;i<36;i++) {
@@ -31,7 +35,8 @@ final class Hotbar {
             }
             if(mc.currentScreen!=null)return false;
             pending=item;source=i;destination=mc.player.inventory.selectedSlot;ticks=0;clicked=false;
-            if(item==Items.DIAMOND_SWORD) destination=2;
+            if(preferred>=0) destination=preferred;
+            else if(item==Items.DIAMOND_SWORD) destination=2;
             else if(item==Items.IRON_PICKAXE) destination=1;
             else if(destination==1 || destination==2) destination=0;
             mc.openScreen(new InventoryScreen(mc.player));

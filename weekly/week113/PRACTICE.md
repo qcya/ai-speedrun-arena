@@ -24,6 +24,7 @@ python practice.py --skin "D:\MC\qcya_ovo.png" --music "D:\Music\Sleepwalker.mp3
 
 | 目的 | 命令 |
 | --- | --- |
+| 从 16 区块起跑，第三颗珍珠出手后用快捷键降到 2，拿齐烈焰棒再调远 | `python practice.py --initial-view-distance 16` |
 | 最多尝试五次，先只封存合格录像 | `python practice.py --attempts 5 --freeze-only` |
 | 错过自己曾经实际达成的最快进下界时间就重开 | `python practice.py --reset-pb nether` |
 | 同时考察进下界、进末地两个分段 | `python practice.py --reset-pb nether --reset-pb end` |

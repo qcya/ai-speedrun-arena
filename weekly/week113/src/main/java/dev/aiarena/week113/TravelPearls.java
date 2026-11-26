@@ -18,8 +18,10 @@ final class TravelPearls {
     private static Vec3d firstDirection;
     private static int firstReady;
     private static int readyTicks;
+    private static Vec3d returnDirection;
+    private static int returnReady;
 
-    static void reset() { aimDirection = null; jumping = false; readyTicks = 0; firstDirection=null; firstReady=0; }
+    static void reset() { aimDirection = null; jumping = false; readyTicks = 0; firstDirection=null; firstReady=0; returnDirection=null; returnReady=0; }
 
     static boolean catchWall(MinecraftClient mc) {
         if (mc.player.getX() < -98) {
@@ -53,13 +55,17 @@ final class TravelPearls {
     }
 
     private static double landingScore(MinecraftClient mc,Vec3d start,Vec3d velocity,Vec3d goal,int minY,int maxY) {
+        return landingScore(mc,start,velocity,goal,minY,maxY,Integer.MAX_VALUE);
+    }
+
+    private static double landingScore(MinecraftClient mc,Vec3d start,Vec3d velocity,Vec3d goal,int minY,int maxY,int maxFloorX) {
         Vec3d pos=start;
         for (int t=0;t<88;t++) {
             Vec3d next=pos.add(velocity);
             BlockHitResult hit=mc.world.rayTrace(new RayTraceContext(pos,next,RayTraceContext.ShapeType.COLLIDER,RayTraceContext.FluidHandling.NONE,mc.player));
             if (hit.getType()==HitResult.Type.BLOCK) {
                 BlockPos floor=hit.getBlockPos();
-                if (hit.getSide()!=Direction.UP || floor.getY()<minY || floor.getY()>maxY
+                if (hit.getSide()!=Direction.UP || floor.getX()>maxFloorX || floor.getY()<minY || floor.getY()>maxY
                         || !mc.world.getBlockState(floor.up()).getCollisionShape(mc.world,floor.up()).isEmpty()
                         || !mc.world.getBlockState(floor.up(2)).getCollisionShape(mc.world,floor.up(2)).isEmpty()
                         || mc.world.getBlockState(floor).getBlock()==Blocks.MAGMA_BLOCK) return Double.POSITIVE_INFINITY;
@@ -126,6 +132,39 @@ final class TravelPearls {
         if(++firstReady<3) return false;
         if(mc.player.isOnGround()){mc.options.keyJump.setPressed(true);return false;}
         return rising(mc,firstDirection);
+    }
+
+    // The delayed third pearl has to land on the return-portal terrace after the fortress fight.
+    static boolean aimReturn(MinecraftClient mc) {
+        Vec3d base=new Vec3d(-30.50,57,167.45);
+        Vec3d terrace=new Vec3d(-85.5,75,177.5);
+        if (returnDirection==null) {
+            double distance=Math.hypot(mc.player.getX()-base.x,mc.player.getZ()-base.z);
+            if (distance>.21) {
+                Race.aim(mc,new Vec3d(base.x,mc.player.getEyeY()-.12,base.z));
+                Middle.approach(mc,base,distance<1.2);
+                mc.options.keyJump.setPressed(false);
+                return false;
+            }
+            if (!mc.player.isOnGround() || Math.hypot(mc.player.getVelocity().x,mc.player.getVelocity().z)>.05)
+                return false;
+            Vec3d start=mc.player.getPos().add(0,mc.player.getStandingEyeHeight()+.42-.10,0);
+            double best=Double.POSITIVE_INFINITY;
+            for(int yaw=73;yaw<=89;yaw++) for(int pitch=-49;pitch<=-34;pitch++) {
+                double score=0;
+                for(double lift:new double[]{.333,.42}) for(int spread:new int[]{-1,0,1}) {
+                    Vec3d v=direction(yaw+spread,pitch-spread*.5).multiply(1.5).add(0,lift,0);
+                    score=Math.max(score,landingScore(mc,start,v,terrace,71,78,-82));
+                }
+                if (score<best) {best=score;returnDirection=direction(yaw,pitch);}
+            }
+            if(returnDirection==null) returnDirection=direction(78.5,-42);
+        }
+        Race.aim(mc,mc.player.getCameraPosVec(1).add(returnDirection.multiply(10)));
+        if(mc.player.getRotationVec(1).dotProduct(returnDirection)<.9998) {returnReady=0;return false;}
+        if(++returnReady<3)return false;
+        if(mc.player.isOnGround()) {mc.options.keyJump.setPressed(true);return false;}
+        return rising(mc,returnDirection);
     }
 
     static boolean aimSecond(MinecraftClient mc) {

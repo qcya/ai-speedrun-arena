@@ -26,8 +26,9 @@ public final class Opening {
     private static final BlockPos TREASURE = new BlockPos(217, 49, 25);
     private static final Item[] SUPPLIES = {Items.IRON_INGOT, Items.DIAMOND, Items.TNT,
             Items.COOKED_SALMON, Items.COOKED_COD, Items.GOLD_INGOT};
-    private static boolean looted,shieldOpening;
+    private static boolean looted,shieldOpening,ravineInventory,preparedGold;
     private static int age;
+    private static Item shovel=Items.GOLDEN_SHOVEL;
     public static String status = "following coast";
 
     private Opening() {}
@@ -36,7 +37,10 @@ public final class Opening {
         net.minecraft.server.integrated.IntegratedServer server=MinecraftClient.getInstance().getServer();
         shieldOpening=server!=null&&java.nio.file.Files.isRegularFile(
                 server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-opening-shield"));
-        looted = false; doorAimAge=-1;previousDoor=null;doorFacingTicks=0;firstTree=0;shieldSwapAge=-30;landStep=0; blastAge=0; boatPoint=0; divePoint=0; castStep=0; castStarted=0; anchorTicks=0; bucketAimAge=-1;bucketUseAge=-30;bucketTicks=0;lastBucketGoal=null; boarded=false; launched=false; table=null; gravelPos=null; tableSupport=null;
+        shovel=server!=null && java.nio.file.Files.isRegularFile(
+                server.getSavePath(net.minecraft.util.WorldSavePath.ROOT).resolve("astra-opening-save-gold"))
+                ? Items.WOODEN_SHOVEL : Items.GOLDEN_SHOVEL;
+        looted = false; ravineInventory=false; preparedGold=false; doorAimAge=-1;previousDoor=null;doorFacingTicks=0;firstTree=0;shieldSwapAge=-30;landStep=0; blastAge=0; boatPoint=0; divePoint=0; castStep=0; castStarted=0; anchorTicks=0; bucketAimAge=-1;bucketUseAge=-30;bucketTicks=0;lastBucketGoal=null; boarded=false; launched=false; table=null; gravelPos=null; tableSupport=null;
         age = 0; extraSupportAge=-1;lowMold=false;inWell=false; stayBelow=false;riseFromWell=false;seekingAir=false; requestedRecipe=null; recipeAge=-30;
         status = "following coast";
     }
@@ -81,6 +85,11 @@ public final class Opening {
     private static BlockPos table, gravelPos, tableSupport;
 
     private static boolean select(MinecraftClient mc, Item item) {
+        if(ravineInventory) {
+            int slot=item==Items.OAK_DOOR?5:item==Items.DIRT?6:item==Items.IRON_PICKAXE?1:
+                    item==Items.FLINT_AND_STEEL?4:item==shovel?3:7;
+            return Hotbar.select(mc,item,slot);
+        }
         for(int i=0;i<36;i++){
             if(mc.player.inventory.main.get(i).getItem()!=item)continue;
             if(i<9){mc.player.inventory.selectedSlot=i;return true;}
@@ -377,7 +386,7 @@ public final class Opening {
             case 13:ok=craft(mc,"oak_door",Items.OAK_DOOR,6,true,false);break;
             case 14:ok=craft(mc,"stick",Items.STICK,3,true,false);break;
             case 15:ok=craft(mc,"diamond_sword",Items.DIAMOND_SWORD,1,true,false);break;
-            case 16:ok=craft(mc,"golden_shovel",Items.GOLDEN_SHOVEL,1,true,false);break;
+            case 16:ok=craft(mc,shovel==Items.WOODEN_SHOVEL?"wooden_shovel":"golden_shovel",shovel,1,true,false);break;
             case 17:ok=craft(mc,"shield",Items.SHIELD,1,true,false);break;
             case 18:
                 status="equipping shield in offhand";Race.stop(mc);
@@ -436,7 +445,7 @@ public final class Opening {
             }
             if(mc.world.getBlockState(gravelPos).getBlock()==Blocks.GRAVEL){
                 // Gravel still yields flint when broken by hand if a tool is unavailable.
-                if((count(mc,Items.GOLDEN_SHOVEL)==0||select(mc,Items.GOLDEN_SHOVEL))&&target(mc,gravelPos)!=null)
+                if((count(mc,shovel)==0||select(mc,shovel))&&target(mc,gravelPos)!=null)
                     mc.options.keyAttack.setPressed(true);
                 return true;
             }
@@ -718,6 +727,10 @@ public final class Opening {
         if(castStep<RAVINE.length){
             Race.cap(1110);
             if(mc.player.getY()>13.7)return false;
+            if(!preparedGold && shovel==Items.WOODEN_SHOVEL && count(mc,Items.GOLD_INGOT)>0) {
+                if(!Hotbar.select(mc,Items.GOLD_INGOT,0))return true;
+                preparedGold=true;
+            }
             if(castStep>=20&&mc.player.getY()<10)stayBelow=true;
             if(!stayBelow&&castStep>2&&mc.player.getAir()<72)seekingAir=true;
             if(seekingAir){
@@ -802,7 +815,7 @@ public final class Opening {
             }
             if(castStep==21&&mc.world.getBlockState(capBlock).getBlock()==Blocks.DIRT){
                 status="uncovering sealed second well";Race.stop(mc);mc.options.keySneak.setPressed(true);
-                if(select(mc,Items.GOLDEN_SHOVEL)&&target(mc,capBlock)!=null)mc.options.keyAttack.setPressed(true);return true;
+                if(select(mc,shovel)&&target(mc,capBlock)!=null)mc.options.keyAttack.setPressed(true);return true;
             }
             if(castStep==22){
                 BlockPos other=new BlockPos(116,9,-38);
@@ -883,7 +896,7 @@ public final class Opening {
                 case BREAK:
                     ok=b.isAir()||b.getMaterial().isLiquid();
                     if(!ok){
-                        if(b.getBlock()==Blocks.DIRT||b.getBlock()==Blocks.GRAVEL)select(mc,Items.GOLDEN_SHOVEL);else select(mc,Items.IRON_PICKAXE);
+                        if(b.getBlock()==Blocks.DIRT||b.getBlock()==Blocks.GRAVEL)select(mc,shovel);else select(mc,Items.IRON_PICKAXE);
                         if(castStep==6){
                             Race.aim(mc,new Vec3d(116.50,9.5,-38.50));mc.gameRenderer.updateTargetedEntity(1);
                             if(mc.crosshairTarget instanceof BlockHitResult&&((BlockHitResult)mc.crosshairTarget).getBlockPos().equals(pos))
@@ -924,7 +937,7 @@ public final class Opening {
                         break;
                     }
                     if(mc.world.getBlockState(pos.up()).getBlock()==Blocks.DIRT){
-                        if(select(mc,Items.GOLDEN_SHOVEL)&&target(mc,pos.up())!=null)mc.options.keyAttack.setPressed(true);
+                        if(select(mc,shovel)&&target(mc,pos.up())!=null)mc.options.keyAttack.setPressed(true);
                         break;
                     }
                     if(select(mc,Items.FLINT_AND_STEEL)){
@@ -952,6 +965,10 @@ public final class Opening {
                 || mc.world.getRegistryKey() != World.OVERWORLD) return false;
         mc.options.keyAttack.setPressed(false);
         if (looted) {
+            if(landStep>=21 && tick>=986 && tick<1405) {
+                ravineInventory=true;
+                if(Hotbar.tick(mc))return true;
+            }
             if(landStep<21)return land(mc,tick);
             if(tick<=705&&mc.player.getX()>224.8&&Math.abs(mc.player.getZ()-7)<10){
                 // The TNT crater's west wall is two high at z=5, but has a

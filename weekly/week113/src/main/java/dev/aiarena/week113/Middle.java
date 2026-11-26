@@ -60,8 +60,9 @@ public final class Middle {
     private static int cell, next, age, entered, lastUse, thirdThrow, originalDistance = -1;
     private static boolean arrivedAtBastion, eating, equipAfterChest, drinkingFireResistance;
     private static BlockPos pillar;
-    private static int barricade, pearlWalk;
-    private static boolean collectingAbove;
+    private static int barricade, pearlWalk, earlyTradeStarted=-1;
+    private static Vec3d earlyTradeLocation;
+    private static boolean collectingAbove, retreatingToShaft;
     private static final Step[] eastCover={new Step("0,place,-149,37,118,dirt"),
             new Step("0,place,-149,38,118,dirt"),new Step("0,place,-149,39,118,dirt")};
     public static String status = "approaching bastion";
@@ -75,7 +76,7 @@ public final class Middle {
         bowStep = -1;
         bowStarted = bowRetryAfter = 0;
         lastUse = thirdThrow = -1000;
-        arrivedAtBastion=false;
+        arrivedAtBastion=false;earlyTradeStarted=-1;earlyTradeLocation=null;
         BastionApproach.reset();
         BastionEgress.reset();
         Fortress.reset();
@@ -89,6 +90,7 @@ public final class Middle {
         barricade=0;
         pearlWalk=0;
         collectingAbove=false;
+        retreatingToShaft=false;
         cell=0;
     }
 
@@ -296,6 +298,7 @@ public final class Middle {
             } else {
                 mc.options.keySneak.setPressed(true);
                 if(count(mc,Items.GOLDEN_SHOVEL)>0)select(mc,Items.GOLDEN_SHOVEL);
+                else if(count(mc,Items.WOODEN_SHOVEL)>0)select(mc,Items.WOODEN_SHOVEL);
                 mc.options.keyAttack.setPressed(aim(mc,dirt,null)!=null);
             }
             status="reopening the piglin stairs from the upper ledge";
@@ -305,7 +308,7 @@ public final class Middle {
     }
 
     private static boolean mine(MinecraftClient mc, Step s) {
-        if (s.tick==2391 && openTradingStairs(mc)) return false;
+        if (s.tick==2391 && !retreatingToShaft && openTradingStairs(mc)) return false;
         if (mc.world.getBlockState(s.target).getMaterial().isReplaceable()) return true;
         select(mc,Items.IRON_PICKAXE);
         if (s.tick==2419 || s.tick==2433) {
@@ -725,12 +728,63 @@ public final class Middle {
             } else {
                 mc.player.dropSelectedItem(false);
             }
+            if(earlyTradeStarted<0 && count(mc,Items.WOODEN_SHOVEL)>0 && next<steps.size()
+                    && steps.get(next).tick>=2089 && steps.get(next).tick<=2187) {
+                earlyTradeStarted=age;
+                earlyTradeLocation=target.getPos();
+            }
         } else if (!barter && mc.player.getAttackCooldownProgress(.5f)>.91f) {
             mc.interactionManager.attackEntity(mc.player,target);
             mc.player.swingHand(Hand.MAIN_HAND);
         }
         status=barter?"giving an ingot to a nearby piglin":"defending with the drawn diamond sword";
         return true;
+    }
+
+    private static boolean collectFirstTrade(MinecraftClient mc) {
+        if(earlyTradeStarted<0)return false;
+        if(count(mc,Items.ENDER_PEARL)>=4) {
+            earlyTradeStarted=-1;earlyTradeLocation=null;
+            return false;
+        }
+        ItemEntity best=null;
+        for(Entity e:mc.world.getEntities()) {
+            if(!(e instanceof ItemEntity) || !e.isAlive())continue;
+            ItemEntity drop=(ItemEntity)e;
+            if(drop.getStack().getItem()!=Items.ENDER_PEARL || drop.getPos().squaredDistanceTo(earlyTradeLocation)>225)continue;
+            if(best==null || drop.squaredDistanceTo(mc.player)<best.squaredDistanceTo(mc.player))best=drop;
+        }
+        Race.stop(mc);
+        if(best!=null) {
+            lowerShield(mc);
+            Race.aim(mc,best.getPos().add(0,.24,0));
+            approach(mc,best.getPos(),false);
+            status="collecting the first bastion pearl stack";
+            return true;
+        }
+        if(age-earlyTradeStarted>200) {
+            // A missed handoff or a different real barter may produce no local pearls.
+            earlyTradeStarted=-1;earlyTradeLocation=null;
+            return false;
+        }
+        if(!protectFromPiglin(mc))mc.options.keySneak.setPressed(mc.player.getY()>35.5);
+        status="waiting for the first bastion piglin to finish its trade";
+        return true;
+    }
+
+    private static boolean surroundedOnWestLedge(MinecraftClient mc) {
+        double x=mc.player.getX();
+        if (x < -152.0 || x > -149.8 || mc.player.getY()<38.8 || mc.player.getY()>41.5) return false;
+        boolean west=false,east=false;
+        for (Entity e:mc.world.getEntities()) {
+            if (!(e instanceof PiglinEntity) || !e.isAlive() || e.squaredDistanceTo(mc.player)>18) continue;
+            PiglinEntity pig=(PiglinEntity)e;
+            if (pig.isBaby() || pig.getActivity()!=PiglinEntity.Activity.ATTACKING_WITH_MELEE_WEAPON) continue;
+            west|=e.getX()<x-.20;
+            east|=e.getX()>x+.20;
+            if (west && east) return true;
+        }
+        return false;
     }
 
     private static boolean refreshFireResistance(MinecraftClient mc) {
@@ -837,6 +891,9 @@ public final class Middle {
             if (!TravelPearls.aimFirst(mc)) return false;
         } else if (s.value.equals("pearl2")) {
             if (!TravelPearls.aimSecond(mc)) return false;
+        } else if (s.value.equals("pearl3")) {
+            if(mc.options.viewDistance<8) distance(mc,8);
+            if (!TravelPearls.aimReturn(mc)) return false;
         } else {
         double y=Math.toRadians(yaw), p=Math.toRadians(pitch);
         Race.aim(mc,mc.player.getCameraPosVec(1).add(-Math.sin(y)*Math.cos(p)*10,-Math.sin(p)*10,Math.cos(y)*Math.cos(p)*10));
@@ -847,7 +904,10 @@ public final class Middle {
         if (mc.interactionManager.interactItem(mc.player,mc.world,Hand.MAIN_HAND).isAccepted()) {
             mc.player.swingHand(Hand.MAIN_HAND);
             if (s.value.equals("pearl1")) Race.advanceTo(3267);
-            if (s.value.equals("pearl3")) thirdThrow=age;
+            if (s.value.equals("pearl3")) {
+                thirdThrow=age;
+                distance(mc,2);
+            }
             return true;
         }
         return false;
@@ -856,17 +916,15 @@ public final class Middle {
     private static void distance(MinecraftClient mc, int chunks) {
         if (mc.options.viewDistance==chunks) return;
         if (originalDistance<0) originalDistance=mc.options.viewDistance;
-        mc.options.viewDistance=chunks;
-        mc.options.onPlayerModelPartChange(); // vanilla settings packet, including requested distance
+        DistanceKeys.towards(mc,chunks);
     }
 
     private static void manageStasis(MinecraftClient mc,int tick) {
         if (thirdThrow<0 || mc.world.getRegistryKey()!=World.NETHER) return;
-        int flight=age-thirdThrow;
-        if (tick>=5131) distance(mc,12);
-        else if (tick>=3621) distance(mc,3);
-        else if (flight>=48) distance(mc,5);
-        else if (flight>=27) distance(mc,2);
+        // Hold the far landing chunk unloaded. Raising the distance during the flight
+        // can make the pearl land while Astra is still walking to the blaze cage.
+        if (tick>=5131 && count(mc,Items.BLAZE_ROD)>=6) distance(mc,Math.max(12,originalDistance));
+        else distance(mc,2);
     }
 
     public static boolean tick(MinecraftClient mc,int tick) {
@@ -875,9 +933,10 @@ public final class Middle {
         if (Hotbar.tick(mc)) return true;
         boolean nether=mc.world.getRegistryKey()==World.NETHER;
         if (!nether && mc.world.getRegistryKey()!=World.OVERWORLD) return false;
+        if (nether) manageStasis(mc,tick);
         if (!nether) {
             while(next<steps.size() && steps.get(next).tick<5412) next++;
-            if (originalDistance>0) { distance(mc,originalDistance); originalDistance=-1; }
+            if (originalDistance>0) { distance(mc,originalDistance); if (mc.options.viewDistance==originalDistance) originalDistance=-1; }
         }
         if (equipAfterChest) {
             Race.stop(mc);
@@ -895,6 +954,7 @@ public final class Middle {
                 break;
             }
         }
+        if(nether && collectFirstTrade(mc))return true;
         if(nether && next<steps.size() && steps.get(next).tick==2131){
             if(BastionEgress.tick(mc)){status=BastionEgress.status;return true;}
             if(BastionEgress.arrived){next++;entered=age;Race.advanceTo(2187);tick=2187;}
@@ -903,7 +963,12 @@ public final class Middle {
         boolean lootingAcrossGap=nether && next<steps.size() && steps.get(next).tick==2089
                 && BastionApproach.onLootPerch(mc);
         if(nether && next<steps.size() && steps.get(next).tick==2187 && BastionEgress.arrived)lootingAcrossGap=true;
-        if (nether && tick>=2089 && tick<2548 && !enteringShaft && !lootingAcrossGap && protectFromPiglin(mc)) return true;
+        if (nether && tick>=2391 && tick<2419 && !retreatingToShaft && surroundedOnWestLedge(mc)) {
+            retreatingToShaft=true;
+            lowerShield(mc);
+        }
+        boolean crossingToShaft=retreatingToShaft && tick>=2391 && tick<2419;
+        if (nether && tick>=2089 && tick<2548 && !enteringShaft && !lootingAcrossGap && !crossingToShaft && protectFromPiglin(mc)) return true;
         if (enteringShaft && mc.currentScreen==null) {
             Vec3d center=new Vec3d(-154.49,36,119.50);
             double offset=Math.hypot(mc.player.getX()-center.x,mc.player.getZ()-center.z);
@@ -966,7 +1031,7 @@ public final class Middle {
                     while (next<steps.size() && steps.get(next).tick<resume) next++;
                     entered=age;
                     if (resume==5161) {
-                        distance(mc,12);
+                        distance(mc,Math.max(12,originalDistance));
                         Race.advanceTo(5161);
                         tick=5161;
                     } else {
@@ -977,7 +1042,6 @@ public final class Middle {
                 }
             }
         }
-        manageStasis(mc,tick);
         Step s=steps.get(next);
         if (nether && s.tick>=5412) return false;
         if (nether && s.kind.equals("mine") && tick<s.tick && s.tick-tick<=64

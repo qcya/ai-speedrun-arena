@@ -27,12 +27,15 @@ public final class Fortress {
     private static final Vec3d SPAWNER = new Vec3d(-7.5, 60.5, 115.5);
     private static int previousEnemy, swordTicks;
     private static boolean ownsInventory, fighting;
+    private static int pocketRods = -1, exitStep;
     public static String status = "approaching the fortress spawner";
 
     private Fortress() {}
 
     public static void reset() {
         previousEnemy = -1;
+        pocketRods = -1;
+        exitStep = 0;
         swordTicks = 0;
         ownsInventory = fighting = false;
     }
@@ -105,7 +108,7 @@ public final class Fortress {
         return mc.world.getBlockState(p).getCollisionShape(mc.world, p).isEmpty();
     }
 
-    private static boolean safeStep(MinecraftClient mc, double dx, double dz) {
+    private static boolean safeStep(MinecraftClient mc, double dx, double dz, BlockPos rodLanding) {
         BlockPos feet =
                 new BlockPos(
                         mc.player.getX() + dx * .65,
@@ -116,22 +119,30 @@ public final class Fortress {
                 || mc.world.getFluidState(feet).isIn(FluidTags.LAVA)) return false;
         BlockPos floor = feet.down();
         if (clear(mc, floor)) floor = floor.down();
+        // Walk down two blocks only onto the checked solid floor that actually
+        // carries this observed rod. The ordinary combat movement stays shallow.
+        if (rodLanding != null && clear(mc, floor) && rodLanding.down().equals(floor.down()))
+            floor = floor.down();
         return !clear(mc, floor) && !mc.world.getFluidState(floor).isIn(FluidTags.LAVA);
     }
 
     private static void walk(MinecraftClient mc, double dx, double dz) {
+        walk(mc, dx, dz, null);
+    }
+
+    private static void walk(MinecraftClient mc, double dx, double dz, BlockPos rodLanding) {
         double length = Math.hypot(dx, dz);
         if (length < .08) return;
         dx /= length;
         dz /= length;
-        if (!safeStep(mc, dx, dz)) {
+        if (!safeStep(mc, dx, dz, rodLanding)) {
             // Try stepping around a fence post or the spawner instead of backing into a wall.
             double leftX = (dx + dz) * .707, leftZ = (dz - dx) * .707;
             double rightX = (dx - dz) * .707, rightZ = (dz + dx) * .707;
-            if (safeStep(mc, leftX, leftZ)) {
+            if (safeStep(mc, leftX, leftZ, rodLanding)) {
                 dx = leftX;
                 dz = leftZ;
-            } else if (safeStep(mc, rightX, rightZ)) {
+            } else if (safeStep(mc, rightX, rightZ, rodLanding)) {
                 dx = rightX;
                 dz = rightZ;
             } else return;
@@ -176,12 +187,86 @@ public final class Fortress {
         status = "climbing the fortress stairs to the spawning blazes";
     }
 
+    private static BlockPos lowerRodFloor(MinecraftClient mc, ItemEntity rod) {
+        BlockPos feet = new BlockPos(rod.getX(), rod.getY() + .04, rod.getZ());
+        double drop = mc.player.getY() - feet.getY();
+        if (drop < .8
+                || drop > 2.2
+                || Math.hypot(mc.player.getX() - rod.getX(), mc.player.getZ() - rod.getZ()) > 2.65)
+            return null;
+        BlockPos ground = feet.down();
+        net.minecraft.util.shape.VoxelShape support =
+                mc.world.getBlockState(ground).getCollisionShape(mc.world, ground);
+        if (support.isEmpty()
+                || support.getBoundingBox().maxY < .92
+                || mc.world.getBlockState(ground).getBlock() == Blocks.MAGMA_BLOCK) return null;
+        for (int h = 0; h <= 3; h++) {
+            BlockPos body = feet.up(h);
+            Block b = mc.world.getBlockState(body).getBlock();
+            if (!clear(mc, body)
+                    || mc.world.getFluidState(body).isIn(FluidTags.LAVA)
+                    || b == Blocks.FIRE
+                    || b == Blocks.SOUL_FIRE) return null;
+        }
+        return feet;
+    }
+
+    private static boolean leaveRodPocket(MinecraftClient mc, int goal) {
+        if (pocketRods < 0) return false;
+        int rods = mc.player.inventory.count(Items.BLAZE_ROD);
+        if (rods >= goal && mc.player.inventory.count(Items.BOW) > 0) {
+            pocketRods = -1;
+            return false;
+        }
+        if (rods <= pocketRods || mc.player.getY() > 59.05) return false;
+        if (mc.player.getZ() > 124
+                || mc.player.getZ() < 111
+                || mc.player.getX() < -12
+                || mc.player.getX() > -7.5) {
+            pocketRods = -1;
+            return false;
+        }
+        if (exitStep == 0 && mc.player.getZ() >= 120.15) exitStep++;
+        if (exitStep == 1 && mc.player.getZ() >= 121.13) exitStep++;
+        if (exitStep >= 2 && mc.player.getX() > -8.28) {
+            pocketRods = -1;
+            exitStep = 0;
+            return false;
+        }
+        double x = exitStep < 2 ? -10.51 : -7.8, z = exitStep == 0 ? 120.55 : 121.4;
+        double dx = x - mc.player.getX(),
+                dz = z - mc.player.getZ(),
+                dist = Math.max(.01, Math.hypot(dx, dz));
+        takeControls(mc);
+        Race.aim(mc, new Vec3d(x, mc.player.getEyeY() - .25 * dist, z));
+        double yaw = Math.toRadians(mc.player.yaw),
+                forward = (-Math.sin(yaw) * dx + Math.cos(yaw) * dz) / dist,
+                left = (Math.cos(yaw) * dx + Math.sin(yaw) * dz) / dist;
+        mc.options.keyForward.setPressed(forward > .38);
+        mc.options.keyBack.setPressed(forward < -.38);
+        mc.options.keyLeft.setPressed(left > .38);
+        mc.options.keyRight.setPressed(left < -.38);
+        mc.options.keyJump.setPressed(mc.player.horizontalCollision && mc.player.isOnGround());
+        status = "leaving the rod pocket through the lower fortress corridor";
+        return true;
+    }
+
     private static void takeRod(MinecraftClient mc, ItemEntity rod) {
         status = "collecting a dropped blaze rod";
         previousEnemy = -1;
         Vec3d p = rod.getPos();
         Race.aim(mc, p.add(0, .25, 0));
-        walk(mc, p.x - mc.player.getX(), p.z - mc.player.getZ());
+        BlockPos landing = lowerRodFloor(mc, rod);
+        if (landing != null
+                && landing.getX() == -11
+                && landing.getY() == 57
+                && landing.getZ() >= 113
+                && landing.getZ() <= 119
+                && pocketRods < 0) {
+            pocketRods = mc.player.inventory.count(Items.BLAZE_ROD);
+            exitStep = 0;
+        }
+        walk(mc, p.x - mc.player.getX(), p.z - mc.player.getZ(), landing);
     }
 
     /**
@@ -189,6 +274,7 @@ public final class Fortress {
      * screen.
      */
     public static boolean tick(MinecraftClient mc, int goal) {
+        if (leaveRodPocket(mc, goal)) return true;
         if (mc.player.inventory.count(Items.BLAZE_ROD) >= goal
                 || mc.player.squaredDistanceTo(SPAWNER) > 26 * 26
                 || (mc.currentScreen != null && !ownsInventory)) {

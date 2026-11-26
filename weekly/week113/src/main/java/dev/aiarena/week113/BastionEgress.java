@@ -37,10 +37,15 @@ final class BastionEgress {
     private static boolean crowded(MinecraftClient mc) {
         int count=0;
         for(Entity entity:mc.world.getEntities()) {
-            if(!(entity instanceof PiglinEntity)||!entity.isAlive()||entity.getY()>34.6)continue;
+            if(!(entity instanceof PiglinEntity)||!entity.isAlive()||entity.getY()>35.5)continue;
             PiglinEntity piglin=(PiglinEntity)entity;
             if(piglin.isBaby()||!(piglin.getMainHandStack().getItem() instanceof SwordItem))continue;
-            if(Math.hypot(entity.getX()+111,entity.getZ()-113)<6.7 && ++count>=2)return true;
+            // A second adult on the western approach is within striking distance
+            // a few seconds after the drop even when it is far from the first chest.
+            double x=entity.getX(),z=entity.getZ();
+            double fraction=Math.max(0,Math.min(1,((x+111)*-8+(z-112)*3)/73));
+            double distance=Math.hypot(x-(-111-8*fraction),z-(112+3*fraction));
+            if(distance<5.1 && ++count>=2)return true;
         }
         return false;
     }

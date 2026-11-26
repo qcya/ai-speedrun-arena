@@ -1,1 +1,1 @@
-{"required":true,"minVersion":"0.8","package":"dev.aiarena.week113.mixin","refmap":"astra113-refmap.json","compatibilityLevel":"JAVA_8","client":["TrialTick"],"injectors":{"defaultRequire":1}}
+{"required":true,"minVersion":"0.8","package":"dev.aiarena.week113.mixin","refmap":"astra113-refmap.json","compatibilityLevel":"JAVA_8","client":["TrialTick","ShortcutModifiers"],"injectors":{"defaultRequire":1}}

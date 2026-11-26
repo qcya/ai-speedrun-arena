@@ -59,6 +59,34 @@ def verify(world,course):
             "seen_credits":bool(data.get("Player",{}).get("seenCredits",0))}
 
 
+def stasis_shortcuts(rows):
+    changes = [r for r in rows if r.get("event") == "render_distance_shortcut" and r.get("dim") == "nether"]
+    low = next((r for r in changes if r.get("before") == 3 and r.get("after") == 2), None)
+    if low is None:
+        raise ValueError("The full Week 113 film needs the recorded shortcut down to two chunks")
+    rods = next((r for r in rows if r.get("dim") == "nether" and r["elapsed_ms"] >= low["elapsed_ms"]
+                 and sum(stack[2] for stack in r.get("inventory", []) if stack[1] == "minecraft:blaze_rod") >= 6), None)
+    up = next((r for r in changes if rods and r["elapsed_ms"] >= rods["elapsed_ms"] and r["after"] > r["before"]), None)
+    if up is None:
+        raise ValueError("The full Week 113 film needs a recorded distance increase after collecting six blaze rods")
+    # Both positions must come from successive live client ticks, in the same dimension.
+    # A slow walk along the backup path also reaches this ledge, without a pearl recall.
+    previous = None
+    for row in rows:
+        if row["event"] != "state":
+            continue
+        if (previous and previous["dim"] == row["dim"] == "nether"
+                and row["run_tick"] == previous["run_tick"] + 1 and row["elapsed_ms"] >= up["elapsed_ms"]):
+            point = (row["x"], row["y"], row["z"])
+            displacement = math.dist(point, (previous["x"], previous["y"], previous["z"]))
+            if displacement > 16 and math.dist(point, (-82.5, 75.5, 179.5)) < 11:
+                return {"dropped_to_two_ms": low["elapsed_ms"], "six_rods_observed_ms": rods["elapsed_ms"],
+                        "recall_distance_increase_ms": up["elapsed_ms"], "ledge_arrival_ms": row["elapsed_ms"],
+                        "recall_displacement_blocks": round(displacement, 2), "recorded_key_changes": len(changes)}
+        previous = row
+    raise ValueError("The Week 113 replay needs the observed single-tick pearl return to the ledge")
+
+
 def verify_route(world, rows):
     """Bind a qualifying uninterrupted run to the native player's advancement file."""
     first = rows[0]
@@ -70,7 +98,14 @@ def verify_route(world, rows):
             or math.dist([first["x"], first["y"], first["z"]], [207.5, 64, 11.5]) > 3):
         raise ValueError("Expected an empty-inventory natural spawn on the Week 113 beach")
     expected = iter(["spawn", "enter_nether", "return_overworld", "enter_end", "credits"])
-    transitions = [r["event"] for r in rows if r["event"] != "state"]
+    for row in rows:
+        if row["event"] == "render_distance_shortcut":
+            before, after = row.get("before"), row.get("after")
+            if (type(before) is not int or type(after) is not int or not 2 <= min(before,after)
+                    or max(before,after) > 32 or abs(before-after) != 1
+                    or row.get("shortcut") != ("F3+F" if after > before else "Shift+F3+F")):
+                raise ValueError("Invalid in-game render distance shortcut receipt")
+    transitions = [r["event"] for r in rows if r["event"] not in ("state","render_distance_shortcut")]
     if transitions != list(expected):
         raise ValueError("Missing the uninterrupted dimension and credits sequence")
     previous = 0
@@ -95,4 +130,4 @@ def verify_route(world, rows):
         raise ValueError("The native player died during this attempt")
     return {"source": "saved vanilla advancements and stats matched to player UUID",
             "advancements": required, "deaths": deaths, "initial_inventory": [],
-            "observed_ticks": previous, "events": transitions}
+            "observed_ticks": previous, "events": transitions, "stasis_shortcuts": stasis_shortcuts(rows)}

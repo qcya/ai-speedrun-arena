@@ -141,10 +141,22 @@ public final class Race {
         }
         return value;
     }
+    static void recordDistance(MinecraftClient mc,int before,int after) {
+        JsonObject details=new JsonObject();
+        details.addProperty("before",before);
+        details.addProperty("after",after);
+        details.addProperty("shortcut",after<before?"Shift+F3+F":"F3+F");
+        record(mc,"render_distance_shortcut",details);
+    }
+
     private static void record(MinecraftClient mc,String kind) {
+        record(mc,kind,new JsonObject());
+    }
+
+    private static void record(MinecraftClient mc,String kind,JsonObject j) {
         if(journal==null)return;
         try {
-            JsonObject j=new JsonObject(); j.addProperty("event",kind);
+            j.addProperty("event",kind);
             j.addProperty("elapsed_ms",(System.nanoTime()-start)/1000000);j.addProperty("run_tick",ticks);
             j.addProperty("reference_tick",cursor);
             j.addProperty("opening_action",Opening.status);
