@@ -1,0 +1,182 @@
+{
+  "week": 113,
+  "minecraft": "1.16.1",
+  "scope": "Isolated local mechanics trials. Each clip starts in the Nether. None is a full run or leaderboard score.",
+  "clock": "Observer elapsed real milliseconds from the local trial start. A game tick identifies adjacent positions, not elapsed wall seconds.",
+  "trials": [
+    {
+      "initial_rods": 0,
+      "initial_distance": 8,
+      "preloaded_fixture": false,
+      "aim_yaw_pitch": [
+        83.0,
+        -42.0
+      ],
+      "native_distance_steps": [
+        8,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "evidence": {
+        "dropped_to_two_ms": 29749,
+        "six_rods_observed_ms": 132454,
+        "recall_distance_increase_ms": 143188,
+        "ledge_arrival_ms": 162367,
+        "recall_displacement_blocks": 77.57,
+        "recorded_key_changes": 16
+      },
+      "previous_tick": 2082,
+      "landing_tick": 2083,
+      "from_xyz": [
+        -8.5,
+        57.0,
+        158.904
+      ],
+      "to_xyz": [
+        -82.539,
+        74.013,
+        174.584
+      ],
+      "distance_change_to_arrival_ms": 19179,
+      "recording_tmcpr_sha256": "9d5e493820a616571f6acb8105b0d16b300842c3c96e9ad7641917eb9b2de784"
+    },
+    {
+      "initial_rods": 5,
+      "initial_distance": 16,
+      "preloaded_fixture": true,
+      "aim_yaw_pitch": [
+        78.5,
+        -42.0
+      ],
+      "native_distance_steps": [
+        16,
+        15,
+        14,
+        13,
+        12,
+        11,
+        10,
+        9,
+        8,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "evidence": {
+        "dropped_to_two_ms": 8386,
+        "six_rods_observed_ms": 35402,
+        "recall_distance_increase_ms": 45607,
+        "ledge_arrival_ms": 105450,
+        "recall_displacement_blocks": 84.64,
+        "recorded_key_changes": 28
+      },
+      "previous_tick": 1270,
+      "landing_tick": 1271,
+      "from_xyz": [
+        2.281,
+        71.001,
+        166.912
+      ],
+      "to_xyz": [
+        -81.563,
+        74.145,
+        178.083
+      ],
+      "distance_change_to_arrival_ms": 59843,
+      "recording_tmcpr_sha256": "06152db060f556667e05616ed2610811b86e078d2f5aa081567eede9e91d325c"
+    },
+    {
+      "initial_rods": 5,
+      "initial_distance": 16,
+      "preloaded_fixture": true,
+      "aim_yaw_pitch": [
+        83.0,
+        -42.0
+      ],
+      "native_distance_steps": [
+        16,
+        15,
+        14,
+        13,
+        12,
+        11,
+        10,
+        9,
+        8,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "evidence": {
+        "dropped_to_two_ms": 13460,
+        "six_rods_observed_ms": 39178,
+        "recall_distance_increase_ms": 50625,
+        "ledge_arrival_ms": 100268,
+        "recall_displacement_blocks": 85.57,
+        "recorded_key_changes": 28
+      },
+      "previous_tick": 1230,
+      "landing_tick": 1231,
+      "from_xyz": [
+        1.339,
+        72.001,
+        166.509
+      ],
+      "to_xyz": [
+        -83.728,
+        75.249,
+        175.19
+      ],
+      "distance_change_to_arrival_ms": 49643,
+      "recording_tmcpr_sha256": "2a8e0e150aa4fbe2ae25093e58c24f2978473efe88a0c2a636ecf55396575490"
+    }
+  ]
+}
