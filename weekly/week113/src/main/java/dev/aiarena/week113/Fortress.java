@@ -491,7 +491,38 @@ public final class Fortress {
         return next;
     }
 
+    private static boolean takeNorthwestShelfRod(MinecraftClient mc, ItemEntity rod) {
+        Vec3d drop=rod.getPos(), feet=mc.player.getPos();
+        if(!rod.isOnGround() || drop.x< -10.85 || drop.x> -9.45 || drop.z<113.05 || drop.z>114.28
+                || drop.y<59.85 || drop.y>61.18 || feet.x< -10.7 || feet.x> -8.80
+                || feet.z<113.85 || feet.z>116.60 || feet.y<58.85 || feet.y>60.70) return false;
+        BlockPos step=new BlockPos(-10,59,114);
+        if(mc.world.getBlockState(step).getBlock()!=Blocks.NETHER_BRICKS
+                || !clear(mc,step.up()) || !clear(mc,step.up(2)) || !clear(mc,step.up(3))
+                || !mc.world.getFluidState(step.up()).isEmpty())return false;
+        Race.stop(mc);
+        mc.options.keyAttack.setPressed(false);
+        if(mc.world.getBlockState(step.up()).getBlock()==Blocks.FIRE) {
+            Vec3d aim=new Vec3d(-9.55,60.035,114.67);
+            Race.aim(mc,aim);mc.gameRenderer.updateTargetedEntity(1);
+            if(mc.crosshairTarget instanceof BlockHitResult && mc.crosshairTarget.getType()==HitResult.Type.BLOCK
+                    && step.up().equals(((BlockHitResult)mc.crosshairTarget).getBlockPos())){
+                mc.options.keyAttack.setPressed(true);
+                status="extinguishing the northwest rod pickup step";
+                return true;
+            }
+            if(!mc.player.hasStatusEffect(net.minecraft.entity.effect.StatusEffects.FIRE_RESISTANCE))return false;
+        }
+        Vec3d landing=new Vec3d(-9.56,60,114.32);
+        Race.aim(mc,new Vec3d(landing.x,mc.player.getEyeY(),landing.z));
+        BastionApproach.move(mc,landing.x,landing.z,false,false);
+        if(mc.player.isOnGround() && feet.y<59.93)mc.options.keyJump.setPressed(true);
+        status="climbing the northwest shelf to the dropped rod";
+        return true;
+    }
+
     private static void takeRod(MinecraftClient mc, ItemEntity rod) {
+        if (takeNorthwestShelfRod(mc,rod)) return;
         status = "collecting a dropped blaze rod";
         previousEnemy = -1;
         Vec3d p = rod.getPos();

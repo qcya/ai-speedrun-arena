@@ -1467,7 +1467,10 @@ public final class Middle {
             if(makeRoomForRods(mc,2))return true;
             rodSlotsPrepared=true;
         }
-        if (nether && tick>=3223 && tick<5161 && refreshFireResistance(mc)) return true;
+        boolean onReturnTerrace=tick>=5161 && tick<5412 && mc.player.getY()>68
+                && count(mc,Items.BLAZE_ROD)>=6;
+        if (nether && (tick>=3223 && tick<5161 || onReturnTerrace)
+                && refreshFireResistance(mc)) return true;
         // Two native repeats found primed creepers in this passage. Remaining
         // stationary for a 32-tick meal let a 30-tick fuse finish at close range.
         if (!nether && StrongholdEntry.creeperNearCorridor(mc,tick)) {
