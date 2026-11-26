@@ -77,7 +77,20 @@ public final class BastionApproach {
         if(!select(m,Items.DIRT,Items.NETHERRACK,Items.BLACKSTONE,Items.COBBLESTONE))return false;
         Vec3d center=Vec3d.ofCenter(anchor);
         double across=(m.player.getX()-center.x)*dx+(m.player.getZ()-center.z)*dz;
-        if(across>.51)Race.aim(m,center.add(dx*.499,.21,dz*.499));
+        if(across>.51){
+            Vec3d goal=center.add(dx*.499,.21,dz*.499);
+            if(!m.world.getBlockState(anchor).isFullCube(m.world,anchor)){
+                // A bottom stair may have no material on the far side at y+.71.
+                // Real lower faces and either side of its upper riser remain clickable.
+                search:for(double h:new double[]{.32,.72,.18,.44,.84})for(double offset:new double[]{.5,.24,.76}){
+                    Vec3d point=new Vec3d(anchor.getX()+(dx>0?.999:dx<0?.001:offset),anchor.getY()+h,
+                            anchor.getZ()+(dz>0?.999:dz<0?.001:offset));
+                    BlockHitResult planned=line(m,point);
+                    if(planned!=null&&planned.getBlockPos().equals(anchor)&&planned.getSide()==face){goal=point;break search;}
+                }
+            }
+            Race.aim(m,goal);
+        }
         else Race.aim(m,new Vec3d(m.player.getX()-dx*.15,m.player.getEyeY()-1.95,m.player.getZ()-dz*.15));
         m.gameRenderer.updateTargetedEntity(1);
         if(m.crosshairTarget!=null && m.crosshairTarget.getType()==HitResult.Type.BLOCK){

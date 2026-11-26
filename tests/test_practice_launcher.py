@@ -84,9 +84,10 @@ class PracticeLauncherTests(unittest.TestCase):
         instances = self.root/'prism'/'instances'
         instances.mkdir(parents=True)
         args = SimpleNamespace(work=self.root/'campaign', inspect=None, prism=None, prism_data=instances.parent,
-                               attempts=1, opening='alternate', reset_pb=[], profile=None)
+                               attempts=1, opening='alternate', wait_for_piglins=True, reset_pb=[], profile=None)
         selected = []
-        def prepare(data, work, skin, deps, opening):
+        def prepare(data, work, skin, deps, opening, wait_for_piglins):
+            self.assertTrue(wait_for_piglins)
             selected.append(opening)
             return {'opening': opening, 'instance': str(self.instance), 'token': str(uuid.uuid4())}
         def finish(attempt, work, destination):

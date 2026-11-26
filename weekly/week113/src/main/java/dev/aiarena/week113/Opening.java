@@ -785,6 +785,16 @@ public final class Opening {
                 BlockPos second=new BlockPos(116,9,-38);
                 if(mc.world.getBlockState(second).getBlock()==Blocks.OAK_DOOR){dryShaft=second;inWell=true;}
             }
+            if(castStep==29){
+                // When the lower door loses its floor, the adjacent pool can create
+                // cobblestone above the empty mold before the last lava is poured.
+                BlockPos shutter=new BlockPos(116,9,-38);
+                if(mc.world.getBlockState(shutter).getBlock()==Blocks.COBBLESTONE){
+                    status="mining cobblestone above the final floor";Race.stop(mc);mc.options.keySneak.setPressed(true);
+                    if(select(mc,Items.IRON_PICKAXE)&&target(mc,shutter)!=null)mc.options.keyAttack.setPressed(true);
+                    return true;
+                }
+            }
             if(castStep==28&&stayBelow&&mc.player.getZ()>-38.29){
                 // The second floor supports the door and the swimmer. Move onto
                 // the first, completed obsidian before removing its neighbor.

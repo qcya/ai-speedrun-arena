@@ -60,7 +60,8 @@ public final class Middle {
     private static int cell, next, age, entered, lastUse, thirdThrow, originalDistance = -1;
     private static boolean arrivedAtBastion, eating, equipAfterChest, drinkingFireResistance;
     private static BlockPos pillar;
-    private static int barricade, firstThirteen;
+    private static int barricade, pearlWalk;
+    private static boolean collectingAbove;
     private static final Step[] eastCover={new Step("0,place,-149,37,118,dirt"),
             new Step("0,place,-149,38,118,dirt"),new Step("0,place,-149,39,118,dirt")};
     public static String status = "approaching bastion";
@@ -86,7 +87,8 @@ public final class Middle {
         equipAfterChest=false;
         pillar=null;
         barricade=0;
-        firstThirteen=-1;
+        pearlWalk=0;
+        collectingAbove=false;
         cell=0;
     }
 
@@ -519,11 +521,9 @@ public final class Middle {
     }
 
     /** Keep outstanding ingots with the admiring pigs, and pillar straight up on our side. */
-    private static boolean leaveTradingShaft(MinecraftClient mc) {
+    private static boolean climbTradingShaft(MinecraftClient mc) {
         BlockPos foot=mc.player.getBlockPos();
         if (mc.player.getY()>=38.98 && mc.player.isOnGround()) {
-            while(next+1<steps.size() && steps.get(next+1).tick<=2976) next++;
-            Race.advanceTo(2976);
             return true;
         }
         Vec3d column=new Vec3d(-154.50,mc.player.getY(),119.50);
@@ -549,6 +549,43 @@ public final class Middle {
         mc.options.keyJump.setPressed(true);
         if (mc.player.getY()>=floor+2.002) use(mc,support);
         status="pillaring above the piglins with trade pearls";
+        return false;
+    }
+
+    private static boolean leaveTradingShaft(MinecraftClient mc) {
+        if (!climbTradingShaft(mc)) return false;
+        while(next+1<steps.size() && steps.get(next+1).tick<=2976) next++;
+        Race.advanceTo(2976);
+        return true;
+    }
+
+    // The near lintel remains intact. Its upper face lets Astra collect thrown items without entering the piglins' cell.
+    private static final Vec3d[] pearlLedges={new Vec3d(-155.72,38,119.50),new Vec3d(-154.50,39,119.50),
+            new Vec3d(-153.52,40,119.50),new Vec3d(-152.53,40,118.54),new Vec3d(-151.50,40,118.54),
+            new Vec3d(-150.66,39,118.55)};
+
+    private static boolean gatherFromLedges(MinecraftClient mc,int pearls,ItemEntity nearest) {
+        if (pearlWalk==0) {
+            if (!climbTradingShaft(mc)) return false;
+            pearlWalk=1;
+        }
+        if (pearls>=13 && pearlWalk>0) {
+            if (pearlWalk<=2) return leaveTradingShaft(mc);
+            pearlWalk=-Math.min(pearlWalk-1,pearlLedges.length-1);
+        }
+        if (pearlWalk==-1) return leaveTradingShaft(mc);
+        int index=pearlWalk>0?Math.min(pearlWalk-1,pearlLedges.length-1):-pearlWalk;
+        Vec3d to=pearlLedges[index];
+        if (pearlWalk>pearlLedges.length && nearest!=null) to=nearest.getPos();
+        double d=Math.hypot(to.x-mc.player.getX(),to.z-mc.player.getZ());
+        if (d<.32 && Math.abs(to.y-mc.player.getY())<1.15 && mc.player.isOnGround()) {
+            if (pearlWalk<=pearlLedges.length) pearlWalk++;
+            return false;
+        }
+        Race.aim(mc,new Vec3d(to.x,mc.player.getEyeY()-.25,to.z));
+        approach(mc,to,d<.42 && to.y<=mc.player.getY()+.25);
+        if (d<1.25 && to.y>mc.player.getY()+.48) mc.options.keyJump.setPressed(true);
+        status="collecting barter pearls from above the intact lintel "+pearlWalk;
         return false;
     }
 
@@ -587,35 +624,29 @@ public final class Middle {
     private static boolean shelter(MinecraftClient mc,Step s) {
         int pearls=count(mc,Items.ENDER_PEARL);
         int visible=pearls;
+        int chamberPearls=pearls, lowerPearls=pearls;
+        ItemEntity nearest=null;
         Vec3d protectedSpot=new Vec3d(-154.70,35,119.60);
         ItemEntity missed=null;
         for (Entity entity:mc.world.getEntities()) {
-            if (!(entity instanceof ItemEntity) || !entity.isAlive()
-                    || entity.squaredDistanceTo(protectedSpot)>38) continue;
+            if (!(entity instanceof ItemEntity) || !entity.isAlive()) continue;
             ItemEntity drop=(ItemEntity)entity;
+            if (drop.getStack().getItem()==Items.ENDER_PEARL && drop.getX()>=-159 && drop.getX()<=-146
+                    && drop.getY()>=34 && drop.getY()<=42 && drop.getZ()>=115 && drop.getZ()<=123) {
+                chamberPearls+=drop.getStack().getCount();
+                if (drop.squaredDistanceTo(protectedSpot)<=38 && drop.getY()<37.6) lowerPearls+=drop.getStack().getCount();
+                if (nearest==null || drop.squaredDistanceTo(mc.player)<nearest.squaredDistanceTo(mc.player)) nearest=drop;
+            }
+            if (drop.squaredDistanceTo(protectedSpot)>38) continue;
             if (drop.getStack().getItem()==Items.ENDER_PEARL) visible+=drop.getStack().getCount();
             if (drop.getStack().getItem()==Items.GOLD_INGOT && drop.getY()<35.45
                     && drop.squaredDistanceTo(protectedSpot)<3.0 && age-entered>45) missed=drop;
         }
+        if (chamberPearls>=13 && lowerPearls<13) collectingAbove=true;
+        if (collectingAbove) return gatherFromLedges(mc,pearls,nearest);
         if (pearls>=13) {
-            if (firstThirteen<0) firstThirteen=age;
-            if (pearls==13 && age-firstThirteen<126) {
-                int trading=0;
-                for(Entity e:mc.world.getEntities()) if(e instanceof PiglinEntity && e.isAlive()
-                        && e.squaredDistanceTo(protectedSpot)<36
-                        && ((PiglinEntity)e).getOffHandStack().getItem()==Items.GOLD_INGOT) trading++;
-                if (visible>pearls) {
-                    lowerShield(mc);
-                    collect(mc,Items.ENDER_PEARL,14);
-                    status="collecting an extra travel pearl";
-                    return false;
-                }
-                if (trading>=6) {
-                    shield(mc,true);
-                    status="waiting one barter cycle for the extra End pearl";
-                    return false;
-                }
-            }
+            // This weekly seed's three pearl barters give four, five and four.
+            // Loose stacks within the player's pickup box are collected automatically on departure.
             lowerShield(mc);
             return leaveTradingShaft(mc);
         }

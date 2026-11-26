@@ -211,7 +211,7 @@ def select_skin(explicit, work):
     raise ValueError('Point --skin at the original local qcya_ovo.png, or put it in Downloads.')
 
 
-def prepare_attempt(prism_data, work, skin, deps, opening="fast"):
+def prepare_attempt(prism_data, work, skin, deps, opening="fast", wait_for_piglins=False):
     token = str(uuid.uuid4())
     instance = Path(tempfile.mkdtemp(prefix='Astra-Practice-', dir=prism_data / 'instances'))
     game = instance / '.minecraft'
@@ -222,7 +222,8 @@ def prepare_attempt(prism_data, work, skin, deps, opening="fast"):
     from types import SimpleNamespace
     setup = render.load_helper('prepare_weekly', WEEK / 'prepare.py')
     setup.prepare(SimpleNamespace(game_dir=game, world_name=WORLD, skin=None, ranked_jar=deps['ranked'],
-                                  replay_jar=deps['replaymod'], autostart=True, shield=opening=='shield'))
+                                  replay_jar=deps['replaymod'], autostart=True, shield=opening=='shield',
+                                  wait_for_piglins=wait_for_piglins))
     film = render.load_helper('prepare_local_film', ROOT / 'presentation/prepare.py')
     film.prepare(game, skin, 'auto', 'nether', RULES, ROOT / 'presentation/astra-local-film.jar', work / 'split-history')
     config = game / 'config/replaymod.json'
@@ -230,7 +231,7 @@ def prepare_attempt(prism_data, work, skin, deps, opening="fast"):
     switch = game / 'astra-practice'
     switch.mkdir()
     (switch / 'enabled.txt').write_text(token, encoding='utf-8')
-    return {'token': token, 'instance': str(instance), 'opening': opening, 'created_epoch_ms': round(time.time()*1000)}
+    return {'token': token, 'instance': str(instance), 'opening': opening, 'wait_for_piglins': wait_for_piglins, 'created_epoch_ms': round(time.time()*1000)}
 
 
 def finish_attempt(attempt, work, destination):
@@ -324,7 +325,8 @@ def practice(args):
                     if opening == 'alternate':
                         previous_lane = read(last_opening)['opening'] if last_opening.is_file() else None
                         opening = 'shield' if previous_lane == 'fast' else 'fast'
-                    attempt = prepare_attempt(data, work, *resources, opening=opening)
+                    attempt = prepare_attempt(data, work, *resources, opening=opening,
+                                              wait_for_piglins=args.wait_for_piglins)
                     write(previous, attempt)
                 instance = Path(attempt['instance'])
                 game = instance / '.minecraft'
@@ -367,6 +369,8 @@ if __name__=='__main__':
     p.add_argument('--attempts',type=int,default=0,help='Number of attempts this invocation; zero continues until qualification')
     p.add_argument('--opening', choices=['alternate', 'fast', 'shield'], default='alternate',
                    help='Alternate the fast iron-trigger and shield openings across completed attempts, or select one lane')
+    p.add_argument('--wait-for-piglins', action='store_true',
+                   help='Wait on the isolated chest ledge if the lower bastion corridor contains attacking piglins')
     p.add_argument('--reset-pb',action='append',choices=['nether','end'],default=[],help='Optional strict reset when missing this campaign’s prior achieved split')
     p.add_argument('--skin',type=Path);p.add_argument('--music',type=Path)
     p.add_argument('--prism',type=Path);p.add_argument('--prism-data',type=Path);p.add_argument('--profile')
