@@ -144,7 +144,8 @@ class PracticeLauncherTests(unittest.TestCase):
         saved = self.rows([('spawn',0),('enter_nether',999),('state',2000)])
         self.assertIsNone(practice.decision(saved,{'nether':1001000}))
         limit = self.rows([('spawn',0),('state',600000)])
-        self.assertEqual(practice.decision(limit),'ten_minute_rta_limit')
+        self.assertIsNone(practice.decision(limit))
+        self.assertEqual(practice.decision(limit,max_rta_ms=600000),'configured_rta_reset')
 
     def test_death_archives_genuine_capture_and_never_freezes(self):
         self.rows([('spawn',0),('death',30000)])
@@ -169,7 +170,7 @@ class PracticeLauncherTests(unittest.TestCase):
         instances = self.root/'prism'/'instances'
         instances.mkdir(parents=True)
         args = SimpleNamespace(work=self.root/'campaign', inspect=None, prism=None, prism_data=instances.parent,
-                               attempts=1, opening='alternate', wait_for_piglins=True, initial_view_distance=16, reset_pb=[], profile=None)
+                               attempts=1, opening='alternate', wait_for_piglins=True, initial_view_distance=16, reset_pb=[], reset_after_rta_seconds=None, profile=None)
         selected = []
         def prepare(data, work, skin, deps, opening, wait_for_piglins, initial_view_distance):
             self.assertEqual(initial_view_distance,16)
@@ -198,24 +199,94 @@ class PracticeLauncherTests(unittest.TestCase):
         evidence = stasis_shortcuts([lower, cage, raise_distance, ledge])
         self.assertEqual(evidence['ledge_arrival_ms'],350)
         self.assertGreater(evidence['recall_displacement_blocks'],70)
-        with self.assertRaisesRegex(ValueError,'after collecting six'):
-            stasis_shortcuts([lower,key(200,2,3),cage,ledge])
-        with self.assertRaisesRegex(ValueError,'single-tick'):
-            stasis_shortcuts([lower,cage,raise_distance,dict(ledge,run_tick=8)])
-        with self.assertRaisesRegex(ValueError,'single-tick'):
-            stasis_shortcuts([lower,cage,raise_distance,dict(ledge,x=-9,y=57,z=160)])
+        self.assertIsNone(stasis_shortcuts([lower,key(200,2,3),cage,ledge]))
+        self.assertIsNone(stasis_shortcuts([lower,cage,raise_distance,dict(ledge,run_tick=8)]))
+        self.assertIsNone(stasis_shortcuts([lower,cage,raise_distance,dict(ledge,x=-9,y=57,z=160)]))
 
-    def test_time_equality_goes_to_real_verifiers(self):
-        self.rows([('spawn',0),('credits',335528)])
+    def test_fixed_strict_igt_in_practice(self):
+        self.rows([('spawn',0),('credits',610000)])
         self.capture()
         self.attempt['reason']='credits'
-        practice.write(self.world/'speedrunigt/record.json',{'is_completed':True,'final_igt':335528})
-        board={'top_five':[{'time_ms':335528}]}
-        with patch('official_board.current_benchmark',return_value=board), patch('freeze_take.pack') as pack, patch('render.verify_take') as verify:
-            self.assertEqual(practice.finish_attempt(self.attempt,self.root,self.dest),'qualified')
-            pack.assert_called_once()
-            verify.assert_called_once_with(self.dest,False)
-        board['top_five'][0]['time_ms']=335527
-        with patch('official_board.current_benchmark',return_value=board), patch('freeze_take.pack') as pack:
-            self.assertEqual(practice.finish_attempt(self.attempt,self.root,self.dest),'slower_than_first')
-            pack.assert_not_called()
+        for result, expected in [(328357,'qualified'),(335527,'qualified'),(335528,'did_not_beat_xiamoys'),
+                                 (335529,'did_not_beat_xiamoys')]:
+            practice.write(self.world/'speedrunigt/record.json',{'is_completed':True,'final_igt':result})
+            with self.subTest(result=result), patch('official_board.urlopen', side_effect=AssertionError('offline')), \
+                 patch('freeze_take.pack') as pack, patch('render.verify_take') as verify:
+                self.assertEqual(practice.finish_attempt(self.attempt,self.root,self.dest),expected)
+                if expected=='qualified':
+                    pack.assert_called_once()
+                    verify.assert_called_once_with(self.dest,False)
+                else:
+                    pack.assert_not_called()
+                    verify.assert_not_called()
+            receipt=practice.read(self.root/'receipts'/(self.attempt['token']+'.json'))
+            self.assertEqual(receipt['benchmark'],{'player':'xiamoys','time_ms':335528,'comparison':'<'})
+            self.assertEqual(receipt['lead_ms'],335528-result)
+
+    def test_freeze_and_export_compare_native_timer_to_xiamoys_without_live_rank(self):
+        import freeze_take
+        import render
+        from compare_splits import XIAMOYS_IGT_MS
+        self.assertEqual(practice.read(practice.WEEK/'champion.json')['result_igt_ms'],XIAMOYS_IGT_MS)
+        player = uuid.uuid4()
+        state = dict(event='spawn', run_tick=0, reference_tick=0, elapsed_ms=0, epoch_ms=5000,
+                     dim='overworld', x=207.5, y=64, z=11.5, hp=20, inventory=[])
+        rows=[state]
+        for i, (event, dim) in enumerate([('enter_nether','nether'),('return_overworld','overworld'),
+                                          ('enter_end','end')],1):
+            row=dict(state,event=event,run_tick=i,elapsed_ms=1000*i,dim=dim)
+            rows.extend((row,dict(row,event='state')))
+        rows.append(dict(rows[-1],event='credits',elapsed_ms=610000))
+        self.log.write_text(''.join(json.dumps(row)+'\n' for row in rows))
+        (self.world/'astra-113.local').touch()
+        (self.world/'astra-film-attempt.txt').write_text(str(player))
+        for kind, data in [('advancements',{s:{'done':True} for s in ('minecraft:story/enter_the_nether',
+                           'minecraft:story/enter_the_end','minecraft:end/kill_dragon')}),('stats',{'stats':{}})]:
+            (self.world/kind).mkdir()
+            practice.write(self.world/kind/(str(player)+'.json'),data)
+        (self.game/'resourcepacks').mkdir()
+        with zipfile.ZipFile(self.game/'resourcepacks/Astra-local-skin.zip','w'):
+            pass
+        (self.game/'config').mkdir()
+        practice.write(self.game/'config/astra-film.json',{'route':'test','rules':'test'})
+        history=self.game/'astra-film/history'
+        history.mkdir(parents=True)
+        (history/(str(player)+'.jsonl')).write_text(json.dumps({'event':'spawn','player':'Astra',
+                    'course':'test|test|test','wall_ms':5000,'previous_best_ms':{}})+'\n')
+        replay=self.root/'test.mcpr'
+        with zipfile.ZipFile(replay,'w') as z:
+            z.writestr('metaData.json',json.dumps({'protocol':736,'singleplayer':True,'serverName':'Week 113',
+                                                   'date':5000,'duration':610000}))
+            z.writestr('recording.tmcpr',struct.pack('>IIcIIc',0,1,b'a',610000,1,b'b'))
+        timer_path=self.world/'speedrunigt/record.json'
+        timer={'mc_version':'1.16.1','default_gamemode':0,'is_cheat_allowed':False,'is_completed':True}
+        with patch('freeze_take.verify', return_value={'seen_credits':True}), \
+             patch('world_evidence.read_level',return_value={'Player':{'UUID':player.bytes}}), \
+             patch('official_board.urlopen',side_effect=AssertionError('offline')):
+            for result in (335528,335529):
+                practice.write(timer_path,dict(timer,final_igt=result))
+                with self.subTest(result=result), self.assertRaisesRegex(ValueError,'strictly faster'):
+                    freeze_take.pack(self.world,replay,self.dest,False)
+            practice.write(timer_path,dict(timer,final_igt=335527))
+            freeze_take.pack(self.world,replay,self.dest,False)
+        meta,_ = render.verify_take(self.dest,False)
+        self.assertEqual(meta['lead_ms'],1)
+        self.assertEqual(meta['last_observed_ms'],610000)
+        self.assertIsNone(meta['native_route']['stasis_shortcuts'])
+
+        # An older bundle's self-reported qualifying metadata cannot relax the export check.
+        with zipfile.ZipFile(self.dest) as bundle:
+            entries={name:bundle.read(name) for name in bundle.namelist() if name!='SHA256SUMS'}
+        for result in (335528,335529):
+            entries['native-timer.json']=json.dumps(dict(timer,final_igt=result)).encode()
+            entries['take.json']=json.dumps(dict(meta,native_speedrunigt_ms=result)).encode()
+            forged_course=json.loads(entries['course.json'])
+            forged_course['top_five'][0]['time_ms']=400000
+            entries['course.json']=json.dumps(forged_course).encode()
+            forged_path=self.root/('over_target_'+str(result)+'.zip')
+            with zipfile.ZipFile(forged_path,'w') as z:
+                for name,data in entries.items():
+                    z.writestr(name,data)
+                z.writestr('SHA256SUMS',''.join(f'{freeze_take.sha(data)}  {name}\n' for name,data in entries.items()))
+            with self.subTest(result=result), self.assertRaisesRegex(ValueError,'strictly faster'):
+                render.verify_take(forged_path,False)

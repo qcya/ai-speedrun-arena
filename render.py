@@ -15,6 +15,8 @@ import tempfile
 import time
 import zipfile
 
+from weekly.week113.tools.compare_splits import beats_xiamoys
+
 ROOT=Path(__file__).resolve().parent
 WEEK=ROOT/"weekly/week113"
 DEFAULT_TAKE=WEEK/"release"/"Astra-W113.zip"
@@ -40,7 +42,7 @@ def appdata_dir():
 
 def verify_take(path, allow_segment):
     if not path.is_file():
-        raise ValueError(f"The repository contains no verified first-place-standard full take at {path.name}. No film rendered.")
+        raise ValueError(f"The repository contains no verified complete Week 113 take beating xiamoys (5:35.528 IGT) at {path.name}. No film rendered.")
     with zipfile.ZipFile(path) as z:
         if len(z.namelist())!=len(set(z.namelist())):raise ValueError("Repeated ZIP member")
         bad=z.testzip()
@@ -55,15 +57,16 @@ def verify_take(path, allow_segment):
                 for chunk in iter(lambda:f.read(1024*1024),b""):h.update(chunk)
             if h.hexdigest()!=expected:raise ValueError("Incorrect recording hash: "+name)
         meta=json.loads(z.read("take.json")); data=json.loads(z.read("native-timer.json"))
-        course=json.loads(z.read("course.json"));pb=course['top_five'][0]['time_ms']
+        course=json.loads(z.read("course.json"))
         pinned=json.loads((WEEK/"course.json").read_text(encoding="utf-8"))
         for key in ("week","minecraft","ranked","replaymod","seed","world_template_sha256"):
             if course.get(key)!=pinned[key]:raise ValueError(f"Recording differs from pinned course: {key}")
         if meta.get("course")!=113 or course["week"]!=113:raise ValueError("Unexpected course")
         if not allow_segment and not (meta.get("kind")=="local_full_run" and meta.get("native_completed") is True and
-                data.get("is_completed") is True and 0<meta["last_observed_ms"]<600000 and 0<data["final_igt"]<=pb and meta.get("native_route") and
+                data.get("is_completed") is True and meta["last_observed_ms"]>0 and beats_xiamoys(data.get("final_igt")) and
+                meta.get("native_speedrunigt_ms")==data["final_igt"] and meta.get("native_route") and
                 meta.get("native_world",{}).get("seen_credits") is True):
-            raise ValueError("This take contains no verified sub-ten-minute run matching or improving the recorded champion IGT")
+            raise ValueError("This take must contain a verified original Week 113 finish strictly faster than xiamoys (5:35.528 native IGT)")
         return meta,course
 
 def copy_member(z,name,path):

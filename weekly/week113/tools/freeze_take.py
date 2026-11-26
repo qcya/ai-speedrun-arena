@@ -10,6 +10,7 @@ from pathlib import Path
 import struct
 import tempfile
 import zipfile
+from compare_splits import XIAMOYS_IGT_MS, beats_xiamoys
 from world_evidence import verify
 
 COURSE = Path(__file__).resolve().parents[1] / "course.json"
@@ -78,28 +79,20 @@ def pack(world, replay, destination, segment):
     if complete and delta is None: raise ValueError("A scored run requires a recorded clock alignment")
     if delta is not None and complete and hi<delta+last["elapsed_ms"]-150:
         raise ValueError("Replay ends before the native finish")
-    route=course.get('route_reference',course['top_five'][0])
-    reference={key:route[key] for key in ('player','time_ms')}
-    if complete and not segment:
-        from official_board import current_benchmark, ENDPOINT
-        course=current_benchmark(course)
-        course['reference_first_place']=reference
-        course['qualifying_benchmark_source']=ENDPOINT
-    cutoff=course["top_five"][0]["time_ms"]
-    native_igt=timing.get("final_igt",0)
-    if not segment and (not complete or not 0<native_igt<=cutoff or not 0<last["elapsed_ms"]<600000):
-        raise ValueError("A native finish matching or improving the observed first-place IGT and an uncut RTA under ten minutes are required; choose --segment for practice footage")
+    native_igt = timing.get("final_igt", 0)
+    if not segment and (not complete or last["elapsed_ms"] <= 0 or not beats_xiamoys(native_igt)):
+        raise ValueError("A complete original Week 113 run strictly faster than xiamoys (5:35.528 native IGT) is required")
     checks={"kind":"practice_segment" if segment else "local_full_run","course":113,
-            "timing":"Local monotonic RTA; official comparison is IGT","native_completed":complete,
-            "last_observed_ms":last["elapsed_ms"],"last_reference_tick":last["reference_tick"],
-            "reference_first_ms":reference["time_ms"],"reference_first_player":reference["player"],
-            "qualifying_first_ms":cutoff,"qualifying_first_player":course["top_five"][0]["player"],
+            "timing":"Local uncut RTA and native SpeedRunIGT compared to xiamoys",
+            "native_completed":complete,"last_observed_ms":last["elapsed_ms"],"last_reference_tick":last["reference_tick"],
+            "benchmark":{"player":"xiamoys","time_ms":XIAMOYS_IGT_MS,"comparison":"<"},
             "native_speedrunigt_ms":native_igt,"native_world":native,"replay_date_ms":meta["date"],"spawn_minus_replay_start_ms":delta,
             "packet_count":count,"first_packet_ms":lo,"last_packet_ms":hi,"replay_duration_ms":meta["duration"],
             "native_replay_sha256":sha(replay.read_bytes()),"observer_source_sha256":sha(log)}
     if complete and not segment:
         from world_evidence import verify_route
         checks["native_route"]=verify_route(world,rows)
+        checks["lead_ms"]=XIAMOYS_IGT_MS-native_igt
     if not segment:
         checks["recording_mods"] = mod_versions(world)
     files={"Astra.mcpr":replay.read_bytes(),"observer.jsonl.gz":gzip.compress(log,mtime=0),

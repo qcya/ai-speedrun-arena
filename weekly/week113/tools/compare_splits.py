@@ -4,6 +4,14 @@ import argparse
 import json
 from pathlib import Path
 
+# The challenge is bound to this published Week 113 run even if the leaderboard changes.
+XIAMOYS_IGT_MS = 335_528
+
+
+def beats_xiamoys(igt_ms):
+    return type(igt_ms) is int and 0 < igt_ms < XIAMOYS_IGT_MS
+
+
 def compare(record,reference):
     actual=json.loads(record.read_text(encoding="utf-8"))["advancements"]
     baseline=json.loads(reference.read_text(encoding="utf-8"))

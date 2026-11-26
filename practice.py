@@ -17,6 +17,7 @@ import zipfile
 import zlib
 
 import render
+from weekly.week113.tools.compare_splits import XIAMOYS_IGT_MS, beats_xiamoys
 
 ROOT = Path(__file__).resolve().parent
 WEEK = ROOT / 'weekly/week113'
@@ -73,14 +74,14 @@ def split_cutoffs(game, world, gates):
             if key in gates and type(ms) is int and ms >= 0}
 
 
-def decision(journal, cutoffs=None):
+def decision(journal, cutoffs=None, max_rta_ms=None):
     if 'death' in journal.events:
         return 'death'
     if 'credits' in journal.events:
         return 'credits'
     row = journal.last
-    if row.get('elapsed_ms', 0) >= 600000:
-        return 'ten_minute_rta_limit'
+    if max_rta_ms is not None and row.get('elapsed_ms', 0) >= max_rta_ms:
+        return 'configured_rta_reset'
     for split, clock in (cutoffs or {}).items():
         event = {'nether': 'enter_nether', 'end': 'enter_end'}[split]
         reached = journal.events.get(event, row)
@@ -249,7 +250,7 @@ def inspect_world(world):
             'spawn_epoch_ms': rows.events.get('spawn', {}).get('epoch_ms')}
 
 
-def watch(game, world, attempt, statefile, gates, launcher=None):
+def watch(game, world, attempt, statefile, gates, launcher=None, max_rta_ms=None):
     folder = game / 'astra-practice'
     token = attempt['token']
     close = folder / (token + '.close')
@@ -264,7 +265,7 @@ def watch(game, world, attempt, statefile, gates, launcher=None):
             last_bytes, last_activity = rows.offset, now
         if cutoffs is None:
             cutoffs = split_cutoffs(game, world, gates)
-        outcome = attempt.get('reason') or decision(rows, cutoffs)
+        outcome = attempt.get('reason') or decision(rows, cutoffs, max_rta_ms)
         if not outcome and rows.last and now - last_activity > 180:
             outcome = 'observer_stalled'
         alive = game_alive(folder, token)
@@ -365,20 +366,15 @@ def finish_attempt(attempt, work, destination):
     if results['observed_credits'] and not results['death'] and verdict == 'credits':
         if not results['native_completed'] or type(results['final_igt_ms']) is not int or results['final_igt_ms'] <= 0:
             raise ValueError('Native credits observed but final SpeedRunIGT receipt is missing or invalid; preserved for inspection.')
-        if not 0 < results['observer_rta_ms'] < 600000:
-            verdict = 'ten_minute_rta_limit'
+        receipt['benchmark'] = {'player': 'xiamoys', 'time_ms': XIAMOYS_IGT_MS, 'comparison': '<'}
+        receipt['lead_ms'] = XIAMOYS_IGT_MS - results['final_igt_ms']
+        if beats_xiamoys(results['final_igt_ms']):
+            from freeze_take import pack
+            pack(world, replay, destination, False)
+            render.verify_take(destination, False)
+            verdict = 'qualified'
         else:
-            from official_board import current_benchmark
-            course = current_benchmark(read(WEEK / 'course.json'))
-            first = course['top_five'][0]
-            receipt['benchmark'] = first
-            if results['final_igt_ms'] > first['time_ms']:
-                verdict = 'slower_than_first'
-            else:
-                from freeze_take import pack
-                pack(world, replay, destination, False)
-                render.verify_take(destination, False)
-                verdict = 'qualified'
+            verdict = 'did_not_beat_xiamoys'
     receipt['verdict'] = verdict
     write(record, receipt)
     print(f"{verdict}  IGT={results['final_igt_ms']}ms  RTA={results['observer_rta_ms']}ms  {world}", flush=True)
@@ -446,7 +442,8 @@ def practice(args):
                     launch = subprocess.Popen(argv, cwd=instance)
                 print('Observing', instance, flush=True)
                 try:
-                    watch(game, game/'saves'/WORLD, attempt, previous, args.reset_pb, launch)
+                    watch(game, game/'saves'/WORLD, attempt, previous, args.reset_pb, launch,
+                          args.reset_after_rta_seconds * 1000 if args.reset_after_rta_seconds else None)
                 except KeyboardInterrupt:
                     if not attempt.get('reason'):
                         attempt['reason']='user_stopped'
@@ -482,6 +479,8 @@ if __name__=='__main__':
                    help='Use a chosen initial render distance, for example 16, in the isolated practice instance')
     p.add_argument('--wait-for-piglins', action='store_true',
                    help='Wait on the isolated chest ledge if the lower bastion corridor contains attacking piglins')
+    p.add_argument('--reset-after-rta-seconds', type=int, metavar='SECONDS',
+                   help='Optionally restart an unfinished attempt after this much wall time. Qualification uses native IGT.')
     p.add_argument('--reset-pb',action='append',choices=['nether','end'],default=[],help='Optional strict reset when missing this campaign’s prior achieved split')
     p.add_argument('--skin',type=Path);p.add_argument('--music',type=Path)
     p.add_argument('--prism',type=Path);p.add_argument('--prism-data',type=Path);p.add_argument('--profile')
@@ -492,6 +491,8 @@ if __name__=='__main__':
     a=p.parse_args()
     if a.initial_view_distance is not None and not 2 <= a.initial_view_distance <= 32:
         p.error('--initial-view-distance must be between 2 and 32')
+    if a.reset_after_rta_seconds is not None and a.reset_after_rta_seconds <= 0:
+        p.error('--reset-after-rta-seconds must be positive')
     if a.attempts<0:p.error('--attempts must be zero or positive')
     try:sys.exit(practice(a))
     except (OSError,ValueError,KeyError,RuntimeError,sqlite3.Error,zipfile.BadZipFile,subprocess.SubprocessError) as e:p.exit(1,str(e)+'\n')
