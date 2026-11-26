@@ -96,6 +96,12 @@ final class BastionEgress {
         int[] xyz=UPPER[i];return new BlockPos(xyz[0],xyz[1],xyz[2]);
     }
 
+    private static boolean overFirstChestTerrace(MinecraftClient mc) {
+        double x=mc.player.getX(), y=mc.player.getY(), z=mc.player.getZ();
+        return x>=-111.3 && x<=-107.0 && z>=107.7 && z<=111.8 && y>=35.7 && y<38
+                && !BastionApproach.open(mc,new BlockPos(x,35,z));
+    }
+
     static boolean tick(MinecraftClient mc) {
         if(!decided){
             decided=true;
@@ -103,8 +109,13 @@ final class BastionEgress {
             waiting=blocked&&waitForPiglins;
             useUpper=blocked&&upperAllowed&&!waitForPiglins;
         }
+        // The first hand-fed trade takes six seconds. Piglins can fill the lower hall during that wait,
+        // and the pickup can leave Astra one cell away from the original chest perch or briefly airborne.
+        if(waitForPiglins && !waiting && waitingTicks==0 && mc.player.inventory.count(Items.ENDER_PEARL)>=4
+                && overFirstChestTerrace(mc) && crowded(mc)) waiting=true;
         if(waiting){
             Race.stop(mc);mc.options.keyAttack.setPressed(false);mc.options.keySneak.setPressed(true);
+            if(mc.player.getOffHandStack().getItem()==Items.SHIELD) guardRamp(mc);
             int angry=0;
             for(Entity entity:mc.world.getEntities())if(entity instanceof PiglinEntity && entity.isAlive()
                     && mc.player.squaredDistanceTo(entity)<256 && ((PiglinEntity)entity).isAttacking())angry++;
@@ -114,6 +125,7 @@ final class BastionEgress {
             waitingTicks++;
             if((waitingTicks<603 || angry>0&&waitingTicks<680) && mc.player.getY()>35.6)return true;
             waiting=false;
+            lowerShield(mc);
         }
         if(!useUpper||arrived)return false;
         Race.stop(mc);mc.options.keyAttack.setPressed(false);Race.cap(2131);

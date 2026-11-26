@@ -158,7 +158,9 @@ final class TravelPearls {
                 }
                 if (score<best) {best=score;returnDirection=direction(yaw,pitch);}
             }
-            if(returnDirection==null) returnDirection=direction(78.5,-42);
+            // Client chunks can still be loading at the furthest edge during a rapid reset.
+            // This fallback hit the far terrace in an observed native return from this launch cell.
+            if(returnDirection==null) returnDirection=direction(83,-42);
         }
         Race.aim(mc,mc.player.getCameraPosVec(1).add(returnDirection.multiply(10)));
         if(mc.player.getRotationVec(1).dotProduct(returnDirection)<.9998) {returnReady=0;return false;}

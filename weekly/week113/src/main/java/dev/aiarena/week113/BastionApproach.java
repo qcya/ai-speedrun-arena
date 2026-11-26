@@ -38,8 +38,8 @@ public final class BastionApproach {
     static String status="";
     private static int index, inventoryTicks;
     private static Boolean originalAutoJump;
-    private static BlockPos entranceSupport;
-    public static void reset(){restoreJump();entranceSupport=null;index=0;inventoryTicks=0;status="";}
+    private static int entranceIndex=1;
+    public static void reset(){restoreJump();entranceIndex=1;index=0;inventoryTicks=0;status="";}
     private static void restoreJump(){
         if(originalAutoJump!=null){MinecraftClient.getInstance().options.autoJump=originalAutoJump;originalAutoJump=null;}
     }
@@ -48,7 +48,10 @@ public final class BastionApproach {
     }
     private static boolean select(MinecraftClient m,Item... choices){
         for(Item item:choices)for(int slot=0;slot<9;slot++) {
-            if(m.player.inventory.getStack(slot).getItem()==item){m.player.inventory.selectedSlot=slot;return true;}
+            if(m.player.inventory.getStack(slot).getItem()==item){
+                if(m.currentScreen instanceof InventoryScreen)m.player.closeHandledScreen();
+                m.player.inventory.selectedSlot=slot;return true;
+            }
         }
         for(Item item:choices)for(int slot=9;slot<36;slot++){
             if(m.player.inventory.getStack(slot).getItem()!=item)continue;
@@ -181,22 +184,50 @@ public final class BastionApproach {
         }
         return Math.abs(y-target.getY())<=1;
     }
+    /** Gravel can remain an authoritative solid for a tick before it falls into the lava.
+     * Stay on the portal's obsidian and then on each built block until the next support
+     * exists both locally and on the integrated server as a gravity-free solid.
+     */
+    private static boolean secureEntrance(MinecraftClient m) {
+        if(m.player.getY()>36 || m.currentScreen!=null && !(m.currentScreen instanceof InventoryScreen)) {
+            status="waiting for the Nether entrance to load";
+            return false;
+        }
+        net.minecraft.server.world.ServerWorld server=m.getServer().getWorld(m.world.getRegistryKey());
+        if(server==null)return false;
+        while(entranceIndex<=3) {
+            BlockPos next=path.get(entranceIndex),support=next.down(),previous=path.get(entranceIndex-1);
+            net.minecraft.block.BlockState actual=server.getBlockState(support), visible=m.world.getBlockState(support);
+            boolean gravity=actual.getBlock() instanceof net.minecraft.block.FallingBlock;
+            boolean solid=!actual.getCollisionShape(server,support).isEmpty();
+            if(solid && !gravity && visible.getBlock()==actual.getBlock()) {entranceIndex++;continue;}
+            m.options.keySneak.setPressed(true);
+            double px=previous.getX()+.5,pz=previous.getZ()+.5;
+            if(Math.hypot(m.player.getX()-px,m.player.getZ()-pz)>1.0) {
+                Race.aim(m,new Vec3d(px,m.player.getEyeY()-.1,pz));move(m,px,pz,true,false);
+                status="staying on the previous solid entrance tile";
+            } else if(gravity && visible.getBlock()==actual.getBlock()) {
+                status="clearing suspended entrance gravel";
+                if(select(m,Items.GOLDEN_SHOVEL,Items.WOODEN_SHOVEL,Items.IRON_PICKAXE)) {
+                    Race.aim(m,Vec3d.ofCenter(support));m.gameRenderer.updateTargetedEntity(1);
+                    if(m.crosshairTarget instanceof BlockHitResult && m.crosshairTarget.getType()==HitResult.Type.BLOCK
+                            && ((BlockHitResult)m.crosshairTarget).getBlockPos().equals(support))m.options.keyAttack.setPressed(true);
+                }
+            } else if(!solid && open(m,support)) {
+                status="placing entrance bridge support at "+support.toShortString();
+                bridge(m,previous,next);
+            } else {
+                status="waiting for the entrance bridge block update";
+            }
+            return false;
+        }
+        return true;
+    }
+
     /** Packets only follow ordinary local input or a rendered crosshair interaction. */
     public static boolean tick(MinecraftClient m){
         Race.stop(m);m.options.keyAttack.setPressed(false);
-        if (entranceSupport!=null) {
-            // With this local practice world, check the committed server collision as
-            // well as the client's prediction before stepping over the entrance void.
-            net.minecraft.server.world.ServerWorld world=m.getServer().getWorld(m.world.getRegistryKey());
-            boolean solid=world!=null && !world.getBlockState(entranceSupport).getCollisionShape(world,entranceSupport).isEmpty();
-            if (!solid && !open(m,entranceSupport)) {
-                m.options.keySneak.setPressed(true);
-                status="waiting for entrance bridge support at "+entranceSupport.toShortString();
-                return false;
-            }
-            // A correction to air re-enters the ordinary right-click placement below.
-            entranceSupport=null;
-        }
+        if(entranceIndex<=3 && !secureEntrance(m))return false;
         if(index>=path.size())return reachChestTerrace(m,path.get(path.size()-1));
         // One supported dirt extension leaves the next cell open as a moat against sword pigs.
         if(index>181 && !open(m,lootPerch.down()) && m.player.squaredDistanceTo(
@@ -242,9 +273,7 @@ public final class BastionApproach {
         status="walking to bastion "+index+"/"+path.size()+" "+p.toShortString();
         if(open(m,p.down())){
             status="bridging to bastion "+index+"/"+path.size()+" "+p.toShortString();
-            boolean clicked=bridge(m,previous,p);
-            if(clicked && index<=2)entranceSupport=p.down();
-            return false;
+            bridge(m,previous,p);return false;
         }
         double dy=p.getY()-m.player.getY();
         BlockPos overhead=m.player.getBlockPos().up(2);
