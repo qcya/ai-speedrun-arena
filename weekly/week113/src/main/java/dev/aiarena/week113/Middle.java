@@ -627,6 +627,18 @@ public final class Middle {
         return false;
     }
 
+    private static final Item[] SHAFT_SUPPORTS={Items.DIRT,Items.BLACKSTONE,Items.NETHERRACK,
+            Items.CRACKED_POLISHED_BLACKSTONE_BRICKS,Items.CHISELED_POLISHED_BLACKSTONE,
+            Items.POLISHED_BLACKSTONE_BRICKS,Items.COBBLESTONE,Items.NETHER_BRICKS};
+
+    private static boolean selectShaftSupport(MinecraftClient mc) {
+        for (Item item:SHAFT_SUPPORTS) {
+            if (count(mc,item)>0) return select(mc,item);
+        }
+        status="looking for a solid block to climb the trading pillar";
+        return false;
+    }
+
     /** Keep outstanding ingots with the admiring pigs, and pillar straight up on our side. */
     private static boolean climbTradingShaft(MinecraftClient mc) {
         BlockPos foot=mc.player.getBlockPos();
@@ -658,7 +670,7 @@ public final class Middle {
             return false;
         }
         mc.options.keyAttack.setPressed(false);
-        if (!select(mc,Items.DIRT) && !select(mc,Items.BLACKSTONE)) return false;
+        if (!selectShaftSupport(mc)) return false;
         int floor=(int)Math.floor(mc.player.getY()-.001);
         while (floor>33 && open(mc,new BlockPos(-155,floor,119))) floor--;
         BlockPos base=new BlockPos(-155,floor,119);
@@ -748,10 +760,11 @@ public final class Middle {
         }
         BlockPos support = new BlockPos(-155, Math.floor(mc.player.getY()-.02), 119);
         net.minecraft.block.Block block = mc.world.getBlockState(support).getBlock();
-        if (block==Blocks.DIRT || block==Blocks.BLACKSTONE) {
-            if (block==Blocks.BLACKSTONE && !select(mc,Items.IRON_PICKAXE)) return;
-            if (block==Blocks.DIRT && !select(mc,Opening.shovelOrPick(mc))) return;
+        for (Item item:SHAFT_SUPPORTS) {
+            if (block.asItem()!=item) continue;
+            if (!select(mc,item==Items.DIRT ? Opening.shovelOrPick(mc) : Items.IRON_PICKAXE)) return;
             mc.options.keyAttack.setPressed(aim(mc,support,Direction.UP)!=null);
+            break;
         }
         status="descending the protected trading pillar to the settled pearls";
     }

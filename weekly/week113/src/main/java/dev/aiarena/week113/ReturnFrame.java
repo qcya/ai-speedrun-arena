@@ -19,7 +19,11 @@ public final class ReturnFrame {
     };
     private static int stage, index, edgeTicks;
     private static boolean active;
-    private static int bankStep=-1;
+    private static int bankStep=-1, dryStep=-1;
+    private static final double[][] DRY_BANK = {
+        {-84.62,171.38}, {-85.56,170.58}, {-85.55,167.54}, {-85.45,166.63}, {-84.55,165.50}
+    };
+
     private static final double[][] RETURN_BANK = {
         {-84.52,174.50},{-84.52,172.48},{-84.52,170.50},{-85.50,170.50},{-85.50,166.58},{-84.55,166.52}
     };
@@ -30,7 +34,7 @@ public final class ReturnFrame {
 
     public static void reset() {
         stage = index = 0;
-        bankStep=-1;
+        bankStep=dryStep=-1;
         edgeTicks = 0;
         active = false;
     }
@@ -192,19 +196,50 @@ public final class ReturnFrame {
                 && full(m,new BlockPos(-83,75,176)) && full(m,new BlockPos(-85,74,172));
     }
 
+    private static boolean nearDryBank(MinecraftClient m, int reference) {
+        if (reference < 5161 || reference > 5220 || m.player.getX() < -87.1 || m.player.getX() > -82.8
+                || m.player.getZ() < 168.0 || m.player.getZ() > 176.3 || m.player.getY() < 73
+                || m.player.getY() > 78 || m.player.inventory.count(Items.BLAZE_ROD) < 6)
+            return false;
+        net.minecraft.entity.effect.StatusEffectInstance fire = m.player.getStatusEffect(
+                net.minecraft.entity.effect.StatusEffects.FIRE_RESISTANCE);
+        if (fire == null || fire.getDuration() < 160) return false;
+        for (double[] stance : DRY_BANK) {
+            BlockPos at = new BlockPos(stance[0],74,stance[1]);
+            if (!full(m,at) && !full(m,at.down())) return false;
+            if (full(m,at.up(2))) return false;
+        }
+        return true;
+    }
+
     public static boolean tick(MinecraftClient m, int reference) {
         if (!active) {
             boolean onBank=onBuiltReturnBank(m,reference);
-            if ((!onBank && reference < 5218)
+            boolean dry=nearDryBank(m,reference);
+            if ((!onBank && !dry && reference < 5218)
                     || reference >= 5412
                     || m.player.getY() < 68
                     || m.player.getY() > 84
                     || m.player.squaredDistanceTo(-84.5, 75, 168.5) > 15 * 15) return false;
-            if(onBank)bankStep=0;
+            if(dry) dryStep=m.player.getZ()<170.50 ? 2 : m.player.getZ()<172.7 ? 1 : 0;
+            else if(onBank) bankStep=0;
             active = true;
         }
         Race.stop(m);
         m.options.keyAttack.setPressed(false);
+        if (dryStep >= 0 && dryStep < DRY_BANK.length) {
+            double[] to = DRY_BANK[dryStep];
+            status = "crossing to the dry western edge of the portal ledge";
+            if (go(m,to[0],to[1],dryStep == DRY_BANK.length-1 ? .16 : .35,false)) {
+                if (++dryStep == DRY_BANK.length) finishStage();
+            } else if (m.player.isInLava()) {
+                m.options.keySneak.setPressed(false);
+                m.options.keyJump.setPressed(true);
+            } else if (Math.hypot(to[0]-m.player.getX(),to[1]-m.player.getZ()) > 1.7) {
+                m.options.keySprint.setPressed(m.options.keyForward.isPressed());
+            }
+            return true;
+        }
         if(bankStep>=0 && bankStep<RETURN_BANK.length) {
             double[] to=RETURN_BANK[bankStep];
             status="crossing the shallow lava onto the solid western return bank "+(bankStep+1);

@@ -1,0 +1,143 @@
+{
+  "bridge_throw": {
+    "scope": "Independent native segment. The saved player had already used two pearls and had no blaze rods. This segment starts beside the fortress bridge.",
+    "matching_save_files": 42,
+    "native_pearl_use_before_after": [
+      2,
+      3
+    ],
+    "native_blaze_kills_before_after": [
+      0,
+      10
+    ],
+    "native_rod_pickups_before_after": [
+      0,
+      6
+    ],
+    "added_projectile": {
+      "uuid": "77e86a87-0694-45db-bb04-b823b7d06cb2",
+      "ms_from_shortcut": -385,
+      "position": [
+        -30.379433553611275,
+        58.939999990165234,
+        167.46992167669134
+      ],
+      "velocity": [
+        -1.158375,
+        1.381125,
+        0.091125
+      ]
+    },
+    "observations_of_same_projectile": [
+      {
+        "uuid": "77e86a87-0694-45db-bb04-b823b7d06cb2",
+        "ms_from_shortcut": -385,
+        "position": [
+          -30.379433553611275,
+          58.939999990165234,
+          167.46992167669134
+        ],
+        "velocity": [
+          -1.158375,
+          1.381125,
+          0.091125
+        ]
+      },
+      {
+        "uuid": "77e86a87-0694-45db-bb04-b823b7d06cb2",
+        "ms_from_shortcut": 123759,
+        "position": [
+          -64.7336501761875,
+          83.8638181184806,
+          170.1735723678705
+        ],
+        "velocity": [
+          -0.814875,
+          0.081875,
+          0.064125
+        ]
+      }
+    ],
+    "stasis": {
+      "initial_distance": 16,
+      "minimum_distance": 2,
+      "recall_distance": 16,
+      "third_pearl_used_ms": 4854,
+      "dropped_to_two_ms": 5103,
+      "six_rods_observed_ms": 128738,
+      "recall_distance_increase_ms": 128741,
+      "restored_to_sixteen_ms": 128979,
+      "ledge_arrival_ms": 130802,
+      "recall_displacement_blocks": 95.37,
+      "recorded_key_changes": 32
+    },
+    "actual_launch_angles": [
+      86.1,
+      -40.1
+    ],
+    "first_observed_landing_xyz": [
+      -84.72186873863681,
+      75.45701148987769,
+      171.7466299498703
+    ],
+    "floor_pos": [
+      -85,
+      74,
+      171
+    ],
+    "floor_block": "netherrack",
+    "feet_block": "air",
+    "distance_to_required_high_ledge_center": 8.065562338608645,
+    "hp_after": 14.260002,
+    "replay_sha256": "106141b4beefb92705eef0e4dbc1bc8b777c0048084c8254b7ca774e9d3a3c70",
+    "packets_sha256": "cac59db77321ea564e8ed54f3b5e0b9427964a1cedaffba0e3508f2400289b58"
+  },
+  "return_frame": {
+    "scope": "Isolated comparison from the same natural high-ledge save. Timings are observer elapsed and native client ticks.",
+    "matching_original_files": 35,
+    "runs": {
+      "baseline": {
+        "initial_position": [
+          -83.3081487820136,
+          75.695056798538,
+          175.04171722557956
+        ],
+        "final_position": [
+          -86.48499255047788,
+          75.0,
+          165.51644922783697
+        ],
+        "initial_hp": 9.766672,
+        "final_hp": 16.300007,
+        "ticks": 332,
+        "observer_ms": 16083,
+        "native_block_at_-86_74_164": "minecraft:nether_portal",
+        "journal_sha256": "15323aeb96c97956fbe1bcbe7c213f984ac7e1e84c2c85a56e6a8719cf88158e",
+        "mcpr_sha256": "5566f407ae69d83f15fbedfb967cf3ad43db47439c961198b845f42cccbf4d39",
+        "recording_sha256": "b243b58b21afd0455ff3b7aea73ad8ee4488bde8541c62480202ab000d067dde"
+      },
+      "native01": {
+        "initial_position": [
+          -83.3081487820136,
+          75.695056798538,
+          175.04171722557956
+        ],
+        "final_position": [
+          -86.47831858848623,
+          75.0,
+          165.5230997478864
+        ],
+        "initial_hp": 9.766672,
+        "final_hp": 16.300007,
+        "ticks": 297,
+        "observer_ms": 14293,
+        "native_block_at_-86_74_164": "minecraft:nether_portal",
+        "journal_sha256": "b33705d4cb56ed4d335d6141cc7f991e340ec1cb2e18e1955dbeb637bf015d84",
+        "mcpr_sha256": "39c63e6c9d9e9c364995b36898b07f688db527addcb4ab9278a7d195375f8076",
+        "recording_sha256": "d0835018bfcb24bedb4639246e0793dda83d104f3fd5c84a3f18cc9031494ae6"
+      }
+    },
+    "saved_ticks": 35,
+    "saved_observer_ms": 1790
+  }
+}

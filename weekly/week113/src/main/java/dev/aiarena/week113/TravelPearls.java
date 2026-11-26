@@ -141,6 +141,12 @@ final class TravelPearls {
                 mc.options.keyJump.setPressed(false);
                 return false;
             }
+            // The takeoff floor is the top of the fortress bridge at Y57.
+            // A player who fell beneath that bridge can share the same X and Z.
+            BlockPos floor=new BlockPos(base.x,56,base.z);
+            if (Math.abs(mc.player.getY()-57)>.15
+                    || mc.world.getBlockState(floor).getCollisionShape(mc.world,floor).isEmpty())
+                return false;
             if (!mc.player.isOnGround() || Math.hypot(mc.player.getVelocity().x,mc.player.getVelocity().z)>.05)
                 return false;
             Vec3d start=mc.player.getPos().add(0,mc.player.getStandingEyeHeight()+.42-.10,0);
@@ -152,6 +158,14 @@ final class TravelPearls {
                     score=Math.max(score,landingScore(mc,start,v,terrace,71,78,-82));
                 }
                 if (score<best) {best=score;returnDirection=direction(yaw,pitch);}
+            }
+            // Prefer a landing on the dry part of the same high ledge when the nearby
+            // terrain is loaded. The number of throws and the distance keys are identical.
+            BlockPos shelf=new BlockPos(-86,74,170);
+            if (!mc.world.getBlockState(shelf).getCollisionShape(mc.world,shelf).isEmpty()
+                    && mc.world.getFluidState(shelf.up()).isEmpty()
+                    && mc.world.getBlockState(shelf.up()).getCollisionShape(mc.world,shelf.up()).isEmpty()) {
+                returnDirection=direction(86.1,-40.1);
             }
             // Client chunks can still be loading at the furthest edge during a rapid reset.
             // This fallback hit the far terrace in an observed native return from this launch cell.
