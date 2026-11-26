@@ -318,8 +318,16 @@ class PracticeLauncherTests(unittest.TestCase):
             self.assertEqual(receipt['benchmark'],{'time_ms':420000,'comparison':'<'})
             self.assertEqual(receipt['lead_ms'],420000-result)
 
+    def test_sub_seven_igt_fits_two_song_passes_at_original_speed(self):
+        self.rows([('spawn',0),('credits',421803)])
+        self.capture()
+        self.attempt['reason']='credits'
+        practice.write(self.world/'speedrunigt/record.json',{'is_completed':True,'final_igt':419485})
+        with patch('freeze_take.pack'), patch('render.verify_take'):
+            self.assertEqual(practice.finish_attempt(self.attempt,self.root,self.dest),'qualified')
+
     def test_long_wall_clock_finish_continues_campaign(self):
-        self.rows([('spawn',0),('credits',420500)])
+        self.rows([('spawn',0),('credits',424500)])
         self.capture()
         self.attempt['reason']='credits'
         practice.write(self.world/'speedrunigt/record.json',{'is_completed':True,'final_igt':405000})

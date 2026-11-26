@@ -21,6 +21,7 @@ from weekly.week113.tools.world_evidence import observed_route, replay_pearl_ord
 ROOT=Path(__file__).resolve().parent
 WEEK=ROOT/"weekly/week113"
 DEFAULT_TAKE=WEEK/"release"/"Astra-W113.zip"
+RESOLUTIONS = {"1080p": (1920, 1080), "2160p": (3840, 2160)}
 
 def load_helper(name,path):
     spec=importlib.util.spec_from_file_location(name,path)
@@ -67,7 +68,7 @@ def verify_take(path, allow_segment):
                 data.get("is_completed") is True and finish_fits_film(meta["last_observed_ms"]) and under_time_limit(data.get("final_igt")) and
                 meta.get("native_speedrunigt_ms")==data["final_igt"] and isinstance(meta.get("native_route"),dict) and meta["native_route"] and
                 meta.get("native_world",{}).get("seen_credits") is True):
-            raise ValueError("This take must contain a verified original Week 113 finish and uncut film under seven minutes")
+            raise ValueError("This take must contain a verified original Week 113 finish under seven minutes IGT and an uncut film shorter than two plays of Sleepwalker")
         if not allow_segment:
             with z.open("observer.jsonl.gz") as compressed, gzip.GzipFile(fileobj=compressed) as log:
                 rows = [json.loads(line) for line in log]
@@ -84,7 +85,9 @@ def copy_member(z,name,path):
     with z.open(name) as src,path.open("wb") as out:shutil.copyfileobj(src,out)
 
 def render(a):
-    take=a.take.resolve();dst=a.output.resolve()
+    width, height = RESOLUTIONS[a.resolution]
+    take=a.take.resolve()
+    dst=(a.output or ROOT/f"Astra-W113-{a.resolution}60.mp4").resolve()
     meta,course=verify_take(take,a.practice_segment)
     if a.check:
         print(json.dumps(meta,ensure_ascii=False,indent=2));return
@@ -129,12 +132,17 @@ def render(a):
             if "render-assets/astra-film.json" in z.namelist():copy_member(z,"render-assets/astra-film.json",film_config/"astra-film.json")
         else:
             film_prep.set_options(game/"options.txt",{"lang":"zh_cn","guiScale":"2"})
+    if a.resolution == "2160p":
+        film_prep.set_options(game/"options.txt", {"guiScale": "4"})
     marked=game/"replay_recordings"/"Astra-pov.mcpr";marked.parent.mkdir(exist_ok=True)
     source=game/"original.mcpr";journal=game/"observer.jsonl"
     view=native.build(source,journal,marked,"Astra",meta.get("spawn_minus_replay_start_ms"),0,None,
                       hud=hud,credits_tail_ms=min(18000, MAX_MOVIE_FRAMES * 1000 // 60 - meta["last_observed_ms"]) if meta["kind"]=="local_full_run" else 0)
     cfgdir=game/"config";cfgdir.mkdir(exist_ok=True)
-    raw=game/"Astra-native.mp4";(cfgdir/"astra-render-once.json").write_text(json.dumps({"input":str(marked),"output":str(raw),"ffmpeg":str(Path(shutil.which("ffmpeg")).resolve())}))
+    raw=game/"Astra-native.mp4"
+    job={"input":str(marked), "output":str(raw), "resolution":a.resolution,
+         "ffmpeg":str(Path(shutil.which("ffmpeg")).resolve())}
+    (cfgdir/"astra-render-once.json").write_text(json.dumps(job), encoding="utf-8")
     launcher=subprocess.Popen([str(prism),"-d",str(data),"-l",dstroot.name],cwd=dstroot)
     expected=round(view["video_duration_ms"]*.06)
     last_ms=-1
@@ -150,7 +158,7 @@ def render(a):
                 advance=json.loads(progress.read_bytes());current=advance["rendered_ms"]
                 if current!=last_ms:
                     last_ms=current
-                    print(f"Native 1080p60: {current/1000:.1f} / {advance['duration_ms']/1000:.1f} s",flush=True)
+                    print(f"Native {a.resolution}60: {current/1000:.1f} / {advance['duration_ms']/1000:.1f} s",flush=True)
             except (OSError,ValueError,KeyError):pass
         paths=[raw,progress,game/"logs/latest.log",cfgdir/"astra-render-active.json"]
         state=tuple((p.stat().st_size,p.stat().st_mtime_ns) if p.exists() else None for p in paths)
@@ -161,12 +169,12 @@ def render(a):
     probe=subprocess.run(["ffprobe","-v","error","-show_streams","-of","json",str(raw)],capture_output=True,check=True)
     streams=json.loads(probe.stdout).get("streams",[])
     v=next((q for q in streams if q["codec_type"]=="video"),{})
-    if (v.get("width"),v.get("height"))!=(1920,1080) or v.get("avg_frame_rate") not in ("60/1","60"):
-        raise ValueError("Native movie differs from 1920x1080 at 60 fps")
+    if (v.get("width"),v.get("height"))!=(width,height) or v.get("avg_frame_rate") not in ("60/1","60"):
+        raise ValueError(f"Native movie differs from {width}x{height} at 60 fps")
     frames=int(v.get("nb_frames",0))
     if abs(frames-expected)>1:raise ValueError(f"Expected {expected} frames, received {frames}")
     if not a.practice_segment and frames > MAX_MOVIE_FRAMES:
-        raise ValueError("Native movie exceeds the seven-minute delivery limit")
+        raise ValueError("Native movie must be shorter than two complete plays of Sleepwalker")
     with tempfile.TemporaryDirectory(dir=dst.parent) as td:
         if not a.music and not a.practice_segment:
             try:a.music=music_source.artist_source(Path(td)/"Sleepwalker.mp3")
@@ -184,7 +192,9 @@ def render(a):
 
 if __name__=="__main__":
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--take",type=Path,default=DEFAULT_TAKE);parser.add_argument("--output",type=Path,default=ROOT/"Astra-W113-1080p60.mp4")
+    parser.add_argument("--take",type=Path,default=DEFAULT_TAKE)
+    parser.add_argument("--resolution", choices=RESOLUTIONS, default="1080p", help="Native render size at 60 fps (default: 1080p)")
+    parser.add_argument("--output",type=Path,help="Output MP4 path (default: Astra-W113-<resolution>60.mp4)")
     parser.add_argument("--idle-minutes",type=float,default=20,help="Stop waiting after this many minutes without launcher, frame, or output activity")
     parser.add_argument("--check",action="store_true");parser.add_argument("--practice-segment",action="store_true")
     parser.add_argument("--prism",type=Path);parser.add_argument("--prism-data",type=Path);parser.add_argument("--skin",type=Path)

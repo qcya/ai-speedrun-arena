@@ -17,6 +17,7 @@ public final class LocalExport {
     private static int lastReport=-5000;
     private static int warm;
     private static String encoder="";
+    private static int width=1920, height=1080, bitrate=20*1024*1024;
     private static Class<?> type(String name) throws ClassNotFoundException {return Class.forName(name);}
     private static Object replay() throws ReflectiveOperationException {
         Class<?> c=type("com.replaymod.replay.ReplayModReplay");return c.getField("instance").get(null);
@@ -33,6 +34,14 @@ public final class LocalExport {
                 Files.deleteIfExists(configDir.resolve("astra-render-failed.txt"));
                 Files.deleteIfExists(configDir.resolve("astra-render-done.json"));
                 JsonObject job=new JsonParser().parse(new String(Files.readAllBytes(active),StandardCharsets.UTF_8)).getAsJsonObject();
+                String resolution=job.has("resolution") ? job.get("resolution").getAsString() : "1080p";
+                if (resolution.equals("2160p")) {
+                    width=3840;
+                    height=2160;
+                    bitrate=64*1024*1024;
+                } else if (!resolution.equals("1080p")) {
+                    throw new IOException("Unsupported export resolution: " + resolution);
+                }
                 if(job.has("ffmpeg")) {
                     Path path=Paths.get(job.get("ffmpeg").getAsString());
                     if(!path.isAbsolute() || !Files.isRegularFile(path))throw new IOException("Expected an absolute FFmpeg executable");
@@ -91,7 +100,7 @@ public final class LocalExport {
         args=args.replace("-an ","-an -threads 2 -preset veryfast ");
         Object options=null;
         for(Constructor<?> c:settings.getConstructors())if(c.getParameterCount()==22)
-            options=c.newInstance(mode,preset,1920,1080,60,20971520,output.toFile(),
+            options=c.newInstance(mode,preset,width,height,60,bitrate,output.toFile(),
                         false,false,false,false,false,null,360,180,false,false,false,aa,encoder,args,true);
         if(options==null)throw new IOException("Unsupported ReplayMod version");
         Object renderer=type("com.replaymod.render.rendering.VideoRenderer")

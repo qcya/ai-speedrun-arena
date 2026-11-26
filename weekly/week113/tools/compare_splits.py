@@ -9,8 +9,8 @@ XIAMOYS_IGT_MS = 335_528
 
 
 TIME_LIMIT_MS = 420_000
-# Last frame timestamp of the longest 60 fps movie strictly under seven minutes.
-MAX_MOVIE_FRAMES = 420 * 60 - 1
+# The uncut video must fit within two plays of the original 3:32 Sleepwalker.
+MAX_MOVIE_FRAMES = 2 * 212 * 60 - 1
 MAX_CREDITS_MS = (MAX_MOVIE_FRAMES - 1) * 1000 // 60
 
 

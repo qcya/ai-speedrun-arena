@@ -81,7 +81,7 @@ def pack(world, replay, destination, segment):
         raise ValueError("Replay ends before the native finish")
     native_igt = timing.get("final_igt", 0)
     if not segment and (not complete or not finish_fits_film(last["elapsed_ms"]) or not under_time_limit(native_igt)):
-        raise ValueError("The complete original run and uncut film through credits must fit under seven minutes")
+        raise ValueError("Native IGT must be under seven minutes and the uncut film must fit in two plays of Sleepwalker")
     checks={"kind":"practice_segment" if segment else "local_full_run","course":113,
             "timing":"Local uncut RTA and native SpeedRunIGT",
             "native_completed":complete,"last_observed_ms":last["elapsed_ms"],"last_reference_tick":last["reference_tick"],
