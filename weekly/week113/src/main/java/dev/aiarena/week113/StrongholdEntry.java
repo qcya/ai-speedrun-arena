@@ -28,7 +28,7 @@ import net.minecraft.world.RayTraceContext;
 public final class StrongholdEntry {
     private static final BlockPos POOL = new BlockPos(-764, 39, 1275);
     private static BlockPos waterSpot;
-    private static boolean poured;
+    private static boolean poured, rejoinPillar;
     private static int waterUseAge;
     private static final BlockPos SHAFT = new BlockPos(-679, 35, 1302);
     // Surveyed passable turns in the real corridor. It rises from Y31 to Y33 at the far end.
@@ -52,7 +52,7 @@ public final class StrongholdEntry {
     private static final double[][] FLOODED_TURNS = {
         {-730.47,1274.52}, {-732.52,1274.52}, {-733.30,1275.55}, {-734.55,1275.55}
     };
-    private static int floodedTurn = -1;
+    private static int floodedTurn = -1, floodedHole = -1;
     private static boolean returnToButton;
     private static boolean active, finished, westernPortal;
     private static final double[][] WESTERN_TURNS = {
@@ -68,11 +68,11 @@ public final class StrongholdEntry {
         phase = point = 0;
         door = -1;
         guardingCorridor = false;
-        floodedTurn = -1;
+        floodedTurn = floodedHole = -1;
         misses = 0;
         returnToButton = false;
         waterSpot = null;
-        poured = false;
+        poured = rejoinPillar = false;
         waterUseAge = -100;
     }
 
@@ -151,18 +151,28 @@ public final class StrongholdEntry {
      * the same bucket from a stable position.
      */
     private static boolean coolPortalPool(MinecraftClient mc, int reference) {
+        if (rejoinPillar && reference >= 5748 && reference <= 5805) {
+            if (mc.player.isOnGround() && mc.player.getY() >= 40.99
+                    && Math.hypot(mc.player.getX() - POOL.getX()-.5, mc.player.getZ()-POOL.getZ()-.5)<.30) {
+                rejoinPillar=false;
+            } else {
+                Race.stop(mc);
+                walk(mc,POOL.getX()+.5,POOL.getZ()+.5,false);
+                mc.options.keyJump.setPressed(mc.player.getY()<40.99);
+                status="climbing onto the central block to reach the remaining frames";
+                return true;
+            }
+        }
         if (reference < 5710
-                || reference > 5753
+                || reference > 5805
                 || mc.player.squaredDistanceTo(Vec3d.ofCenter(POOL)) > 23) return false;
         if (waterSpot == null) {
-            if ((!mc.player.isInLava() && mc.player.getY() > 40.1)
-                    || Math.hypot(
-                                    mc.player.getX() - POOL.getX() - .5,
-                                    mc.player.getZ() - POOL.getZ() - .5)
-                            > .8
-                    || !mc.world.getFluidState(POOL).isIn(FluidTags.LAVA)
-                    || mc.player.inventory.count(Items.WATER_BUCKET) == 0) return false;
-            waterSpot = POOL;
+            BlockPos under=new BlockPos(mc.player.getX(),POOL.getY(),mc.player.getZ());
+            if (Math.abs(under.getX()-POOL.getX())>1 || Math.abs(under.getZ()-POOL.getZ())>1
+                    || (!mc.player.isInLava() && mc.player.getY()>40.1)
+                    || !mc.world.getFluidState(under).isIn(FluidTags.LAVA)
+                    || mc.player.inventory.count(Items.WATER_BUCKET)==0) return false;
+            waterSpot=under;
         }
         Race.stop(mc);
         mc.options.keyJump.setPressed(mc.player.isInLava() || mc.player.isTouchingWater());
@@ -185,9 +195,11 @@ public final class StrongholdEntry {
             return true;
         }
         if (!server.getEntityWorld().getFluidState(waterSpot).isIn(FluidTags.WATER)) {
+            boolean onRim=!waterSpot.equals(POOL);
             waterSpot = null;
             poured = false;
-            return false;
+            rejoinPillar = onRim && !mc.world.getBlockState(POOL.up()).getCollisionShape(mc.world,POOL.up()).isEmpty();
+            return rejoinPillar;
         }
         if (server.isOnFire() || server.isInLava()) {
             status = "waiting in the extinguishing water";
@@ -195,21 +207,19 @@ public final class StrongholdEntry {
         }
         // Get completely off the center block so the subsequent dirt placement
         // can never collide with the runner, even if no fire resistance remains.
-        BlockPos ledge = POOL.east();
-        if (server.getEntityWorld()
-                .getBlockState(ledge)
-                .getCollisionShape(server.getEntityWorld(), ledge)
-                .isEmpty()) {
-            for (Direction d : Direction.Type.HORIZONTAL) {
-                BlockPos other = POOL.offset(d);
-                if (!server.getEntityWorld()
-                        .getBlockState(other)
-                        .getCollisionShape(server.getEntityWorld(), other)
-                        .isEmpty()) {
-                    ledge = other;
-                    break;
-                }
-            }
+        BlockPos ledge = null;
+        double best=Double.POSITIVE_INFINITY;
+        for (Direction side : new Direction[]{Direction.EAST,Direction.NORTH,Direction.SOUTH,Direction.WEST}) {
+            BlockPos option=waterSpot.offset(side);
+            if (!mc.world.getBlockState(option).isSideSolidFullSquare(mc.world,option,Direction.UP)
+                    || !mc.world.getBlockState(option.up()).getCollisionShape(mc.world,option.up()).isEmpty()
+                    || !mc.world.getBlockState(option.up(2)).getCollisionShape(mc.world,option.up(2)).isEmpty()) continue;
+            double score=mc.player.squaredDistanceTo(Vec3d.ofCenter(option));
+            if (score<best) {ledge=option;best=score;}
+        }
+        if(ledge==null){
+            status="waiting in the water for a clear ledge to cool";
+            return true;
         }
         if (Math.hypot(mc.player.getX() - ledge.getX() - .5, mc.player.getZ() - ledge.getZ() - .5)
                         > .43
@@ -439,6 +449,49 @@ public final class StrongholdEntry {
         return true;
     }
 
+    private static boolean dryHead(MinecraftClient mc,BlockPos p) {
+        return mc.world.getBlockState(p).getCollisionShape(mc.world,p).isEmpty()
+                && mc.world.getFluidState(p).isEmpty();
+    }
+
+    // This second blast pattern removes the brick floor from the falling-water
+    // column. Its southern neighbor has air at head height, even down in the hole.
+    private static boolean leaveFloodHole(MinecraftClient mc,int reference) {
+        if(reference<5610 || reference>5644 || mc.currentScreen!=null)return false;
+        if(floodedHole<0) {
+            if(mc.player.getX()< -729.06 || mc.player.getX()> -728.0 || mc.player.getZ()<1277.85
+                    || mc.player.getZ()>1279.95 || mc.player.getY()>=39.15 || !mc.player.isTouchingWater())return false;
+            BlockPos bottom=new BlockPos(-729,38,1278),breath=bottom.south(),step=breath.east();
+            if(!mc.world.getFluidState(bottom).isIn(net.minecraft.tag.FluidTags.WATER)
+                    || !mc.world.getFluidState(bottom.up()).isIn(net.minecraft.tag.FluidTags.WATER)
+                    || !mc.world.getBlockState(bottom).getCollisionShape(mc.world,bottom).isEmpty()
+                    || !dryHead(mc,breath.up()) || !dryHead(mc,breath.up(2))
+                    || !mc.world.getBlockState(step).isFullCube(mc.world,step)
+                    || !dryHead(mc,step.up()) || !dryHead(mc,step.up(2)))return false;
+            floodedHole=0;
+        }
+        Race.stop(mc);
+        if(floodedHole==0) {
+            if(mc.player.getZ()<1279.22)walk(mc,-728.55,1279.61,false);
+            else if(!mc.player.isSubmergedIn(net.minecraft.tag.FluidTags.WATER) && mc.player.getAir()>=70)floodedHole=1;
+            mc.options.keyJump.setPressed(mc.player.getY()<38.98);
+            status="swimming south to air beside the flooded brick floor";
+        } else if(floodedHole==1) {
+            walk(mc,-727.47,1279.54,false);
+            mc.options.keyJump.setPressed(mc.player.getY()<39.0 || mc.player.horizontalCollision);
+            if(mc.player.getX()> -727.90 && mc.player.getY()>=38.98)floodedHole=2;
+            status="climbing from the air pocket onto the eastern brick floor";
+        } else {
+            walk(mc,-727.50,1275.50,false);
+            mc.options.keyJump.setPressed(mc.player.getY()<38.95 || mc.player.horizontalCollision);
+            if(mc.player.getZ()<1275.82 && mc.player.getY()>=38.98){floodedHole=-1;floodedTurn=0;}
+            status="crossing the dry-headed eastern aisle around the breach";
+        }
+        mc.options.keySprint.setPressed(false);
+        mc.options.keySneak.setPressed(false);
+        return true;
+    }
+
     // A corridor creeper can breach the stronghold ceiling beneath the ocean.
     // Take the north edge of the same passage, clear the current, then rejoin the floor.
     private static boolean clearFloodedTurn(MinecraftClient mc, int reference) {
@@ -468,7 +521,7 @@ public final class StrongholdEntry {
     }
 
     public static boolean tick(MinecraftClient mc, int reference) {
-        if (clearFloodedTurn(mc, reference) || coolPortalPool(mc, reference) || doorPass(mc, reference)) return true;
+        if (leaveFloodHole(mc, reference) || clearFloodedTurn(mc, reference) || coolPortalPool(mc, reference) || doorPass(mc, reference)) return true;
         if (finished) return false;
         if (!active && reference >= 5412 && reference < 5479
                 && mc.player.getY() >= 32 && mc.player.getY() <= 38

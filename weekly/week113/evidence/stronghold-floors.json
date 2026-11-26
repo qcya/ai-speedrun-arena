@@ -1,0 +1,225 @@
+{
+  "full_original_east47": {
+    "initial_distance": 16,
+    "minimum_distance": 2,
+    "recall_distance": 16,
+    "third_pearl_used_ms": 254351,
+    "dropped_to_two_ms": 254578,
+    "six_rods_observed_ms": 345229,
+    "recall_distance_increase_ms": 345230,
+    "restored_to_sixteen_ms": 345544,
+    "ledge_arrival_ms": 346731,
+    "recall_displacement_blocks": 99.6,
+    "recorded_key_changes": 32,
+    "nether_throw_ordinal": 3,
+    "projectile_uuid": "effcdbdd-af8f-4f0a-8028-e843e9085545",
+    "projectile_spawn_ms": 254285,
+    "full_run_finished": false,
+    "final_igt_ms": 398363,
+    "boat_ticks": [
+      4679,
+      4752
+    ],
+    "boat_vertical_displacement": -20.01249998807907,
+    "nether_pearl_inventory_after_release": 11,
+    "frames": {
+      "native_eye_item_uses": 2,
+      "frames_observed": 2,
+      "all_target_frames_seen": false,
+      "filled_packet_ms": [
+        {
+          "xyz": [
+            -763,
+            41,
+            1277
+          ],
+          "observer_ms": 389955
+        },
+        {
+          "xyz": [
+            -764,
+            41,
+            1277
+          ],
+          "observer_ms": 390272
+        }
+      ]
+    },
+    "replay_sha256": "605cc75d50fb29a4c4ae21c128b911f89756d64ed69f9aba51f1af7a05f21bbe"
+  },
+  "portal_room_water_recovery": {
+    "scope": "Room-floor recovery from an unchanged survival checkpoint with 10 eyes and one water bucket; deliberately walked east from the existing central pillar.",
+    "matching_files": 30,
+    "initial_eyes": 10,
+    "moments": [
+      {
+        "action": "natural_fall_into_east_pool",
+        "tick": 25,
+        "ms": 1096,
+        "position": [
+          -762.5822927628731,
+          39.117938451751215,
+          1275.4685738824767
+        ],
+        "hp": 20.0
+      },
+      {
+        "action": "refilling the water bucket for the End landing",
+        "tick": 51,
+        "ms": 2228,
+        "position": [
+          -762.6217956050202,
+          40.55962837806603,
+          1274.7121613499398
+        ],
+        "hp": 16.0
+      },
+      {
+        "action": "climbing onto the central block to reach the remaining frames",
+        "tick": 60,
+        "ms": 2731,
+        "position": [
+          -762.6351803442057,
+          40.47765269820174,
+          1274.317619797155
+        ],
+        "hp": 15.0
+      }
+    ],
+    "end": {
+      "position": [
+        -763.5334693656691,
+        41.0,
+        1275.5586183423436
+      ],
+      "health": 16.0,
+      "full_bucket": 1,
+      "eyes_remaining": 0,
+      "event": "edge_timeout"
+    },
+    "observer_sha256": "9bd6cee6d2cbbeab52fbe0e8c932d75773fcf21741721ff909ee2565fee2fc2d",
+    "replay_sha256": "67f7a91124958fbed6a2288d13a2a7afefd22bc87baecc13a509ba98677420c9",
+    "eyes_actually_used": 10
+  },
+  "flooded_passage_survival_test": {
+    "kind": "Separate ordinary-play E39 survival calibration, same original overhead waterfall; the real iron pick mined the two P96 floor holes. Not an identical P96 replay.",
+    "source_hash_count": 57,
+    "all_original_hashes_still_match": true,
+    "patch_sha256": "c6639a7bd6d8d6e124ed87433be9ced1bebf777e1bd2481550683da11a9d16f5",
+    "native_cases": {
+      "start": {
+        "event": "state",
+        "run_tick": 1,
+        "elapsed_ms": 0,
+        "x": -730.6999999880791,
+        "y": 39.200000047683716,
+        "z": 1276.9521018175788,
+        "hp": 16.42,
+        "air": 300,
+        "submerged": false,
+        "floor_hole": "minecraft:mossy_stone_bricks",
+        "floor_south": "minecraft:stone_bricks",
+        "hole_stage": 0,
+        "escape_stage": -1,
+        "middle_action": "approaching bastion"
+      },
+      "mined_both": {
+        "event": "state",
+        "run_tick": 83,
+        "elapsed_ms": 3636,
+        "x": -728.6003214856544,
+        "y": 38.41999998688698,
+        "z": 1279.1737696690948,
+        "hp": 16.42,
+        "air": 300,
+        "submerged": false,
+        "floor_hole": "minecraft:water",
+        "floor_south": "minecraft:water",
+        "hole_stage": 3,
+        "escape_stage": -1,
+        "middle_action": "approaching bastion"
+      },
+      "in_the_hole": {
+        "event": "state",
+        "run_tick": 130,
+        "elapsed_ms": 6010,
+        "x": -728.975150737451,
+        "y": 38.359647610119616,
+        "z": 1278.4887170283173,
+        "hp": 16.42,
+        "air": 254,
+        "submerged": true,
+        "floor_hole": "minecraft:water",
+        "floor_south": "minecraft:water",
+        "hole_stage": 4,
+        "escape_stage": -1,
+        "middle_action": "approaching bastion"
+      },
+      "southern_air": {
+        "event": "state",
+        "run_tick": 149,
+        "elapsed_ms": 6929,
+        "x": -728.5751681318313,
+        "y": 39.20005259064808,
+        "z": 1279.200798719763,
+        "hp": 16.42,
+        "air": 242,
+        "submerged": false,
+        "floor_hole": "minecraft:water",
+        "floor_south": "minecraft:water",
+        "hole_stage": 4,
+        "escape_stage": 0,
+        "middle_action": "swimming south to air beside the flooded brick floor"
+      },
+      "east_step": {
+        "event": "state",
+        "run_tick": 171,
+        "elapsed_ms": 8111,
+        "x": -727.6650826199374,
+        "y": 39.402754983215644,
+        "z": 1279.6267574481292,
+        "hp": 16.42,
+        "air": 300,
+        "submerged": false,
+        "floor_hole": "minecraft:water",
+        "floor_south": "minecraft:water",
+        "hole_stage": 4,
+        "escape_stage": 2,
+        "middle_action": "climbing from the air pocket onto the eastern brick floor"
+      },
+      "original_controller": {
+        "event": "state",
+        "run_tick": 192,
+        "elapsed_ms": 9168,
+        "x": -727.4868352973159,
+        "y": 39.0,
+        "z": 1275.698467556588,
+        "hp": 16.42,
+        "air": 300,
+        "submerged": false,
+        "floor_hole": "minecraft:water",
+        "floor_south": "minecraft:water",
+        "hole_stage": 4,
+        "escape_stage": -1,
+        "middle_action": "crossing the dry-headed eastern aisle around the breach"
+      },
+      "dry_floor": {
+        "event": "rejoined_dry_stronghold_floor",
+        "run_tick": 275,
+        "elapsed_ms": 13213,
+        "x": -734.344752699567,
+        "y": 39.0,
+        "z": 1275.5884809160677,
+        "hp": 16.42,
+        "air": 300,
+        "submerged": false,
+        "floor_hole": "minecraft:water",
+        "floor_south": "minecraft:water",
+        "hole_stage": 4,
+        "escape_stage": -1,
+        "middle_action": "walking along the brick floor beside the flooded corridor"
+      }
+    },
+    "escape_ms": 7203
+  }
+}
